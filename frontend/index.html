@@ -1,0 +1,952 @@
+<!doctype html>
+<!--
+  AIGC多模态日语词汇学习 — 单页面应用（SPA）
+
+  页面结构：
+  - 认证层（auth-page）：登录/注册
+  - 主界面（main-app）：登录后可见
+    - 侧边栏导航（sidebar）
+    - 主内容区（main）：包含 10 个页面（page）
+      - 生成单词 / 词库 / 背词 / 短文 / 完型填空 / 语法 / 我的保存 / 成就 / 设置 / 管理
+
+  版本标识（由后端注入）：
+  - {style_version}, {api_version}, {app_version} 用于前端资源缓存控制
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIGC多模态日语词汇学习</title>
+    <link rel="stylesheet" href="/css/style.css?v={style_version}" />
+  </head>
+  <body>
+    <!-- ===== 登录/注册页面 ===== -->
+    <div class="auth-overlay" id="auth-page" style="display: none">
+      <div class="auth-container">
+        <div class="auth-brand">
+          <div class="auth-brand-icon">あ</div>
+          <div class="auth-brand-title">にほんご たんごちょう</div>
+          <div class="auth-brand-sub">AIGC多模态日语词汇学习</div>
+        </div>
+        <div class="auth-panel">
+          <div class="auth-panel-header">
+            <h2 class="auth-panel-title" id="auth-title">登录</h2>
+          </div>
+          <div class="auth-fields">
+            <input
+              type="text"
+              id="auth-username"
+              class="auth-field-input"
+              placeholder="用户名"
+              autocomplete="username"
+            />
+            <input
+              type="password"
+              id="auth-password"
+              class="auth-field-input"
+              placeholder="密码"
+              autocomplete="current-password"
+            />
+          </div>
+          <div class="auth-msg" id="auth-error"></div>
+          <button class="auth-submit" id="btn-auth-submit">登 录</button>
+          <div class="auth-foot">
+            <span id="auth-switch-text">还没有帐号？</span>
+            <button class="auth-switch-btn" id="btn-auth-switch">立即注册</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="app">
+      <!-- 主界面（登录后可见） -->
+      <div id="main-app" style="display: none">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+          <div class="logo">
+            <span class="logo-icon">あ</span>
+            <span class="logo-text">AIGC多模态日语词汇学习</span>
+          </div>
+          <div class="sidebar-greeting">日本語の世界へようこそ！(≧∇≦)ﾉ</div>
+          <nav class="nav">
+            <button class="nav-btn active" data-tab="generate" id="nav-generate">
+              <span class="nav-icon">✦</span> 生成单词
+            </button>
+            <button class="nav-btn" data-tab="wordbank" id="nav-wordbank">
+              <span class="nav-icon">📖</span> 我的词库
+            </button>
+            <button class="nav-btn" data-tab="study" id="nav-study">
+              <span class="nav-icon">📝</span> 背词
+              <span class="nav-badge" id="study-badge" style="display: none">0</span>
+            </button>
+            <button class="nav-btn" data-tab="essay" id="nav-essay">
+              <span class="nav-icon">📄</span> 短文
+            </button>
+            <button class="nav-btn" data-tab="grammar" id="nav-grammar">
+              <span class="nav-icon">📐</span> 语法
+            </button>
+            <button class="nav-btn" data-tab="cloze" id="nav-cloze">
+              <span class="nav-icon">📝</span> 完型填空
+            </button>
+            <button class="nav-btn" data-tab="image" id="nav-image">
+              <span class="nav-icon">📷</span> 图片词卡
+            </button>
+            <button class="nav-btn" data-tab="saved" id="nav-saved">
+              <span class="nav-icon">📋</span> 我的保存
+            </button>
+            <button class="nav-btn" data-tab="achievement" id="nav-achievement">
+              <span class="nav-icon">🏆</span> 成就
+            </button>
+            <button class="nav-btn" data-tab="settings" id="nav-settings">
+              <span class="nav-icon">⚙</span> 设置
+            </button>
+            <button class="nav-btn" data-tab="admin" id="nav-admin" style="display: none">
+              <span class="nav-icon">🛡</span> 管理
+            </button>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="user-info" id="sidebar-user">
+              <span class="user-icon">👤</span>
+              <span class="user-name" id="sidebar-username"></span>
+            </div>
+            <button class="btn btn-link btn-logout" id="btn-logout">退出登录</button>
+            <div class="api-status" id="api-status">
+              <span class="status-dot"></span> API 未检测
+            </div>
+          </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main">
+          <!-- 生成单词页面 -->
+          <section class="page active" id="page-generate">
+            <div class="page-header">
+              <h1>生成单词</h1>
+              <p class="subtitle">输入一个主题，AI 自动生成10个相关日语单词</p>
+            </div>
+
+            <div class="generate-box">
+              <div class="input-row">
+                <input
+                  type="text"
+                  id="topic-input"
+                  class="topic-input"
+                  placeholder="输入主题，例如：足球、美食、IT术语..."
+                  autocomplete="off"
+                />
+                <select id="difficulty-select" class="difficulty-select">
+                  <option value="" disabled selected>选择单词等级</option>
+                  <option value="">不限等级</option>
+                  <option value="N5">N5 入门</option>
+                  <option value="N4">N4 初级</option>
+                  <option value="N3">N3 中级</option>
+                  <option value="N2">N2 上级</option>
+                  <option value="N1">N1 高级</option>
+                </select>
+                <select id="word-count-select" class="difficulty-select">
+                  <option value="10">10 词</option>
+                  <option value="20">20 词</option>
+                  <option value="30">30 词</option>
+                </select>
+                <input
+                  type="text"
+                  id="extra-input"
+                  class="extra-input"
+                  placeholder="补充条件，如：动词、外来语..."
+                  autocomplete="off"
+                  maxlength="200"
+                />
+                <button class="btn btn-primary" id="btn-generate">
+                  <span class="btn-text">生成</span>
+                </button>
+              </div>
+              <div class="topic-suggestions">
+                <span class="suggest-label">试试：</span>
+                <button class="tag" data-topic="足球">足球</button>
+                <button class="tag" data-topic="咖啡">咖啡</button>
+                <button class="tag" data-topic="编程">编程</button>
+                <button class="tag" data-topic="日本料理">日本料理</button>
+                <button class="tag" data-topic="商务日语">商务日语</button>
+              </div>
+            </div>
+
+            <!-- 欢迎语 -->
+            <div class="generate-welcome" id="generate-welcome">
+              <div class="generate-welcome-text">Ciallo～(∠・ω< )⌒☆</div>
+              <div class="generate-welcome-sub">欢迎使用</div>
+            </div>
+
+            <!-- 加载状态 -->
+            <div class="loading" id="loading" style="display: none">
+              <div class="spinner"></div>
+              <p>AI 正在生成单词，请稍候...</p>
+              <pre class="stream-preview" id="stream-preview"></pre>
+            </div>
+
+            <!-- 生成结果 -->
+            <div class="result-area" id="result-area" style="display: none">
+              <div class="result-header">
+                <h2 id="result-topic"></h2>
+                <div class="result-actions">
+                  <button class="btn btn-outline" id="btn-select-all">全选</button>
+                  <button class="btn btn-primary" id="btn-save" disabled>
+                    保存选中 (<span id="selected-count">0</span>)
+                  </button>
+                  <button class="btn btn-outline" id="btn-generate-more">生成更多</button>
+                </div>
+              </div>
+              <div class="word-cards" id="word-cards"></div>
+            </div>
+
+            <!-- 错误信息 -->
+            <div class="error-msg" id="generate-error" style="display: none"></div>
+          </section>
+
+          <!-- 词库页面 -->
+          <section class="page" id="page-wordbank">
+            <div class="page-header">
+              <h1>我的词库</h1>
+              <p class="subtitle">按主题浏览、搜索已保存的单词</p>
+            </div>
+
+            <div class="wordbank-layout">
+              <div class="wordbank-sidebar">
+                <div class="search-box">
+                  <input
+                    type="text"
+                    id="search-input"
+                    class="search-input"
+                    placeholder="搜索单词..."
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="topic-list" id="topic-list">
+                  <button class="topic-item active" data-topic="">全部</button>
+                </div>
+              </div>
+              <div class="wordbank-main">
+                <div class="wordbank-toolbar">
+                  <div class="wordbank-info" id="wordbank-info"></div>
+                  <button class="btn btn-outline btn-sm" id="btn-show-add-form">＋ 添加单词</button>
+                  <button class="btn btn-outline btn-sm" id="btn-merge-duplicates">合并相同单词</button>
+                </div>
+
+                <div class="add-word-form" id="add-word-form" style="display: none">
+                  <div class="add-word-row">
+                    <select id="add-word-topic" class="add-word-select"></select>
+                    <input
+                      type="text"
+                      id="add-japanese"
+                      class="add-word-input"
+                      placeholder="日文汉字"
+                      autocomplete="off"
+                    />
+                    <input
+                      type="text"
+                      id="add-kana"
+                      class="add-word-input"
+                      placeholder="假名"
+                      autocomplete="off"
+                    />
+                    <input
+                      type="text"
+                      id="add-chinese"
+                      class="add-word-input"
+                      placeholder="中文释义"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="add-word-row">
+                    <input
+                      type="text"
+                      id="add-example-ja"
+                      class="add-word-input add-word-wide"
+                      placeholder="日文例句"
+                      autocomplete="off"
+                    />
+                    <input
+                      type="text"
+                      id="add-example-cn"
+                      class="add-word-input add-word-wide"
+                      placeholder="中文例句"
+                      autocomplete="off"
+                    />
+                    <button class="btn btn-primary btn-sm" id="btn-add-word">确认添加</button>
+                  </div>
+                </div>
+
+                <div class="wordbank-cards" id="wordbank-cards"></div>
+                <div class="wordbank-pagination" id="wordbank-pagination" style="display: none">
+                  <button class="btn btn-outline btn-sm" id="wb-prev">上一页</button>
+                  <span class="wb-page-info" id="wb-page-info"></span>
+                  <button class="btn btn-outline btn-sm" id="wb-next">下一页</button>
+                  <span class="wb-jump">
+                    跳至 <input type="number" id="wb-jump-input" class="wb-jump-input" min="1" /> 页
+                  </span>
+                </div>
+                <div class="empty-state" id="empty-state" style="display: none">
+                  <div class="empty-icon">📭</div>
+                  <p>词库还是空的</p>
+                  <button class="btn btn-primary" id="btn-go-generate">去生成单词</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 背词页面 -->
+          <section class="page" id="page-study">
+            <div class="page-header">
+              <h1>背词</h1>
+              <p class="subtitle" id="study-subtitle">选择词单开始背诵</p>
+            </div>
+
+            <!-- 选题阶段 -->
+            <div id="study-pick">
+              <div class="study-subtabs">
+                <button class="study-subtab active" id="study-subtab-new">学习新词</button>
+                <button class="study-subtab" id="study-subtab-review">复习旧词</button>
+              </div>
+              <div class="study-stats" id="study-stats"></div>
+              <div class="study-calendar" id="study-calendar" style="display: none">
+                <div class="study-calendar-header">
+                  <span class="study-calendar-title">复习计划</span>
+                  <span class="study-calendar-new-hint" id="study-calendar-new-hint"></span>
+                </div>
+                <div class="study-calendar-grid" id="study-calendar-grid"></div>
+              </div>
+              <button class="essay-toggle-btn" id="btn-study-toggle-topics">
+                <span class="essay-toggle-arrow">▶</span> 选择词单（可多选）
+                <span class="essay-toggle-count" id="study-toggle-count"></span>
+              </button>
+              <div class="essay-topic-wrap" id="study-topic-wrap" style="display: none">
+                <div class="study-topic-grid" id="study-topic-grid"></div>
+              </div>
+              <div class="study-mode-row">
+                <label class="study-mode-label">背诵模式：</label>
+                <button class="btn btn-outline btn-sm mode-btn active" data-mode="kanji2kana">
+                  汉字 → 假名
+                </button>
+                <button class="btn btn-outline btn-sm mode-btn" data-mode="kana2kanji">
+                  假名 → 汉字
+                </button>
+                <button class="btn btn-outline btn-sm mode-btn" data-mode="listening">
+                  听力
+                </button>
+              </div>
+              <div class="study-actions">
+                <button class="btn btn-primary" id="btn-start-study">开始背诵</button>
+              </div>
+            </div>
+
+            <!-- 背诵阶段 -->
+            <div id="study-session" style="display: none">
+              <div class="study-progress">
+                <span id="study-progress-text"></span>
+                <div class="study-bar"><div class="study-bar-fill" id="study-bar-fill"></div></div>
+              </div>
+
+              <div class="flashcard" id="flashcard">
+                <div class="flashcard-inner" id="flashcard-inner">
+                  <div class="flashcard-front" id="flashcard-front"></div>
+                  <div class="flashcard-back">
+                    <div id="flashcard-back-main"></div>
+                    <div class="flashcard-example" id="flashcard-example" style="display:none"></div>
+                    <div class="flashcard-img" id="flashcard-img" style="display:none"></div>
+                    <div class="flashcard-study-info" id="flashcard-study-info"></div>
+                    <button class="image-card-speak-btn flashcard-speak-btn" id="flashcard-speak-btn" title="朗读">▶</button>
+                  </div>
+                </div>
+                <p class="flashcard-hint" id="flashcard-hint">点击卡片翻转 · 空格键翻牌 · 1-6评分 · Ctrl+Z 返回上一词</p>
+              </div>
+
+              <!-- 听力模式控制按钮 -->
+              <div class="study-listening-actions" id="study-listening-actions" style="display:none">
+                <button class="btn btn-primary" id="btn-listening-play">
+                  🔊 播放音频
+                </button>
+                <button class="btn btn-outline" id="btn-listening-reveal">
+                  👁 显示答案
+                </button>
+              </div>
+
+              <div class="study-session-actions">
+                <button class="btn btn-outline btn-sm" id="btn-study-undo" style="display:none" title="返回上一个单词 (Ctrl+Z)">
+                  ↩ 返回上一个单词
+                </button>
+              </div>
+
+              <div class="study-quality-buttons">
+                <button class="btn btn-quality q-0" data-quality="0">完全忘了</button>
+                <button class="btn btn-quality q-1" data-quality="1">不太记得</button>
+                <button class="btn btn-quality q-2" data-quality="2">有点印象</button>
+                <button class="btn btn-quality q-3" data-quality="3">勉强正确</button>
+                <button class="btn btn-quality q-4" data-quality="4">比较顺畅</button>
+                <button class="btn btn-quality q-5" data-quality="5">完全掌握</button>
+              </div>
+            </div>
+
+            <!-- 完成阶段 -->
+            <div id="study-done" style="display: none">
+              <div class="study-done-container">
+                <div class="study-done-header">
+                  <div class="empty-icon" style="font-size:48px">🎉</div>
+                  <p id="study-done-msg" style="font-size:18px;font-weight:700;margin:8px 0"></p>
+                </div>
+                <div class="study-session-stats" id="study-session-stats"></div>
+                <div style="text-align:center;margin-top:20px">
+                  <button class="btn btn-primary" id="btn-study-again">继续背词</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 短文页面 -->
+          <section class="page" id="page-essay">
+            <div class="page-header">
+              <h1>短文生成</h1>
+              <p class="subtitle">选择词单，AI 使用你的词汇生成日语短文</p>
+            </div>
+
+            <div id="essay-config">
+              <button class="essay-toggle-btn" id="btn-essay-toggle-topics">
+                <span class="essay-toggle-arrow">▶</span> 选择词单（可多选）
+                <span class="essay-toggle-count" id="essay-toggle-count"></span>
+              </button>
+              <div class="essay-topic-wrap" id="essay-topic-wrap" style="display: none">
+                <div class="essay-topic-grid" id="essay-topic-grid"></div>
+              </div>
+
+              <div class="essay-word-picker" id="essay-word-picker" style="display: none">
+                <div class="essay-section-label">选择要使用的单词 <span class="essay-word-hint" id="essay-word-hint"></span></div>
+                <div class="essay-word-chips" id="essay-word-chips"></div>
+                <div class="essay-word-actions">
+                  <button class="btn btn-outline btn-sm" id="btn-essay-select-all-words">全选</button>
+                  <button class="btn btn-outline btn-sm" id="btn-essay-deselect-all-words">取消全选</button>
+                </div>
+              </div>
+
+              <div class="essay-config-row">
+                <div class="essay-config-group">
+                  <label class="essay-config-label">文体</label>
+                  <select id="essay-genre" class="essay-select">
+                    <option value="">不限</option>
+                    <option value="日记">日记</option>
+                    <option value="信件">信件</option>
+                    <option value="对话">对话</option>
+                    <option value="议论文">议论文</option>
+                    <option value="说明文">说明文</option>
+                    <option value="随笔">随笔</option>
+                  </select>
+                </div>
+                <div class="essay-config-group" style="flex:1">
+                  <label class="essay-config-label">标题</label>
+                  <input type="text" id="essay-title-input" class="essay-title-input" placeholder="自定义标题（可选）" autocomplete="off" maxlength="100" />
+                </div>
+              </div>
+
+              <div class="essay-config-row">
+                <div class="essay-config-group">
+                  <label class="essay-config-label">字数</label>
+                  <select id="essay-word-count" class="essay-select">
+                    <option value="200">200字</option>
+                    <option value="300" selected>300字</option>
+                    <option value="500">500字</option>
+                    <option value="800">800字</option>
+                  </select>
+                </div>
+                <div class="essay-config-group">
+                  <label class="essay-config-label">难度</label>
+                  <select id="essay-level" class="essay-select">
+                    <option value="N5">N5（最简单）</option>
+                    <option value="N4">N4</option>
+                    <option value="N3" selected>N3（中等）</option>
+                    <option value="N2">N2</option>
+                    <option value="N1">N1（最难）</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="essay-generate-row">
+                <button class="btn btn-primary" id="btn-generate-essay" disabled>生成短文</button>
+              </div>
+            </div>
+
+            <div class="loading" id="essay-loading" style="display: none">
+              <div class="spinner"></div>
+              <p>AI 正在撰写短文，请稍候...</p>
+              <pre class="stream-preview" id="essay-stream-preview"></pre>
+            </div>
+
+            <div class="result-area" id="essay-result" style="display: none">
+              <div class="result-header">
+                <h2 id="essay-title"></h2>
+                <div class="result-actions">
+                  <button class="btn btn-outline" id="btn-essay-save">保存短文</button>
+                  <button class="btn btn-primary" id="btn-essay-regenerate">重新生成</button>
+                </div>
+              </div>
+
+              <div class="essay-card">
+                <div class="essay-content" id="essay-content"></div>
+              </div>
+
+              <div class="essay-card">
+                <div class="essay-section-label">使用到的词汇</div>
+                <div class="essay-words-used" id="essay-words-used"></div>
+              </div>
+
+              <div class="essay-card">
+                <div class="essay-section-label">中文翻译</div>
+                <div class="essay-translation" id="essay-translation"></div>
+              </div>
+            </div>
+
+            <div class="error-msg" id="essay-error" style="display: none"></div>
+
+          </section>
+
+          <!-- 完型填空页面 -->
+          <section class="page" id="page-cloze">
+            <div class="page-header">
+              <h1>完型填空</h1>
+              <p class="subtitle">选择词单，AI 生成完型填空练习短文</p>
+            </div>
+
+            <!-- 配置阶段 -->
+            <div id="cloze-config">
+              <button class="essay-toggle-btn" id="btn-cloze-toggle-topics">
+                <span class="essay-toggle-arrow">▶</span> 选择词单（可多选）
+                <span class="essay-toggle-count" id="cloze-toggle-count"></span>
+              </button>
+              <div class="essay-topic-wrap" id="cloze-topic-wrap" style="display: none">
+                <div class="essay-topic-grid" id="cloze-topic-grid"></div>
+              </div>
+
+              <div class="essay-word-picker" id="cloze-word-picker" style="display: none">
+                <div class="essay-section-label">选择要重点考察的单词 <span class="essay-word-hint" id="cloze-word-hint"></span></div>
+                <div class="essay-word-chips" id="cloze-word-chips"></div>
+                <div class="essay-word-actions">
+                  <button class="btn btn-outline btn-sm" id="btn-cloze-select-all-words">全选</button>
+                  <button class="btn btn-outline btn-sm" id="btn-cloze-deselect-all-words">取消全选</button>
+                </div>
+              </div>
+
+              <div class="essay-config-row">
+                <div class="essay-config-group">
+                  <label class="essay-config-label">文章长度</label>
+                  <select id="cloze-length" class="essay-select">
+                    <option value="200">短 (~200字)</option>
+                    <option value="400" selected>中 (~400字)</option>
+                    <option value="600">长 (~600字)</option>
+                    <option value="custom">自定义</option>
+                  </select>
+                </div>
+                <div class="essay-config-group" style="flex:1">
+                  <label class="essay-config-label">自定义字数</label>
+                  <input type="number" id="cloze-length-custom" class="essay-title-input"
+                         placeholder="100-1000字" min="100" max="1000" value="400"
+                         autocomplete="off" style="display:none" />
+                </div>
+              </div>
+
+              <div class="essay-config-row">
+                <div class="essay-config-group">
+                  <label class="essay-config-label">难度</label>
+                  <select id="cloze-level" class="essay-select">
+                    <option value="N5">N5（最简单）</option>
+                    <option value="N4">N4</option>
+                    <option value="N3" selected>N3（中等）</option>
+                    <option value="N2">N2</option>
+                    <option value="N1">N1（最难）</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="essay-generate-row">
+                <button class="btn btn-primary" id="btn-generate-cloze" disabled>生成完型填空</button>
+              </div>
+            </div>
+
+            <!-- 加载阶段 -->
+            <div class="loading" id="cloze-loading" style="display: none">
+              <div class="spinner"></div>
+              <p>AI 正在生成完型填空，请稍候...</p>
+              <pre class="stream-preview" id="cloze-stream-preview"></pre>
+            </div>
+
+            <!-- 结果阶段 -->
+            <div class="result-area" id="cloze-result" style="display: none">
+              <div class="result-header">
+                <h2 id="cloze-title"></h2>
+                <div class="result-actions">
+                  <button class="btn btn-outline" id="btn-cloze-check">检查答案</button>
+                  <button class="btn btn-outline" id="btn-cloze-reveal">显示答案</button>
+                  <button class="btn btn-outline" id="btn-cloze-reset">重做</button>
+                  <button class="btn btn-primary" id="btn-cloze-save">保存练习</button>
+                  <button class="btn btn-outline" id="btn-cloze-regenerate">重新生成</button>
+                </div>
+              </div>
+
+              <div class="essay-card">
+                <div class="essay-section-label">短文填空</div>
+                <div class="cloze-passage" id="cloze-passage"></div>
+                <div class="cloze-score" id="cloze-score" style="display:none"></div>
+              </div>
+
+              <div class="essay-card" id="cloze-answers-card" style="display:none">
+                <div class="essay-section-label">正确答案</div>
+                <div class="cloze-answers" id="cloze-answers"></div>
+              </div>
+
+              <div class="essay-card" id="cloze-translation-card" style="display:none">
+                <div class="essay-section-label">中文翻译</div>
+                <div class="essay-translation" id="cloze-translation"></div>
+              </div>
+            </div>
+
+            <div class="error-msg" id="cloze-error" style="display: none"></div>
+
+          </section>
+
+          <!-- 图片词卡页面 -->
+          <section class="page" id="page-image">
+            <div class="page-header">
+              <h1>图片词卡</h1>
+              <p class="subtitle">浏览已生成配图的单词，按词单分类查看</p>
+            </div>
+
+            <div class="wordbank-layout">
+              <div class="wordbank-sidebar" id="image-sidebar">
+                <div class="wordbank-sidebar-label">词单</div>
+                <div class="wordbank-topic-list" id="image-topic-list"></div>
+              </div>
+              <div class="wordbank-main">
+                <div class="wordbank-toolbar">
+                  <span class="wordbank-info" id="image-toolbar-info"></span>
+                </div>
+                <div class="image-card-grid" id="image-card-grid"></div>
+                <div class="empty-state" id="image-empty" style="display:none">
+                  <div class="empty-icon">📷</div>
+                  <p>还没有生成任何单词配图</p>
+                  <p class="subtitle">前往「我的词库」为单词生成配图</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 语法页面 -->
+          <section class="page" id="page-grammar">
+            <div class="page-header">
+              <h1>语法分析</h1>
+              <p class="subtitle">分析句子语法 · 纠错 · 语法辨析</p>
+            </div>
+
+            <!-- 语法子标签 -->
+            <div class="study-tabs">
+              <button class="study-subtab active" id="grammar-subtab-analyze">语法分析</button>
+              <button class="study-subtab" id="grammar-subtab-correct">语法纠错</button>
+              <button class="study-subtab" id="grammar-subtab-compare">语法辨析</button>
+            </div>
+
+            <!-- 语法分析 & 纠错 -->
+            <div class="grammar-panel" id="grammar-panel-analyze">
+              <div class="input-row">
+                <input
+                  type="text"
+                  id="grammar-analyze-input"
+                  class="topic-input"
+                  placeholder="输入日语句子，例如：昨日雨が降ったから、出かけませんでした"
+                  autocomplete="off"
+                />
+                <button class="btn btn-primary" id="btn-grammar-analyze">分析语法</button>
+              </div>
+              <div class="loading" id="grammar-analyze-loading" style="display: none">
+                <div class="spinner"></div>
+                <p>AI 正在分析语法...</p>
+                <pre class="stream-preview" id="grammar-analyze-stream-preview"></pre>
+              </div>
+              <p class="grammar-hint">输入一个日语句子，AI 将逐项解析其中的语法点，涵盖助词用法、活用形、句型结构等，并标注 JLPT 等级。</p>
+              <div class="result-area" id="grammar-analyze-result" style="display: none">
+                <div class="grammar-points" id="grammar-points-list"></div>
+              </div>
+              <div class="generate-error" id="grammar-analyze-error" style="display: none"></div>
+            </div>
+
+            <div class="grammar-panel" id="grammar-panel-correct" style="display: none">
+              <div class="input-row">
+                <input
+                  type="text"
+                  id="grammar-correct-input"
+                  class="topic-input"
+                  placeholder="输入日语句子，例如：私は日本語を話することができます"
+                  autocomplete="off"
+                />
+                <button class="btn btn-primary" id="btn-grammar-correct">检查纠错</button>
+              </div>
+              <div class="loading" id="grammar-correct-loading" style="display: none">
+                <div class="spinner"></div>
+                <p>AI 正在检查语法...</p>
+                <pre class="stream-preview" id="grammar-correct-stream-preview"></pre>
+              </div>
+              <p class="grammar-hint">输入一个日语句子，AI 将检查其中的语法错误，指出错误类型和位置，并给出修改后的正确句子。</p>
+              <div class="result-area" id="grammar-correct-result" style="display: none">
+                <div class="grammar-correct-card" id="grammar-correct-card"></div>
+              </div>
+              <div class="generate-error" id="grammar-correct-error" style="display: none"></div>
+            </div>
+
+            <div class="grammar-panel" id="grammar-panel-compare" style="display: none">
+              <div class="input-row">
+                <input
+                  type="text"
+                  id="grammar-compare-input"
+                  class="topic-input"
+                  placeholder="输入语法主题，例如：ところ相关的语法、授受动词、条件表达..."
+                  autocomplete="off"
+                />
+                <button class="btn btn-primary" id="btn-grammar-compare">对比分析</button>
+              </div>
+              <div class="loading" id="grammar-compare-loading" style="display: none">
+                <div class="spinner"></div>
+                <p>AI 正在对比分析...</p>
+                <pre class="stream-preview" id="grammar-compare-stream-preview"></pre>
+              </div>
+              <p class="grammar-hint">输入一个语法主题，AI 将对比分析2-6个相似或易混淆的语法点，以表格形式展示接续、含义和例句，并给出核心区别总结。</p>
+              <div class="result-area" id="grammar-compare-result" style="display: none">
+                <div class="result-header">
+                  <h2 id="grammar-compare-topic-label"></h2>
+                  <button class="btn btn-primary" id="btn-grammar-save-compare">保存结果</button>
+                </div>
+                <div class="grammar-compare-summary" id="grammar-compare-summary"></div>
+                <div class="grammar-compare-table-wrap">
+                  <table class="grammar-compare-table" id="grammar-compare-table"></table>
+                </div>
+              </div>
+              <div class="generate-error" id="grammar-compare-error" style="display: none"></div>
+            </div>
+          </section>
+
+          <!-- 我的保存页面 -->
+          <section class="page" id="page-saved">
+            <div class="page-header">
+              <h1>我的保存</h1>
+              <p class="subtitle">已保存的短文、完型填空和语法辨析</p>
+            </div>
+
+            <div class="study-tabs">
+              <button class="study-subtab active" id="saved-subtab-essay">短文</button>
+              <button class="study-subtab" id="saved-subtab-cloze">完型填空</button>
+              <button class="study-subtab" id="saved-subtab-grammar">语法</button>
+            </div>
+
+            <div class="saved-panel" id="saved-panel-essay">
+              <div class="essay-saved-list" id="essay-saved-list"></div>
+              <div class="empty-state" id="essay-saved-empty" style="display: none">
+                <div class="empty-icon">📭</div>
+                <p>还没有保存的短文</p>
+              </div>
+            </div>
+
+            <div class="saved-panel" id="saved-panel-grammar" style="display: none">
+              <div class="grammar-saved-list" id="grammar-saved-list"></div>
+              <div class="empty-state" id="grammar-saved-empty" style="display: none">
+                <div class="empty-icon">📭</div>
+                <p>还没有保存的语法辨析</p>
+              </div>
+            </div>
+
+            <div class="saved-panel" id="saved-panel-cloze" style="display: none">
+              <div class="essay-saved-list" id="cloze-saved-list"></div>
+              <div class="empty-state" id="cloze-saved-empty" style="display: none">
+                <div class="empty-icon">📭</div>
+                <p>还没有保存的完型填空</p>
+              </div>
+            </div>
+
+          </section>
+
+          <!-- 成就页面 -->
+          <section class="page" id="page-achievement">
+            <div class="page-header">
+              <h1>成就</h1>
+              <p class="subtitle">记录你的学习里程碑</p>
+            </div>
+            <div class="achievement-stats-row" id="achievement-stats-row"></div>
+            <div class="achievement-grid" id="achievement-grid"></div>
+          </section>
+
+          <!-- 设置页面 -->
+          <section class="page" id="page-settings">
+            <div class="page-header">
+              <h1>设置</h1>
+              <p class="subtitle">调整发音参数</p>
+            </div>
+
+            <div class="settings-box">
+              <div class="setting-group">
+                <label class="setting-label">音色</label>
+                <select id="setting-speaker" class="setting-select"></select>
+              </div>
+
+              <div class="setting-group">
+                <div class="setting-row">
+                  <label class="setting-label">语速</label>
+                  <span class="setting-value" id="val-speed">1.00</span>
+                </div>
+                <input
+                  type="range"
+                  id="setting-speed"
+                  class="setting-range"
+                  min="0.5"
+                  max="2"
+                  step="0.05"
+                  value="1"
+                />
+              </div>
+
+              <div class="setting-group">
+                <div class="setting-row">
+                  <label class="setting-label">音高</label>
+                  <span class="setting-value" id="val-pitch">0.00</span>
+                </div>
+                <input
+                  type="range"
+                  id="setting-pitch"
+                  class="setting-range"
+                  min="-0.15"
+                  max="0.15"
+                  step="0.01"
+                  value="0"
+                />
+              </div>
+
+              <div class="setting-group">
+                <div class="setting-row">
+                  <label class="setting-label">语调</label>
+                  <span class="setting-value" id="val-intonation">1.00</span>
+                </div>
+                <input
+                  type="range"
+                  id="setting-intonation"
+                  class="setting-range"
+                  min="0"
+                  max="2"
+                  step="0.05"
+                  value="1"
+                />
+              </div>
+
+              <div class="setting-group">
+                <div class="setting-row">
+                  <label class="setting-label">音量</label>
+                  <span class="setting-value" id="val-volume">1.00</span>
+                </div>
+                <input
+                  type="range"
+                  id="setting-volume"
+                  class="setting-range"
+                  min="0"
+                  max="2"
+                  step="0.05"
+                  value="1"
+                />
+              </div>
+
+              <div class="setting-actions">
+                <button class="btn btn-outline" id="btn-preview">试听</button>
+                <button class="btn btn-primary" id="btn-save-settings">保存设置</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- 管理员页面 -->
+          <section class="page" id="page-admin">
+            <div class="page-header">
+              <h1>系统管理</h1>
+              <p class="subtitle">用户管理 & 用量监控</p>
+            </div>
+
+            <div class="admin-tabs">
+              <button class="admin-tab active" id="admin-tab-users">用户管理</button>
+              <button class="admin-tab" id="admin-tab-usage">用量监控</button>
+              <button class="admin-tab" id="admin-tab-logins">登录记录</button>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="admin-stats-grid" id="admin-stats-grid">
+              <div class="admin-stat-card">
+                <div class="admin-stat-num" id="stat-users">-</div>
+                <div class="admin-stat-label">用户总数</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-num" id="stat-words">-</div>
+                <div class="admin-stat-label">单词总数</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-num" id="stat-ai">-</div>
+                <div class="admin-stat-label">AI 调用次数</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-num" id="stat-tokens">-</div>
+                <div class="admin-stat-label">Token 消耗</div>
+              </div>
+            </div>
+
+            <!-- 用户管理面板 -->
+            <div id="admin-panel-users">
+              <div class="admin-table-wrap">
+                <table class="admin-table" id="admin-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>用户名</th>
+                      <th>角色</th>
+                      <th>单词</th>
+                      <th>今日AI</th>
+                      <th>AI限额</th>
+                      <th>今日语音</th>
+                      <th>语音限额</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 用量监控面板 -->
+            <div id="admin-panel-usage" style="display: none">
+              <div class="admin-table-wrap">
+                <table class="admin-table" id="admin-usage-table">
+                  <thead>
+                    <tr>
+                      <th>用户</th>
+                      <th>今日AI</th>
+                      <th>总AI</th>
+                      <th>AI限额</th>
+                      <th>今日语音</th>
+                      <th>总语音</th>
+                      <th>语音限额</th>
+                      <th>设置限额</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-usage-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 登录记录面板 -->
+            <div id="admin-panel-logins" style="display: none">
+              <div id="admin-login-reports"></div>
+            </div>
+          </section>
+        </main>
+      </div>
+      <!-- #main-app -->
+    </div>
+    <!-- #app -->
+
+    <script src="/js/api.js?v={api_version}"></script>
+    <script src="/js/app.js?v={app_version}"></script>
+  </body>
+</html>

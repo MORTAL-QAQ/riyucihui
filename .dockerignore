@@ -1,0 +1,62 @@
+# Python (recursive — Docker needs **/ to match in subdirectories)
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.egg-info/
+**/.ruff_cache/
+dist/
+build/
+.venv/
+venv/
+
+# Frontend
+**/node_modules/
+
+# Database / data
+*.db
+backend/data/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# VOICEVOX (local engine, not needed in Docker)
+VOICEVOX/
+backend/VOICEVOX/
+
+# PostgreSQL portable
+pg-portable.zip
+backend/pg-portable.zip
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
+nginx.conf
+cert-setup.sh
+
+# TLS certs (mounted at runtime, not copied into image)
+certs/
+certbot-webroot/
+
+# Temp / logs
+*.tmp
+*.log
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

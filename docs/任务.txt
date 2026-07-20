@@ -1,0 +1,110 @@
+优先级	步骤
+1	加用户系统（注册/登录/JWT） 完成
+2	数据库加 user_id 隔离               完成
+3	VOICEVOX Docker 化部署        完成
+4	数据库切 PostgreSQL                完成
+5	加 Nginx + Docker Compose  完成
+6	安全加固（CORS、限流、输入校验）完成
+
+7	部署上线 + 加 HTTPS
+
+管理员账号
+字段	值
+用户名	admin
+密码	admin123
+
+普通用户账号
+字段	值
+用户名	user
+密码	user123
+
+
+http://localhost:8000
+
+可靠性
+int(Content-Length) 无校验可导致 500 — main.py 恶意客户端发送 Content-Length: gzip 直接触发 ValueError 500 错误。修复：加 isdigit() 或 try/except
+
+速率限制器多 worker 下失效 — rate_limiter.py 内存字典存储，每个 uvicorn worker 独立计数，进程重启清零。生产环境需 Redis 后端
+
+正确性
+
+
+运维
+
+
+
+第一步：租一台云服务器
+推荐	最低配置
+4 核 CPU	2 核
+8 GB 内存	4 GB 内存
+40 GB 硬盘	30 GB 硬盘
+Ubuntu 22.04 或 24.04	
+VOICEVOX 语音引擎比较吃内存，建议 4GB 以上。阿里云、腾讯云、AWS Lightsail 均可。
+
+第二步：登录服务器并安装 Docker
+SSH 登录后，逐条执行：
+
+
+# 安装 Docker
+curl -fsSL https://get.docker.com | sudo bash
+
+# 将当前用户加入 docker 组（之后不需要 sudo）
+sudo usermod -aG docker $USER
+
+# 退出重新登录使权限生效
+exit
+第三步：上传项目文件
+在你的 Windows 电脑上，打开终端（PowerShell），用 scp 上传：
+
+
+# 先进入项目目录
+cd C:\Users\Administrator\Desktop\11
+
+# 上传到服务器（替换成你的服务器 IP）
+scp -r backend frontend docker-compose.yml Dockerfile nginx.conf .dockerignore .env.production root@你的服务器IP:/app/jpvocab/
+第四步：配置密钥
+SSH 到服务器，创建配置文件：
+
+
+cd /app/jpvocab
+
+# 生成随机 JWT 密钥
+echo "SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" > .env
+
+# 填入你的 DeepSeek API Key（在 https://platform.deepseek.com/api_keys 获取）
+echo "DEEPSEEK_API_KEY=sk-你的key" >> .env
+如果服务器没有 Python3，也可以在本机生成密钥后手动写入。
+
+第五步：启动服务
+
+cd /app/jpvocab
+docker compose up -d
+首次启动会自动下载镜像（约 3-5 GB），VOICEVOX 模型下载需要 2-3 分钟。
+
+查看状态：
+
+
+docker compose ps
+# 看到 4 个服务都是 Up/healthy 就成功了
+第六步：创建管理员账号
+
+docker compose exec backend python -m app.cli create-admin 你的用户名 你的密码
+第七步：访问网站
+浏览器打开 http://你的服务器IP，用刚才创建的管理员账号登录。
+
+日常维护命令
+
+# 查看日志
+docker compose logs -f
+
+# 重启服务
+docker compose restart
+
+# 停止服务
+docker compose down
+
+# 更新代码后重新构建
+docker compose up -d --build
+
+# 备份数据库
+docker compose exec postgres pg_dump -U jpvocab jpvocab > backup.sql

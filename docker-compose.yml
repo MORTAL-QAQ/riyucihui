@@ -1,0 +1,105 @@
+# AIGC多模态日语词汇学习 — Docker 部署
+#
+# === 快速启动（自签名证书，仅测试用） ===
+#   bash cert-setup.sh self-signed
+#   docker compose up -d
+#   访问 https://<服务器IP> （浏览器会提示不安全，点击继续）
+#
+# === 生产部署（Let's Encrypt 正式证书） ===
+#   1. 确保域名 DNS 已指向本服务器
+#   2. 编辑 cert-setup.sh，设置 DOMAIN=your-domain.com
+#   3. bash cert-setup.sh production
+#   4. 复制 .env.production 为 .env 并填入真实密钥
+#   5. docker compose up -d
+#   证书到期前自动续期: docker compose run --rm certbot renew
+#
+# === 其他命令 ===
+#   停止: docker compose down
+#   日志: docker compose logs -f
+#   创建管理员: docker compose exec backend python -m app.cli create-admin <用户名> <密码>
+#
+# === 本地开发注意事项 ===
+#   VOICEVOX 引擎在宿主机运行（端口 50021），backend 通过 host.docker.internal 访问
+#   生产部署时 VOICEVOX 已容器化，无需额外配置
+
+services:
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    container_name: jp-vocab-voicevox
+    expose:
+      - "50021"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:50021/version || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: jp-vocab-db
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_USER: jpvocab
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-jpvocab}
+      POSTGRES_DB: jpvocab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jpvocab"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: jp-vocab-backend
+    expose:
+      - "8000"
+    volumes:
+      - backend_data:/app/data
+    environment:
+      - DATABASE_URL=postgresql://jpvocab:${DB_PASSWORD:-jpvocab}@postgres:5432/jpvocab
+      - VOICEVOX_BASE_URL=http://voicevox:50021
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      voicevox:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: jp-vocab-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./certs:/etc/nginx/certs:ro
+      - certbot_webroot:/var/www/certbot
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: jp-vocab-certbot
+    volumes:
+      - ./certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: ["/bin/true"]
+    restart: "no"
+    profiles:
+      - certbot
+
+volumes:
+  pgdata:
+  backend_data:
+  certbot_webroot:

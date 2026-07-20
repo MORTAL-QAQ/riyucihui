@@ -1,0 +1,40 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+*.db-shm
+*.db-wal
+data/
+backend/data/
+.venv/
+venv/
+*.egg-info/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# VOICEVOX 引擎（本地运行时文件，不提交）
+VOICEVOX/
+linux-cpu-arm64/
+*.7z*
+
+# 前端依赖
+frontend/node_modules/
+
+# TLS 证书
+certs/
+certbot-webroot/
+
+# Claude Code
+.claude/
+
+# Docker volumes
+pgdata/
+backend_data/
+certbot_webroot/
+
+# 临时文件
+tok.txt
