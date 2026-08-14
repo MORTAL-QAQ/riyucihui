@@ -226,9 +226,10 @@ function showImageLightbox(src) {
 
 // ===== SSE 流式统一处理（AI 生成页面共用） =====
 async function runStreamToPreview(url, body, previewId, handlers = {}) {
-  const previewEl = $(previewId);
+  // 注意：$ 是 querySelector（选择器语义），previewId 是纯 id，需补 # 前缀
+  const previewEl = $("#" + previewId) || document.getElementById(previewId);
   if (!previewEl) {
-    // 缓存不一致/页面结构缺失时给出明确提示，避免 null.style 崩溃
+    // 页面结构缺失/版本错配时给出明确提示，避免 null.style 崩溃
     const { onError } = handlers;
     if (onError) onError("页面组件未加载，请刷新页面后重试");
     else showToast("页面组件未加载，请刷新页面后重试", "error");

@@ -435,7 +435,14 @@ function esc(s) {
  * @param {object} handlers   { onChunk?, onDone?, onError? }
  */
 async function runStreamToPreview(url, body, previewId, handlers = {}) {
-  const previewEl = $(previewId);
+  // 注意：$ 是 querySelector（选择器语义），previewId 是纯 id，需补 # 前缀
+  const previewEl = $("#" + previewId) || document.getElementById(previewId);
+  if (!previewEl) {
+    const { onError } = handlers;
+    if (onError) onError("页面组件未加载，请刷新页面后重试");
+    else showToast("页面组件未加载，请刷新页面后重试", "error");
+    return;
+  }
   previewEl.style.display = "block";
   previewEl.textContent = "";
   const { onChunk, onDone, onError } = handlers;
