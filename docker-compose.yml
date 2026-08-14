@@ -128,14 +128,19 @@ services:
 secrets:
   SECRET_KEY:
     file: ./secrets/SECRET_KEY
+    mode: "0444"  # 非 root 容器用户（appuser）需可读（#8）
   DEEPSEEK_API_KEY:
     file: ./secrets/DEEPSEEK_API_KEY
+    mode: "0444"
   VOLCANO_API_KEY:
     file: ./secrets/VOLCANO_API_KEY
+    mode: "0444"
   DB_PASSWORD:
     file: ./secrets/DB_PASSWORD
+    mode: "0444"
   DATABASE_URL:
     file: ./secrets/DATABASE_URL
+    mode: "0444"
 
 volumes:
   pgdata:
