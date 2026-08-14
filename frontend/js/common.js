@@ -102,11 +102,7 @@ function speakWord(japanese, kana, btn) {
   }
   api
     .voice(text)
-    .then((url) =>
-      fetch(url)
-        .then((r) => r.arrayBuffer())
-        .finally(() => URL.revokeObjectURL(url)),
-    )
+    .then((blob) => blob.arrayBuffer())
     .then((buf) => {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();

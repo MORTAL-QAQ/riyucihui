@@ -256,8 +256,9 @@ const api = {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.detail || `语音合成失败 (${res.status})`);
     }
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
+    // 返回 Blob：调用方用 blob.arrayBuffer() 直接解码，
+    // 避免再 fetch(blob: URL)（部分浏览器/WebView 不支持导致 "Failed to fetch"）
+    return res.blob();
   },
 
   // ── Study ──

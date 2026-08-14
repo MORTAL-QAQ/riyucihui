@@ -331,13 +331,7 @@ function speakWord(japanese, kana, btn) {
 
   api
     .voice(text)
-    .then((url) =>
-      // Re-fetch the blob URL as ArrayBuffer for Web Audio API.
-      // This is a local in-memory fetch — no network cost.
-      fetch(url)
-        .then((r) => r.arrayBuffer())
-        .finally(() => URL.revokeObjectURL(url)),
-    )
+    .then((blob) => blob.arrayBuffer())
     .then((buf) => {
       if (!audioCtx) {
         // Belt-and-suspenders: create AudioCtx now if unlock didn't fire
