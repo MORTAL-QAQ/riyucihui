@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -34,6 +35,8 @@ from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
 
 router = APIRouter(prefix="/api/grammar", tags=["grammar"])
+
+logger = logging.getLogger(__name__)
 
 # IP 级限流：语法分析/纠错/辨析均为付费 AI 调用
 GRAMMAR_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
@@ -73,11 +76,14 @@ def grammar_analyze(
     try:
         data, tokens = analyze_grammar(req.sentence)
     except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        logger.error("AI 语法功能失败: %s", e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI服务调用失败: {str(e)}")
+        logger.error("AI 语法功能运行时错误: %s", e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
+    except Exception:
+        logger.exception("AI 语法功能未知异常")
+        raise HTTPException(status_code=500, detail="AI 生成服务内部错误，请稍后重试")
     record_usage(db, user.id, "grammar_analyze", tokens)
     new_achs = check_achievements(db, user.id)
     return GrammarAnalyzeResponse(**data)
@@ -106,11 +112,14 @@ def grammar_correct(
     try:
         data, tokens = correct_grammar(req.sentence)
     except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        logger.error("AI 语法功能失败: %s", e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI服务调用失败: {str(e)}")
+        logger.error("AI 语法功能运行时错误: %s", e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
+    except Exception:
+        logger.exception("AI 语法功能未知异常")
+        raise HTTPException(status_code=500, detail="AI 生成服务内部错误，请稍后重试")
     record_usage(db, user.id, "grammar_correct", tokens)
     new_achs = check_achievements(db, user.id)
     return GrammarCorrectResponse(**data)
@@ -139,11 +148,14 @@ def grammar_compare(
     try:
         data, tokens = compare_grammar(req.topic)
     except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        logger.error("AI 语法功能失败: %s", e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI服务调用失败: {str(e)}")
+        logger.error("AI 语法功能运行时错误: %s", e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
+    except Exception:
+        logger.exception("AI 语法功能未知异常")
+        raise HTTPException(status_code=500, detail="AI 生成服务内部错误，请稍后重试")
     record_usage(db, user.id, "grammar_compare", tokens)
     new_achs = check_achievements(db, user.id)
     return GrammarCompareResponse(**data)

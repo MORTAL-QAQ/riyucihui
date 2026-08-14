@@ -3,6 +3,7 @@
 POST /api/export/pdf — 批量导出（words + essays + clozes + grammar + study report）
 """
 
+import html
 import json
 from datetime import datetime
 from io import BytesIO
@@ -24,11 +25,15 @@ from ..services.pdf_service import (
     _encode_filename,
     _header_footer,
     _jp_font_name,
-    generate_words_pdf,
 )
 from ..services import word_service
 
 router = APIRouter(prefix="/api", tags=["export"])
+
+
+def _esc(s) -> str:
+    """ReportLab Paragraph 内容为 XML 标记，用户内容必须转义，防段落标记注入（#9）。"""
+    return html.escape(str(s), quote=True)
 
 
 @router.post("/export/pdf")
@@ -86,13 +91,9 @@ def batch_export_pdf(
             topic_name = topic or "全部词单"
 
         if words:
-            elements.append(Paragraph(f"词单 — {topic_name}", styles["title"]))
+            elements.append(Paragraph(f"词单 — {_esc(topic_name)}", styles["title"]))
             elements.append(Spacer(1, 8))
-            word_buf = generate_words_pdf(
-                words, topic_name, total, layout=layout, include_images=include_images
-            )
-            # Note: full word table rendering in batch mode requires refactoring
-            # generate_words_pdf to return flowables. For now, show a summary.
+            # #29：批量导出只统计数量，不渲染完整词表 PDF（避免生成后丢弃）
             elements.append(Paragraph(
                 f"共 {total} 个单词（请使用单独的单词导出功能查看完整表格）",
                 styles["body"],
@@ -108,23 +109,23 @@ def batch_export_pdf(
         for essay in essays:
             if sections_added > 0:
                 elements.append(PageBreak())
-            elements.append(Paragraph(f"短文 — {essay.title}", styles["title"]))
+            elements.append(Paragraph(f"短文 — {_esc(essay.title)}", styles["title"]))
             elements.append(Spacer(1, 8))
             # Inline essay rendering using same logic as generate_essay_pdf
             if essay.jlpt_level:
                 jlpt_color = {"N1": "#ef4444", "N2": "#f97316", "N3": "#6366f1",
                               "N4": "#22c55e", "N5": "#9ca3af"}.get(essay.jlpt_level, "#9ca3af")
                 elements.append(Paragraph(
-                    f'<font color="{jlpt_color}"><b>{essay.jlpt_level}</b></font>',
+                    f'<font color="{jlpt_color}"><b>{_esc(essay.jlpt_level)}</b></font>',
                     styles["small"],
                 ))
                 elements.append(Spacer(1, 4))
-            content = essay.content.replace("【", '<font color="#6366f1"><b>【') \
-                                   .replace("】", '】</b></font>')
+            content = _esc(essay.content).replace("【", '<font color="#6366f1"><b>【') \
+                                           .replace("】", '】</b></font>')
             elements.append(Paragraph(content, styles["body_large"]))
             elements.append(Spacer(1, 8))
             elements.append(Paragraph("中文翻译", styles["heading"]))
-            elements.append(Paragraph(essay.chinese_translation, styles["body"]))
+            elements.append(Paragraph(_esc(essay.chinese_translation), styles["body"]))
             sections_added += 1
 
     # ── Clozes ──
@@ -138,25 +139,25 @@ def batch_export_pdf(
                 elements.append(PageBreak())
             blanks = json.loads(cloze.blanks) if isinstance(cloze.blanks, str) else cloze.blanks
 
-            elements.append(Paragraph(f"完型填空 — {cloze.title}", styles["title"]))
+            elements.append(Paragraph(f"完型填空 — {_esc(cloze.title)}", styles["title"]))
             if cloze.jlpt_level:
                 jlpt_color = {"N1": "#ef4444", "N2": "#f97316", "N3": "#6366f1",
                               "N4": "#22c55e", "N5": "#9ca3af"}.get(cloze.jlpt_level, "#9ca3af")
                 elements.append(Paragraph(
-                    f'<font color="{jlpt_color}"><b>{cloze.jlpt_level}</b></font>',
+                    f'<font color="{jlpt_color}"><b>{_esc(cloze.jlpt_level)}</b></font>',
                     styles["small"],
                 ))
                 elements.append(Spacer(1, 4))
-            passage_text = cloze.passage.replace("____", " ________ ")
+            passage_text = _esc(cloze.passage).replace("____", " ________ ")
             elements.append(Paragraph(passage_text, styles["body_large"]))
             elements.append(Spacer(1, 8))
             elements.append(Paragraph("答案", styles["heading"]))
-            answer_parts = [f"{b['answer']}({b['kana']})" for b in blanks]
+            answer_parts = [f"{_esc(b['answer'])}({_esc(b['kana'])})" for b in blanks]
             elements.append(Paragraph(" / ".join(answer_parts), styles["body"]))
             if cloze.chinese_translation:
                 elements.append(Spacer(1, 6))
                 elements.append(Paragraph("中文翻译", styles["heading"]))
-                elements.append(Paragraph(cloze.chinese_translation, styles["body"]))
+                elements.append(Paragraph(_esc(cloze.chinese_translation), styles["body"]))
             sections_added += 1
 
     # ── Grammar Compares ──
@@ -170,10 +171,10 @@ def batch_export_pdf(
                 elements.append(PageBreak())
             result = json.loads(gc.result) if isinstance(gc.result, str) else gc.result
 
-            elements.append(Paragraph(f"语法辨析 — {gc.topic}", styles["title"]))
+            elements.append(Paragraph(f"语法辨析 — {_esc(gc.topic)}", styles["title"]))
             elements.append(Spacer(1, 8))
             if result.get("summary"):
-                elements.append(Paragraph(result["summary"], styles["body"]))
+                elements.append(Paragraph(_esc(result["summary"]), styles["body"]))
                 elements.append(Spacer(1, 8))
 
             rows = result.get("rows", [])
@@ -181,10 +182,10 @@ def batch_export_pdf(
                 table_data = [["语法点", "接续", "含义", "例句"]]
                 for r in rows:
                     table_data.append([
-                        r.get("grammar", ""),
-                        r.get("pattern", ""),
-                        r.get("meaning", ""),
-                        r.get("example", ""),
+                        _esc(r.get("grammar", "")),
+                        _esc(r.get("pattern", "")),
+                        _esc(r.get("meaning", "")),
+                        _esc(r.get("example", "")),
                     ])
                 tbl = Tbl(table_data, colWidths=[80, 80, 80, 220])
                 tbl.setStyle(TS([

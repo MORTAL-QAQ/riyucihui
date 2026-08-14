@@ -29,6 +29,8 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 
+from sqlalchemy.orm import deferred
+
 from .database import Base
 
 
@@ -88,7 +90,9 @@ class Word(Base):
     chinese = Column(String(200), nullable=False, index=True)   # 中文释义
     example_ja = Column(String(500), nullable=False)            # 日语例句
     example_cn = Column(String(500), nullable=False)            # 例句中文翻译
-    image_base64 = Column(String, nullable=True)                # AI 生成的单词配图（base64 PNG）
+    # deferred（#31）：大字段（base64 图片）默认不随常规查询加载，
+    # 仅在显式 undefer / 延迟加载时才读取，避免列表整行加载巨量数据。
+    image_base64 = deferred(Column(String, nullable=True))          # AI 生成的单词配图（base64 PNG）
     jlpt_level = Column(String(3), nullable=True, index=True)   # JLPT 等级 N1-N5
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

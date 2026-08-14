@@ -10,6 +10,7 @@ Design:
 """
 
 import base64
+import html
 from datetime import datetime
 from io import BytesIO
 from urllib.parse import quote
@@ -56,6 +57,11 @@ def _jp_font_name() -> str:
     from .font_manager import get_font_name
 
     return get_font_name()
+
+
+def _esc(s) -> str:
+    """转义用户内容，防止 ReportLab 段落标记注入（#9）。"""
+    return html.escape(str(s), quote=True)
 
 
 def _build_styles(font_name: str, base_size: int = 9) -> dict[str, ParagraphStyle]:
@@ -261,7 +267,7 @@ def generate_words_pdf(
     )
 
     elements: list = []
-    elements.append(Paragraph(f"多模态日语词汇学习 — {topic_name}", styles["title"]))
+    elements.append(Paragraph(f"多模态日语词汇学习 — {_esc(topic_name)}", styles["title"]))
     elements.append(Spacer(1, 10))
 
     if layout == "card" and include_images:
@@ -335,25 +341,25 @@ def _word_card(w, font_name: str, styles: dict) -> list:
     parts: list = []
 
     # Japanese + kana
-    jp_text = f"<b>{w.japanese}</b>"
+    jp_text = f"<b>{_esc(w.japanese)}</b>"
     if w.kana:
-        jp_text += f'  <font size="8" color="#6b7280">{w.kana}</font>'
+        jp_text += f'  <font size="8" color="#6b7280">{_esc(w.kana)}</font>'
     parts.append(Paragraph(jp_text, styles["card_jp"]))
 
     # Chinese meaning
-    parts.append(Paragraph(w.chinese, styles["card_cn"]))
+    parts.append(Paragraph(_esc(w.chinese), styles["card_cn"]))
 
     # JLPT badge
     if w.jlpt_level:
         jlpt_color = _JLPT_COLORS.get(w.jlpt_level, "#9ca3af")
         parts.append(Paragraph(
-            f'<font color="{jlpt_color}" size="8"><b>{w.jlpt_level}</b></font>',
+            f'<font color="{jlpt_color}" size="8"><b>{_esc(w.jlpt_level)}</b></font>',
             styles["small"],
         ))
 
     # Example
     if w.example_ja:
-        ex_text = w.example_ja[:80]
+        ex_text = _esc(w.example_ja[:80])
         if len(w.example_ja or "") > 80:
             ex_text += "..."
         parts.append(Paragraph(
@@ -392,24 +398,24 @@ def generate_essay_pdf(essay) -> BytesIO:
     )
 
     elements: list = []
-    elements.append(Paragraph(essay.title, styles["title"]))
+    elements.append(Paragraph(_esc(essay.title), styles["title"]))
     if essay.jlpt_level:
         jlpt_color = _JLPT_COLORS.get(essay.jlpt_level, "#9ca3af")
         elements.append(Paragraph(
-            f'<font color="{jlpt_color}"><b>{essay.jlpt_level}</b></font>',
+            f'<font color="{jlpt_color}"><b>{_esc(essay.jlpt_level)}</b></font>',
             styles["small"],
         ))
         elements.append(Spacer(1, 8))
 
     # Japanese content
-    content = essay.content.replace("【", '<font color="#6366f1"><b>【') \
-                           .replace("】", '】</b></font>')
+    content = _esc(essay.content).replace("【", '<font color="#6366f1"><b>【') \
+                                  .replace("】", '】</b></font>')
     elements.append(Paragraph(content, styles["body_large"]))
     elements.append(Spacer(1, 16))
 
     # Chinese translation
     elements.append(Paragraph("中文翻译", styles["heading"]))
-    elements.append(Paragraph(essay.chinese_translation, styles["body"]))
+    elements.append(Paragraph(_esc(essay.chinese_translation), styles["body"]))
     elements.append(Spacer(1, 20))
 
     now = datetime.now()
@@ -446,17 +452,17 @@ def generate_cloze_pdf(cloze) -> BytesIO:
     blanks = json.loads(cloze.blanks) if isinstance(cloze.blanks, str) else cloze.blanks
 
     elements: list = []
-    elements.append(Paragraph(f"完型填空 — {cloze.title}", styles["title"]))
+    elements.append(Paragraph(f"完型填空 — {_esc(cloze.title)}", styles["title"]))
     if cloze.jlpt_level:
         jlpt_color = _JLPT_COLORS.get(cloze.jlpt_level, "#9ca3af")
         elements.append(Paragraph(
-            f'<font color="{jlpt_color}"><b>{cloze.jlpt_level}</b></font>',
+            f'<font color="{jlpt_color}"><b>{_esc(cloze.jlpt_level)}</b></font>',
             styles["small"],
         ))
         elements.append(Spacer(1, 8))
 
     # Passage with ____ blanks
-    passage_text = cloze.passage.replace("____", " ________ ")
+    passage_text = _esc(cloze.passage).replace("____", " ________ ")
     elements.append(Paragraph(passage_text, styles["body_large"]))
     elements.append(Spacer(1, 16))
 
@@ -465,7 +471,7 @@ def generate_cloze_pdf(cloze) -> BytesIO:
     answer_header = ["序号", "答案", "假名"]
     answer_data = [answer_header]
     for b in blanks:
-        answer_data.append([str(b.get("id", "")), b.get("answer", ""), b.get("kana", "")])
+        answer_data.append([str(b.get("id", "")), _esc(b.get("answer", "")), _esc(b.get("kana", ""))])
 
     tbl = Table(answer_data, colWidths=[40, 120, 120])
     tbl.setStyle(TableStyle([
@@ -485,7 +491,7 @@ def generate_cloze_pdf(cloze) -> BytesIO:
     # Chinese translation
     if cloze.chinese_translation:
         elements.append(Paragraph("中文翻译", styles["heading"]))
-        elements.append(Paragraph(cloze.chinese_translation, styles["body"]))
+        elements.append(Paragraph(_esc(cloze.chinese_translation), styles["body"]))
 
     elements.append(Spacer(1, 20))
     now = datetime.now()
@@ -522,12 +528,12 @@ def generate_grammar_compare_pdf(grammar) -> BytesIO:
     result = json.loads(grammar.result) if isinstance(grammar.result, str) else grammar.result
 
     elements: list = []
-    elements.append(Paragraph(f"语法辨析 — {grammar.topic}", styles["title"]))
+    elements.append(Paragraph(f"语法辨析 — {_esc(grammar.topic)}", styles["title"]))
     elements.append(Spacer(1, 8))
 
     # Summary
     if result.get("summary"):
-        elements.append(Paragraph(result["summary"], styles["body"]))
+        elements.append(Paragraph(_esc(result["summary"]), styles["body"]))
         elements.append(Spacer(1, 12))
 
     # Comparison table
@@ -537,11 +543,11 @@ def generate_grammar_compare_pdf(grammar) -> BytesIO:
         table_data = [table_header]
         for r in rows:
             table_data.append([
-                r.get("grammar", ""),
-                r.get("pattern", ""),
-                r.get("meaning", ""),
-                r.get("example", ""),
-                r.get("example_cn", ""),
+                _esc(r.get("grammar", "")),
+                _esc(r.get("pattern", "")),
+                _esc(r.get("meaning", "")),
+                _esc(r.get("example", "")),
+                _esc(r.get("example_cn", "")),
             ])
 
         col_widths = [72, 72, 64, 144, 128]

@@ -6,7 +6,10 @@
 - get_db() 依赖注入：每个 HTTP 请求一个数据库会话
 """
 
+import contextlib
+import os
 import sys
+from pathlib import Path
 
 from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
@@ -55,8 +58,54 @@ class Base(DeclarativeBase):
     pass
 
 
+@contextlib.contextmanager
+def _migration_lock():
+    """跨进程迁移锁（#16）：防止多 worker 并发启动时同时执行 DDL 迁移。
+
+    使用文件锁：Linux/macOS 用 fcntl.flock，Windows 用 msvcrt.locking。
+    """
+    lock_dir = Path(__file__).parent / "data"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_file = lock_dir / ".migration.lock"
+    f = open(lock_file, "a+")
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        f.close()
+
+
 def run_migrations():
-    """Add new columns for existing databases (SQLite / PostgreSQL compat)."""
+    """Add new columns for existing databases (SQLite / PostgreSQL compat).
+
+    #16：整个迁移过程由跨进程文件锁保护，避免多 worker 并发 DDL 冲突。
+    #19：孤儿数据回填（_backfill_orphans）已拆出为显式 CLI 命令
+    （python -m app.cli backfill-orphans），启动时不再隐式改数据。
+    """
+    with _migration_lock():
+        _run_migrations_inner()
+
+
+def _run_migrations_inner():
     with engine.connect() as conn:
         inspector = inspect(engine)
         dialect = engine.dialect.name  # 'sqlite' or 'postgresql'
@@ -316,7 +365,8 @@ def run_migrations():
             conn.commit()
 
         # ── Backfill orphaned rows ──
-        _backfill_orphans(conn, dialect)
+        # #19：已拆出为显式 CLI 命令（python -m app.cli backfill-orphans），
+        # 启动时不再隐式修改数据。如需执行请手动运行。
 
 
 def _backfill_orphans(conn, dialect: str):

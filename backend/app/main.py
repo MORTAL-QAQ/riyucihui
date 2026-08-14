@@ -18,20 +18,29 @@
 import asyncio
 import gc
 import hashlib
+import logging
 import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from . import config
-from .database import Base, engine, run_migrations
+from .database import Base, engine, get_db, run_migrations
 from .routers import achievement, admin_api, auth, cloze, essay, export, generate, grammar, settings, study, voice, words
 from .services import voicevox_manager
+
+# ── 日志体系（#25）：统一格式，替换散落的 print ──
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("app")
 
 FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
 MAX_REQUEST_BYTES = 1_000_000  # 1 MB
@@ -145,15 +154,29 @@ app.include_router(export.router)
 
 
 @app.get("/api/health")
-def health():
-    return {"status": "ok"}
+def health(db=Depends(get_db)):
+    """健康检查：探测数据库连通性（#24）。
+
+    DB 不可用时返回 503，供 Docker HEALTHCHECK / 负载均衡 / nginx healthcheck 使用。
+    """
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("health check: database unreachable")
+        return JSONResponse(status_code=503, content={"status": "error", "db": "unreachable"})
+    return {"status": "ok", "db": "ok"}
 
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    """Serve index.html with auto-generated cache-busting versions."""
+    """Serve index.html with content-hash cache-busting versions (#37).
+
+    占位符 {desktop_version}/{mobile_version}/{api_version}/{app_version}
+    替换为对应静态资源的 MD5 前缀；nginx 生产部署时由 deploy.sh 注入相同逻辑。
+    """
     html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
-    html = html.replace("{style_version}", _file_hash("css/style.css"))
+    html = html.replace("{desktop_version}", _file_hash("css/desktop.css"))
+    html = html.replace("{mobile_version}", _file_hash("css/mobile.css"))
     html = html.replace("{api_version}", _file_hash("js/api.js"))
     html = html.replace("{app_version}", _file_hash("js/app.js"))
     return html

@@ -6,6 +6,7 @@ POST /api/generate — 根据主题生成日语单词列表。
 """
 
 import json
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -20,6 +21,8 @@ from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, count_today, get_user_daily_limit, record_usage
 
 router = APIRouter(prefix="/api", tags=["generate"])
+
+logger = logging.getLogger(__name__)
 
 # IP 级限流：防未登录/多账号刷 AI 调用（用户级每日配额之外的第二道防线）
 GENERATE_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
@@ -98,8 +101,12 @@ def generate(
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        # 只对外返回笼统信息，内部细节进日志（#10）
+        logger.error("AI 单词生成失败 topic=%r: %s", req.topic, e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI服务调用失败: {str(e)[:200]}")
+        logger.error("AI 单词生成运行时错误 topic=%r: %s", req.topic, e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
+    except Exception:
+        logger.exception("AI 单词生成未知异常 topic=%r", req.topic)
+        raise HTTPException(status_code=500, detail="AI 生成服务内部错误，请稍后重试")

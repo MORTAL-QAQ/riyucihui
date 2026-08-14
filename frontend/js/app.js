@@ -1101,7 +1101,8 @@ function openExportDialog() {
   const activeEl = document.querySelector(".topic-item.active");
   _exportTopic = activeEl ? activeEl.dataset.topic : "";
   const label = _exportTopic || "全部词单";
-  $("#export-topic-label").innerHTML = label + ' · <span id="export-word-count">--</span> 个单词';
+  // 主题名来自用户数据，必须转义防存储型 XSS（#36）
+  $("#export-topic-label").innerHTML = esc(label) + ' · <span id="export-word-count">--</span> 个单词';
 
   // Default: table layout
   document.querySelector("input[name='export-layout'][value='table']").checked = true;

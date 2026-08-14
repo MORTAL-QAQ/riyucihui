@@ -4,8 +4,52 @@ import argparse
 from datetime import datetime, timezone
 
 from .auth import hash_password
-from .database import SessionLocal
+from .database import SessionLocal, engine
 from .models import LoginHistory, User
+
+
+def backfill_orphans() -> str:
+    """把 user_id 为 NULL 的 words/study_records 行分配给第一个管理员（#19）。
+
+    此前该逻辑在应用启动时隐式执行，现已拆出为显式命令，避免启动时静默改数据。
+    """
+    from sqlalchemy import text
+
+    tables = ["words", "study_records"]
+    orphan_counts = {}
+    with engine.connect() as conn:
+        for table in tables:
+            try:
+                result = conn.execute(
+                    text(f"SELECT COUNT(*) FROM {table} WHERE user_id IS NULL")
+                ).scalar()
+                if result:
+                    orphan_counts[table] = result
+            except Exception:
+                pass
+
+        if not orphan_counts:
+            return "没有需要回填的孤儿数据"
+
+        admin_row = conn.execute(
+            text("SELECT id, username FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1")
+        ).first()
+        if admin_row is None:
+            return (
+                "存在孤儿数据但无管理员用户：请先运行 create-admin，"
+                "然后手动执行 UPDATE words/study_records SET user_id=<admin_id> WHERE user_id IS NULL"
+            )
+
+        admin_id, admin_name = admin_row
+        for table, count in orphan_counts.items():
+            conn.execute(
+                text(f"UPDATE {table} SET user_id = :uid WHERE user_id IS NULL"),
+                {"uid": admin_id},
+            )
+            conn.commit()
+
+    detail = "、".join(f"{t}: {c} 行" for t, c in orphan_counts.items())
+    return f"已将孤儿数据分配给管理员 {admin_name} (id={admin_id})：{detail}"
 
 
 def create_admin(username: str, password: str) -> str:
@@ -133,6 +177,8 @@ def main():
     lr = sub.add_parser("login-report", help="Generate per-user login history report")
     lr.add_argument("--user", "-u", default=None, help="Show report for a specific username only")
 
+    sub.add_parser("backfill-orphans", help="Assign NULL user_id rows to the first admin (one-time)")
+
     args = parser.parse_args()
 
     if args.command == "create-admin":
@@ -141,6 +187,8 @@ def main():
         print(list_users())
     elif args.command == "login-report":
         print(login_report(args.user))
+    elif args.command == "backfill-orphans":
+        print(backfill_orphans())
     else:
         parser.print_help()
 

@@ -107,6 +107,12 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    healthcheck:
+      # 探测 backend 健康端点（经 nginx 反代），backend 或 nginx 任一异常即 unhealthy（#24）
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   certbot:
     image: certbot/certbot:latest

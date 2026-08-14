@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, undefer
 
 from ..auth import get_current_user
 from ..database import get_db
@@ -187,7 +187,7 @@ def list_study_topics(
     if mode == "review":
         today = date.today()
         rows = (
-            db.query(Word.topic, func.count(Word.id), func.max(Word.jlpt_level))
+            db.query(Word.topic, func.count(Word.id), func.min(Word.jlpt_level))  # min=N1（#13）
             .join(StudyRecord, Word.id == StudyRecord.word_id)
             .filter(
                 Word.user_id == user.id,
@@ -200,7 +200,7 @@ def list_study_topics(
         )
     elif mode == "new":
         rows = (
-            db.query(Word.topic, func.count(Word.id), func.max(Word.jlpt_level))
+            db.query(Word.topic, func.count(Word.id), func.min(Word.jlpt_level))  # min=N1（#13）
             .outerjoin(StudyRecord, Word.id == StudyRecord.word_id)
             .filter(
                 Word.user_id == user.id,
@@ -383,6 +383,7 @@ def start_session(
                 StudyRecord.next_review_date <= today,
                 StudyRecord.stage < 7,
             )
+            .options(undefer(Word.image_base64))  # 学习卡片需要显示配图（#31）
         )
         if req.topics:
             q = q.filter(Word.topic.in_(req.topics))
@@ -394,6 +395,7 @@ def start_session(
             db.query(Word)
             .outerjoin(StudyRecord, Word.id == StudyRecord.word_id)
             .filter(Word.user_id == user.id, StudyRecord.id.is_(None))
+            .options(undefer(Word.image_base64))  # 学习卡片需要显示配图（#31）
         )
         if req.topics:
             q = q.filter(Word.topic.in_(req.topics))

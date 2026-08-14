@@ -8,6 +8,7 @@ DELETE /api/essays/{essay_id} — 删除短文
 """
 
 import json
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -31,6 +32,8 @@ from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
 
 router = APIRouter(prefix="/api", tags=["essay"])
+
+logger = logging.getLogger(__name__)
 
 # IP 级限流：AI 短文生成（付费调用）
 ESSAY_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
@@ -93,11 +96,14 @@ def create_essay(
             title=req.title,
         )
     except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        logger.error("AI 短文生成失败 topics=%r: %s", req.topics, e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI服务调用失败: {str(e)}")
+        logger.error("AI 短文生成运行时错误 topics=%r: %s", req.topics, e)
+        raise HTTPException(status_code=502, detail="AI 生成服务暂时不可用，请稍后重试")
+    except Exception:
+        logger.exception("AI 短文生成未知异常 topics=%r", req.topics)
+        raise HTTPException(status_code=500, detail="AI 生成服务内部错误，请稍后重试")
 
     record_usage(db, user.id, "essay", tokens)
 

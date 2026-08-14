@@ -2,7 +2,9 @@
 # ============================================================
 # 一键部署脚本 — 本地修改 → 服务器更新
 #
-# 用法: bash deploy.sh
+# 用法:
+#   bash deploy.sh             正常部署（同步 + 构建 + 重启 + 备份 cron）
+#   bash deploy.sh rollback    回滚 backend 到上次部署版本（backend.bak）
 #
 # 前置条件:
 #   1. 本地已配置 SSH Key 并添加到服务器
@@ -21,6 +23,19 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# ── rollback 子命令（#22）：从 backend.bak 恢复上次部署版本 ──
+if [ "${1:-}" = "rollback" ]; then
+  echo -e "${YELLOW}回滚 backend 到上次部署版本...${NC}"
+  ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && \
+    [ -d backend.bak ] || { echo '无 backend.bak 备份，无法回滚'; exit 1; } && \
+    rm -rf backend && cp -a backend.bak backend && \
+    docker compose build backend && \
+    docker compose up -d --force-recreate backend && \
+    docker compose restart nginx"
+  echo -e "${GREEN}✅ 回滚完成！${NC}"
+  exit 0
+fi
+
 echo -e "${YELLOW}========================================${NC}"
 echo -e "${YELLOW}  一键部署：日语词汇学习平台${NC}"
 echo -e "${YELLOW}========================================${NC}"
@@ -28,12 +43,12 @@ echo -e "${YELLOW}========================================${NC}"
 # ── 1. 同步文件到服务器 ──
 echo -e "${GREEN}[1/4] 同步代码到服务器...${NC}"
 
-# 后端代码（tar 流传输，排除本地临时/缓存目录；用 backend/* 避免嵌套 backend/backend/）
+# 后端代码（tar 流传输，排除本地临时/缓存目录；--delete 语义：先清空再解压，
+# 保证服务器上无本地已删除文件的残留；失败可从 backend.bak 恢复）
 echo "  → backend/"
-ssh "${SERVER_USER}@${SERVER_IP}" "rm -rf ${SERVER_PROJECT_DIR}/backend.bak"
-ssh "${SERVER_USER}@${SERVER_IP}" "cp -a ${SERVER_PROJECT_DIR}/backend ${SERVER_PROJECT_DIR}/backend.bak"
+ssh "${SERVER_USER}@${SERVER_IP}" "rm -rf ${SERVER_PROJECT_DIR}/backend.bak && cp -a ${SERVER_PROJECT_DIR}/backend ${SERVER_PROJECT_DIR}/backend.bak"
 tar --exclude='.tmp' --exclude='.venv' --exclude='__pycache__' --exclude='*.pyc' \
-    -C backend -cf - . | ssh "${SERVER_USER}@${SERVER_IP}" "tar -C ${SERVER_PROJECT_DIR}/backend -xf -"
+    -C backend -cf - . | ssh "${SERVER_USER}@${SERVER_IP}" "rm -rf ${SERVER_PROJECT_DIR}/backend/* && tar -C ${SERVER_PROJECT_DIR}/backend -xf -"
 
 # 前端静态文件（用 frontend/* 避免在服务器上嵌套成 frontend/frontend/）
 echo "  → frontend/"
@@ -74,6 +89,21 @@ ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && docker compose up
 
 # 如果 nginx.conf 或 frontend 有变化，重启 nginx
 ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && docker compose restart nginx"
+
+# ── 3.5 前端资源版本号注入（#37） ──
+# nginx 静态托管不经过 FastAPI 的 index()，需在部署时用内容哈希替换 index.html 占位符，
+# 使 css/js 修改后浏览器能拿到新 URL（避免 1 天强缓存内的旧版本）
+echo -e "${GREEN}[3.5] 注入前端资源版本号...${NC}"
+ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR}/frontend && \
+  for f in css/desktop.css css/mobile.css js/api.js js/app.js; do \
+    h=\$(md5sum \$f | cut -c1-8); \
+    case \$f in \
+      css/desktop.css) sed -i \"s|{desktop_version}|\$h|g\" index.html ;; \
+      css/mobile.css)  sed -i \"s|{mobile_version}|\$h|g\" index.html ;; \
+      js/api.js)       sed -i \"s|{api_version}|\$h|g\" index.html ;; \
+      js/app.js)       sed -i \"s|{app_version}|\$h|g\" index.html ;; \
+    esac; \
+  done && echo '  版本号注入完成' && grep -o 'v={[a-z_]*}' index.html | head -4 || echo '  (无未替换占位符)'"
 
 # ── 4. 等待并检查 ──
 echo -e "${GREEN}[4/4] 等待服务健康检查...${NC}"

@@ -1,5 +1,5 @@
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, undefer
 
 from ..models import Word
 from ..schemas import WordItem
@@ -34,8 +34,12 @@ def get_words(
     search: str | None = None,
     offset: int = 0,
     limit: int = 50,
+    include_images: bool = False,
 ) -> tuple[list[Word], int]:
+    """查询单词列表。image_base64 为 deferred 大字段，默认不加载（#31）。"""
     stmt = select(Word).where(Word.user_id == user_id)
+    if include_images:
+        stmt = stmt.options(undefer(Word.image_base64))
     if topic:
         stmt = stmt.where(Word.topic == topic)
     if search:

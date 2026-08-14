@@ -24,6 +24,9 @@ VOICE_IP_LIMIT = rate_limit(max_requests=30, window_seconds=60)  # 30/min per IP
 CACHE_DIR = Path(__file__).parent.parent.parent / "data" / "voice_cache"
 MAX_CACHE_FILES = 500
 MAX_CACHE_AGE_DAYS = 30
+# #32：evict 全目录 stat 开销大，降频为每 10 分钟最多一次
+_EVICT_INTERVAL = 600
+_last_evict_ts = 0.0
 
 
 class VoiceRequest(BaseModel):
@@ -50,6 +53,16 @@ def _get_cached(key: str) -> bytes | None:
 def _set_cache(key: str, data: bytes):
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     (CACHE_DIR / f"{key}.wav").write_bytes(data)
+    _maybe_evict_cache()
+
+
+def _maybe_evict_cache():
+    """降频版缓存清理（#32）：每 _EVICT_INTERVAL 秒最多执行一次全目录扫描。"""
+    global _last_evict_ts
+    now = time.time()
+    if now - _last_evict_ts < _EVICT_INTERVAL:
+        return
+    _last_evict_ts = now
     _evict_cache()
 
 

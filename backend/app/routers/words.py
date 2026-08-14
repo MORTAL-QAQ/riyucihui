@@ -1,9 +1,10 @@
 from datetime import datetime
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, undefer
 
 from ..auth import get_current_user
 from ..database import get_db
@@ -24,6 +25,8 @@ from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
 
 router = APIRouter(prefix="/api", tags=["words"])
+
+logger = logging.getLogger(__name__)
 
 # IP 级限流：AI 配图调用火山引擎付费接口，防刷
 IMAGE_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
@@ -60,7 +63,7 @@ def list_words(
         raise HTTPException(status_code=400, detail="搜索关键词不能超过100个字符")
     if limit > 200:
         limit = 200
-    words, total = word_service.get_words(db, user.id, topic, search, offset, limit)
+    words, total = word_service.get_words(db, user.id, topic, search, offset, limit, include_images=include_images)
     out = [WordOut.model_validate(w) for w in words]
     # Strip heavy image_base64 by default for performance
     if not include_images:
@@ -137,7 +140,9 @@ def generate_image(
             example_cn=word.example_cn or "",
         )
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        # 只对外返回笼统信息，内部细节（临时 URL / LLM 响应）进日志（#10）
+        logger.error("AI 配图生成失败 word_id=%s: %s", word_id, e)
+        raise HTTPException(status_code=502, detail="AI 配图生成失败，请稍后重试")
 
     word.image_base64 = image_base64
     db.commit()
@@ -153,7 +158,9 @@ def get_word_image_data(
     user: User = Depends(get_current_user),
 ):
     """仅返回单张图片的 base64 数据（懒加载用）。"""
-    word = db.get(Word, word_id)
+    word = db.execute(
+        select(Word).where(Word.id == word_id).options(undefer(Word.image_base64))
+    ).scalar_one_or_none()
     if not word or word.user_id != user.id:
         raise HTTPException(status_code=404, detail="单词不存在")
     return {"id": word.id, "image_base64": word.image_base64 or ""}
@@ -163,9 +170,13 @@ def get_word_image_data(
 def list_image_cards(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-    include_data: bool = True,
+    include_data: bool = False,
 ):
-    """按词单分组返回已有配图的单词。include_data=false 时不返回图片 base64 数据。"""
+    """按词单分组返回已有配图的单词。
+
+    include_data 默认 False（#30）：不返回图片 base64 数据，避免整页传输巨量内容；
+    需要图片数据时显式传 include_data=true（前端仅在展示单张时请求）。
+    """
     rows = db.execute(
         select(Word)
         .where(
@@ -173,6 +184,7 @@ def list_image_cards(
             Word.image_base64.isnot(None),
             Word.image_base64 != "",
         )
+        .options(undefer(Word.image_base64))
         .order_by(Word.topic, Word.created_at.desc())
     ).scalars().all()
 
