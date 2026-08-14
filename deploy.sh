@@ -42,11 +42,20 @@ scp -r frontend/css frontend/js frontend/index.html "${SERVER_USER}@${SERVER_IP}
 echo "  → 配置文件"
 scp docker-compose.yml Dockerfile nginx.conf "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
 
-# secrets/ 密钥目录（SECRET_KEY / API Key / DB 密码等）
-# 注意：会覆盖服务器上的同名文件，部署前请确认本地 secrets/ 中为真实值
+# ── secrets/ 密钥目录（不自动覆盖，避免本地占位符覆盖服务器真实密钥）──
+# Docker secrets 源文件（SECRET_KEY / API Key / DB 密码）。服务器上已存在时跳过；
+# 首次部署或需要轮换密钥时，请在服务器上手动维护：
+#   服务器: /opt/riyucihui/secrets/ 下放置 SECRET_KEY、DEEPSEEK_API_KEY、
+#           VOLCANO_API_KEY、DB_PASSWORD、DATABASE_URL（详见 secrets/README.md）
 if [ -d secrets ]; then
-  echo "  → secrets/ 密钥目录"
-  scp -r secrets "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
+  echo "  → secrets/：检测到本地 secrets 目录"
+  if ssh "${SERVER_USER}@${SERVER_IP}" "[ -d ${SERVER_PROJECT_DIR}/secrets ]"; then
+    echo "    ⚠️  服务器 secrets/ 已存在，跳过覆盖（避免覆盖真实密钥）"
+    echo "    如需轮换 SECRET_KEY，请在服务器上更新 secrets/SECRET_KEY 后重建 backend"
+  else
+    echo "    ⚠️  服务器无 secrets/，未自动创建——请先确认本地 secrets/ 中为真实值，"
+    echo "    再手动执行: scp -r secrets ${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
+  fi
 fi
 
 # ── 2. 重建后端镜像 ──
