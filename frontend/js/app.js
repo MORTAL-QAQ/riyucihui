@@ -182,8 +182,7 @@ async function doAuth() {
   try {
     const fn = isRegisterMode ? api.register : api.login;
     const data = await fn(username, password);
-    authToken = data.access_token;
-    sessionStorage.setItem("token", data.access_token);
+    setToken(data.access_token);
     currentUsername = data.username;
     isAdmin = data.is_admin || false;
     sidebarUsername.textContent = data.username;
@@ -206,8 +205,7 @@ btnLogout.addEventListener("click", async () => {
   } catch (_) {
     /* server unreachable, clear local state anyway */
   }
-  authToken = null;
-  sessionStorage.removeItem("token");
+  clearToken();
   currentUsername = "";
   isAdmin = false;
   navAdmin.style.display = "none";
@@ -391,6 +389,19 @@ function showToast(msg, type = "success", duration = 2500) {
   return el;  // 返回元素引用，调用方可手动 remove
 }
 
+/**
+ * 统一 API/运行时错误处理（#40）：
+ * - 错误 toast 提示（风格统一，不再依赖各处拼 `失败：${err.message}`）
+ * - console.error 记录，避免静默吞错
+ * 返回可展示的消息文本，便于调用方写入错误区域。
+ */
+function handleApiError(err, fallbackMsg = "操作失败，请稍后重试") {
+  const msg = (err && err.message) || fallbackMsg;
+  console.error("[app]", err);
+  showToast(msg, "error", 3500);
+  return msg;
+}
+
 // ===== 生成单词 =====
 btnGenerate.addEventListener("click", () => doGenerate());
 topicInput.addEventListener("keydown", (e) => {
@@ -459,21 +470,15 @@ async function doGenerate() {
 
   btnGenerate.disabled = true;
   loadingEl.style.display = "block";
-  const streamPreview = $("#stream-preview");
-  streamPreview.style.display = "block";
-  streamPreview.textContent = "";
   resultArea.style.display = "none";
   generateError.style.display = "none";
 
   try {
-    await streamRequest("/generate", {
+    await runStreamToPreview("/generate", {
       topic, difficulty: difficulty || undefined, extra: extra || undefined, count, stream: true,
-    }, (event) => {
-      if (event.chunk) {
-        streamPreview.textContent += event.chunk;
-        streamPreview.scrollTop = streamPreview.scrollHeight;
-      } else if (event.done) {
-        generatedWords = event.result;
+    }, "stream-preview", {
+      onDone: (result) => {
+        generatedWords = result;
         // 确保每个单词都有 jlpt_level（服务端流式模式可能未注入时兜底）
         if (generatedDifficulty) {
           generatedWords.forEach(w => { if (!w.jlpt_level) w.jlpt_level = generatedDifficulty; });
@@ -481,18 +486,15 @@ async function doGenerate() {
         selectedSet = new Set(generatedWords.map((_, i) => i));
         renderResultCards(topic);
         loadingEl.style.display = "none";
-        streamPreview.style.display = "none";
         resultArea.style.display = "block";
         generateWelcome.style.display = "none";
         resultArea.scrollIntoView({ behavior: "smooth" });
         loadGenerateQuota();
-      } else if (event.error) {
-        throw new Error(event.error);
-      }
+      },
+      onError: (msg) => { throw new Error(msg); },
     });
   } catch (err) {
     loadingEl.style.display = "none";
-    streamPreview.style.display = "none";
     generateError.style.display = "block";
     generateError.textContent = `生成失败：${err.message}`;
     showToast("生成失败，请重试", "error");
@@ -639,35 +641,26 @@ btnGenerateMore.addEventListener("click", async () => {
   const count = parseInt(wordCountSelect.value) || 10;
 
   btnGenerateMore.disabled = true;
-  const streamPreview = $("#stream-preview");
-  streamPreview.style.display = "block";
-  streamPreview.textContent = "";
   try {
-    await streamRequest("/generate", {
+    await runStreamToPreview("/generate", {
       topic, difficulty: difficulty || undefined, extra: extra || undefined, count, exclude_words: existingWords, stream: true,
-    }, (event) => {
-      if (event.chunk) {
-        streamPreview.textContent += event.chunk;
-        streamPreview.scrollTop = streamPreview.scrollHeight;
-      } else if (event.done) {
+    }, "stream-preview", {
+      onDone: (result) => {
         const oldLen = generatedWords.length;
         if (generatedDifficulty) {
-          event.result.forEach(w => { if (!w.jlpt_level) w.jlpt_level = generatedDifficulty; });
+          result.forEach(w => { if (!w.jlpt_level) w.jlpt_level = generatedDifficulty; });
         }
-        generatedWords.push(...event.result);
+        generatedWords.push(...result);
         for (let i = oldLen; i < generatedWords.length; i++) {
           selectedSet.add(i);
         }
         renderResultCards(topic);
-        streamPreview.style.display = "none";
-        showToast(`新增 ${event.result.length} 个单词`);
+        showToast(`新增 ${result.length} 个单词`);
         loadGenerateQuota();
-      } else if (event.error) {
-        throw new Error(event.error);
-      }
+      },
+      onError: (msg) => { throw new Error(msg); },
     });
   } catch (err) {
-    streamPreview.style.display = "none";
     showToast(`生成失败：${err.message}`, "error");
   } finally {
     btnGenerateMore.disabled = false;
@@ -2167,9 +2160,6 @@ async function doGenerateEssay() {
 
   btnGenerateEssay.disabled = true;
   essayLoading.style.display = "block";
-  const streamPreview = $("#essay-stream-preview");
-  streamPreview.style.display = "block";
-  streamPreview.textContent = "";
   essayResult.style.display = "none";
   essayError.style.display = "none";
 
@@ -2181,26 +2171,20 @@ async function doGenerateEssay() {
 
   try {
     const words = essaySelectedWords.size > 0 ? [...essaySelectedWords] : null;
-    await streamRequest("/essay", {
+    await runStreamToPreview("/essay", {
       topics: essaySelectedTopics, words, word_count: wordCount, jlpt_level: level,
       genre: genre || undefined, title: customTitle || undefined, stream: true,
-    }, (event) => {
-      if (event.chunk) {
-        streamPreview.textContent += event.chunk;
-        streamPreview.scrollTop = streamPreview.scrollHeight;
-      } else if (event.done) {
-        renderEssayResult(event.result);
+    }, "essay-stream-preview", {
+      onDone: (result) => {
+        renderEssayResult(result);
         essayLoading.style.display = "none";
-        streamPreview.style.display = "none";
         essayResult.style.display = "block";
         essayResult.scrollIntoView({ behavior: "smooth" });
-      } else if (event.error) {
-        throw new Error(event.error);
-      }
+      },
+      onError: (msg) => { throw new Error(msg); },
     });
   } catch (err) {
     essayLoading.style.display = "none";
-    streamPreview.style.display = "none";
     essayError.style.display = "block";
     essayError.textContent = `生成失败：${err.message}`;
     showToast("短文生成失败，请重试", "error");
@@ -2505,20 +2489,14 @@ btnGrammarAnalyze.addEventListener("click", async () => {
 
   btnGrammarAnalyze.disabled = true;
   const loadingEl = $("#grammar-analyze-loading");
-  const streamPreview = $("#grammar-analyze-stream-preview");
   loadingEl.style.display = "block";
-  streamPreview.style.display = "block";
-  streamPreview.textContent = "";
   $("#grammar-analyze-result").style.display = "none";
   $("#grammar-analyze-error").style.display = "none";
 
   try {
-    await streamRequest("/grammar/analyze", { sentence, stream: true }, (event) => {
-      if (event.chunk) {
-        streamPreview.textContent += event.chunk;
-        streamPreview.scrollTop = streamPreview.scrollHeight;
-      } else if (event.done) {
-        $("#grammar-points-list").innerHTML = event.result.points
+    await runStreamToPreview("/grammar/analyze", { sentence, stream: true }, "grammar-analyze-stream-preview", {
+      onDone: (result) => {
+        $("#grammar-points-list").innerHTML = result.points
           .map(
             (p) => `
           <div class="grammar-point-card">
@@ -2533,15 +2511,12 @@ btnGrammarAnalyze.addEventListener("click", async () => {
           )
           .join("");
         loadingEl.style.display = "none";
-        streamPreview.style.display = "none";
         $("#grammar-analyze-result").style.display = "block";
-      } else if (event.error) {
-        throw new Error(event.error);
-      }
+      },
+      onError: (msg) => { throw new Error(msg); },
     });
   } catch (err) {
     loadingEl.style.display = "none";
-    streamPreview.style.display = "none";
     $("#grammar-analyze-error").style.display = "block";
     $("#grammar-analyze-error").textContent = `分析失败：${err.message}`;
     showToast("语法分析失败，请重试", "error");
@@ -2561,20 +2536,14 @@ btnGrammarCorrect.addEventListener("click", async () => {
 
   btnGrammarCorrect.disabled = true;
   const loadingEl = $("#grammar-correct-loading");
-  const streamPreview = $("#grammar-correct-stream-preview");
   loadingEl.style.display = "block";
-  streamPreview.style.display = "block";
-  streamPreview.textContent = "";
   $("#grammar-correct-result").style.display = "none";
   $("#grammar-correct-error").style.display = "none";
 
   try {
-    await streamRequest("/grammar/correct", { sentence, stream: true }, (event) => {
-      if (event.chunk) {
-        streamPreview.textContent += event.chunk;
-        streamPreview.scrollTop = streamPreview.scrollHeight;
-      } else if (event.done) {
-        const data = event.result;
+    await runStreamToPreview("/grammar/correct", { sentence, stream: true }, "grammar-correct-stream-preview", {
+      onDone: (result) => {
+        const data = result;
         let errorsHtml = "";
         if (data.errors.length === 0) {
           errorsHtml = '<div class="no-errors-badge">✓ 句子完全正确，没有语法错误</div>';
@@ -2605,15 +2574,12 @@ btnGrammarCorrect.addEventListener("click", async () => {
           ${errorsHtml}
         `;
         loadingEl.style.display = "none";
-        streamPreview.style.display = "none";
         $("#grammar-correct-result").style.display = "block";
-      } else if (event.error) {
-        throw new Error(event.error);
-      }
+      },
+      onError: (msg) => { throw new Error(msg); },
     });
   } catch (err) {
     loadingEl.style.display = "none";
-    streamPreview.style.display = "none";
     $("#grammar-correct-error").style.display = "block";
     $("#grammar-correct-error").textContent = `纠错失败：${err.message}`;
     showToast("语法纠错失败，请重试", "error");
@@ -2633,20 +2599,14 @@ btnGrammarCompare.addEventListener("click", async () => {
 
   btnGrammarCompare.disabled = true;
   const loadingEl = $("#grammar-compare-loading");
-  const streamPreview = $("#grammar-compare-stream-preview");
   loadingEl.style.display = "block";
-  streamPreview.style.display = "block";
-  streamPreview.textContent = "";
   $("#grammar-compare-result").style.display = "none";
   $("#grammar-compare-error").style.display = "none";
 
   try {
-    await streamRequest("/grammar/compare", { topic, stream: true }, (event) => {
-      if (event.chunk) {
-        streamPreview.textContent += event.chunk;
-        streamPreview.scrollTop = streamPreview.scrollHeight;
-      } else if (event.done) {
-        const data = event.result;
+    await runStreamToPreview("/grammar/compare", { topic, stream: true }, "grammar-compare-stream-preview", {
+      onDone: (result) => {
+        const data = result;
         currentCompareData = { topic: data.topic, summary: data.summary, rows: data.rows };
         const saveBtn = $("#btn-grammar-save-compare");
         saveBtn.disabled = false;
@@ -2677,15 +2637,12 @@ btnGrammarCompare.addEventListener("click", async () => {
           </tbody>
         `;
         loadingEl.style.display = "none";
-        streamPreview.style.display = "none";
         $("#grammar-compare-result").style.display = "block";
-      } else if (event.error) {
-        throw new Error(event.error);
-      }
+      },
+      onError: (msg) => { throw new Error(msg); },
     });
   } catch (err) {
     loadingEl.style.display = "none";
-    streamPreview.style.display = "none";
     $("#grammar-compare-error").style.display = "block";
     $("#grammar-compare-error").textContent = `辨析失败：${err.message}`;
     showToast("语法辨析失败，请重试", "error");
@@ -3244,6 +3201,39 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => map[c]);
 }
 
+/**
+ * 统一 SSE 流式处理（#38）：管理流预览框显示/追加/隐藏，并归一事件分发。
+ * 原 7 处 AI 生成端点重复的「显示 preview → 追加 chunk → done/error → 隐藏」模板
+ * 收敛为单一函数；调用方只需提供 onDone / onError 业务逻辑。
+ *
+ * @param {string} url        API 路径（如 "/generate"）
+ * @param {object} body       请求体（含 stream: true）
+ * @param {string} previewId  流预览元素 id（如 "stream-preview"）
+ * @param {object} handlers   { onChunk?, onDone?, onError? }
+ */
+async function runStreamToPreview(url, body, previewId, handlers = {}) {
+  const previewEl = $(previewId);
+  previewEl.style.display = "block";
+  previewEl.textContent = "";
+  const { onChunk, onDone, onError } = handlers;
+  try {
+    await streamRequest(url, body, (event) => {
+      if (event.chunk) {
+        previewEl.textContent += event.chunk;
+        previewEl.scrollTop = previewEl.scrollHeight;
+        if (onChunk) onChunk(event.chunk);
+      } else if (event.done) {
+        if (onDone) onDone(event.result);
+      } else if (event.error) {
+        if (onError) onError(event.error);
+        else throw new Error(event.error);
+      }
+    });
+  } finally {
+    previewEl.style.display = "none";
+  }
+}
+
 function jlptBadge(level) {
   if (!level) return "";
   return `<span class="jlpt-badge ${esc(level)}">${esc(level)}</span>`;
@@ -3259,7 +3249,7 @@ function jlptBadge(level) {
   const savedToken = sessionStorage.getItem("token");
   if (savedToken) {
     // 尝试验证已保存的 token
-    authToken = savedToken;
+    setToken(savedToken);
     api
       .me()
       .then((data) => {
@@ -3283,8 +3273,7 @@ function jlptBadge(level) {
       })
       .catch(() => {
         // token 过期或无效，清除并显示登录页
-        sessionStorage.removeItem("token");
-        authToken = null;
+        clearToken();
         authPage.style.display = "flex";
         mainApp.style.display = "none";
       });
@@ -3390,9 +3379,6 @@ async function doGenerateCloze() {
 
   btnGenerateCloze.disabled = true;
   clozeLoading.style.display = "block";
-  const streamPreview = $("#cloze-stream-preview");
-  streamPreview.style.display = "block";
-  streamPreview.textContent = "";
   clozeResult.style.display = "none";
   clozeError.style.display = "none";
   clozeUserAnswers = {};
@@ -3407,25 +3393,19 @@ async function doGenerateCloze() {
 
   try {
     const words = clozeSelectedWords.size > 0 ? [...clozeSelectedWords] : null;
-    await streamRequest("/cloze", {
+    await runStreamToPreview("/cloze", {
       topics: clozeSelectedTopics, words, length, jlpt_level: level, stream: true,
-    }, (event) => {
-      if (event.chunk) {
-        streamPreview.textContent += event.chunk;
-        streamPreview.scrollTop = streamPreview.scrollHeight;
-      } else if (event.done) {
-        renderClozeResult(event.result);
+    }, "cloze-stream-preview", {
+      onDone: (result) => {
+        renderClozeResult(result);
         clozeLoading.style.display = "none";
-        streamPreview.style.display = "none";
         clozeResult.style.display = "block";
         clozeResult.scrollIntoView({ behavior: "smooth" });
-      } else if (event.error) {
-        throw new Error(event.error);
-      }
+      },
+      onError: (msg) => { throw new Error(msg); },
     });
   } catch (err) {
     clozeLoading.style.display = "none";
-    streamPreview.style.display = "none";
     clozeError.style.display = "block";
     clozeError.textContent = `生成失败：${err.message}`;
     showToast("完型填空生成失败，请重试", "error");

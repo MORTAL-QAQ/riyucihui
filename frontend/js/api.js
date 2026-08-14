@@ -15,11 +15,23 @@
 
 const BASE = window.API_BASE || "/api";
 
-// Token 优先从内存读取，否则从 sessionStorage 恢复
+// Token 优先从内存读取，否则从 sessionStorage 恢复（#39）
+// 外部统一通过 setToken/clearToken/getToken 操作，禁止直接改写内部状态
 let authToken = sessionStorage.getItem("token");
 
 function getToken() {
   return authToken || sessionStorage.getItem("token");
+}
+
+function setToken(token) {
+  authToken = token || null;
+  if (token) sessionStorage.setItem("token", token);
+  else sessionStorage.removeItem("token");
+}
+
+function clearToken() {
+  authToken = null;
+  sessionStorage.removeItem("token");
 }
 
 /** SSE 流式请求 — 通过 Server-Sent Events 逐步接收 AI 生成内容。 */
