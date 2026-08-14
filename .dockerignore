@@ -16,8 +16,8 @@ venv/
 *.db
 backend/data/
 
-# Environment
-.env
+# Environment（**/ 确保 backend/.env 等子目录 .env 也被排除，防止开发配置进生产镜像）
+**/.env
 .env.local
 .env.*.local
 

@@ -8,8 +8,11 @@ import os
 
 from dotenv import load_dotenv
 
-# 加载 .env 文件中的环境变量（开发环境）
-load_dotenv()
+# 生产容器（Docker secrets 挂载于 /run/secrets）不加载 .env，避免开发配置
+# （如 DATABASE_URL=sqlite）经环境变量覆盖 secrets 注入的生产值。
+# 仅本地开发（无 /run/secrets）时加载 .env。
+if not os.path.isdir("/run/secrets"):
+    load_dotenv()
 
 from .services.secrets import resolve as _resolve_secret  # noqa: E402
 

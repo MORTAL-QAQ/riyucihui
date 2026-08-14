@@ -41,7 +41,7 @@ scp -r frontend/css frontend/js frontend/index.html "${SERVER_USER}@${SERVER_IP}
 
 # 配置文件
 echo "  → 配置文件"
-scp docker-compose.yml Dockerfile nginx.conf "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
+scp docker-compose.yml Dockerfile nginx.conf .dockerignore "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
 
 # ── secrets/ 密钥目录（不自动覆盖，避免本地占位符覆盖服务器真实密钥）──
 # Docker secrets 源文件（SECRET_KEY / API Key / DB 密码）。服务器上已存在时跳过；
