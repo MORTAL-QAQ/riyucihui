@@ -125,22 +125,19 @@ services:
     profiles:
       - certbot
 
+# secrets 文件容器内为 600(root)；非 root 容器用户（appuser）的读取权限
+# 由 entrypoint.sh 在启动时 chmod 兜底（compose file secrets 不支持 mode 属性）
 secrets:
   SECRET_KEY:
     file: ./secrets/SECRET_KEY
-    mode: "0444"  # 非 root 容器用户（appuser）需可读（#8）
   DEEPSEEK_API_KEY:
     file: ./secrets/DEEPSEEK_API_KEY
-    mode: "0444"
   VOLCANO_API_KEY:
     file: ./secrets/VOLCANO_API_KEY
-    mode: "0444"
   DB_PASSWORD:
     file: ./secrets/DB_PASSWORD
-    mode: "0444"
   DATABASE_URL:
     file: ./secrets/DATABASE_URL
-    mode: "0444"
 
 volumes:
   pgdata:
