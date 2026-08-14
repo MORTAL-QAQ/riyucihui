@@ -1,4 +1,4 @@
-"""AIGC多模态日语词汇学习 — FastAPI 应用入口。
+"""多模态日语词汇学习 — FastAPI 应用入口。
 
 应用启动流程（lifespan）：
 1. 创建 data 目录
@@ -15,7 +15,10 @@
 - index.html 在服务时注入缓存版本号（cache-busting）
 """
 
+import asyncio
+import gc
 import hashlib
+import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -27,7 +30,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config
 from .database import Base, engine, run_migrations
-from .routers import achievement, admin_api, auth, cloze, essay, generate, grammar, settings, study, voice, words
+from .routers import achievement, admin_api, auth, cloze, essay, export, generate, grammar, settings, study, voice, words
 from .services import voicevox_manager
 
 FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
@@ -62,6 +65,17 @@ async def lifespan(app: FastAPI):
     # 运行迁移（兼容旧数据库升级）
     run_migrations()
 
+    # 后台定期 gc：每 300 次请求或 30 秒执行一次
+    gc_counter = [0]
+    async def periodic_gc():
+        while True:
+            await asyncio.sleep(30)
+            gc.collect()
+            # 释放 Python 内存归还 OS（需要 glibc 2.31+）
+            if hasattr(os, 'sched_yield'):
+                pass
+    gc_task = asyncio.create_task(periodic_gc())
+
     if voicevox_manager.check_engine():
         print("[voicevox] Already running", file=sys.stderr)
     elif voicevox_manager.start_engine():
@@ -71,16 +85,17 @@ async def lifespan(app: FastAPI):
     else:
         print("[voicevox] Not available — voice features disabled", file=sys.stderr)
     yield
+    gc_task.cancel()
     voicevox_manager.stop_engine()
 
 
-app = FastAPI(title="AIGC多模态日语词汇学习", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="多模态日语词汇学习", version="1.0.0", lifespan=lifespan)
 
 @app.middleware("http")
 async def limit_request_size(request: Request, call_next):
     # Fast path: honest Content-Length header
     content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > MAX_REQUEST_BYTES:
+    if content_length and content_length.isdigit() and int(content_length) > MAX_REQUEST_BYTES:
         return JSONResponse(
             status_code=413,
             content={"detail": f"Request body too large (max {MAX_REQUEST_BYTES // 1_000_000} MB)"},
@@ -123,6 +138,7 @@ app.include_router(settings.router)
 app.include_router(study.router)
 app.include_router(essay.router)
 app.include_router(cloze.router)
+app.include_router(export.router)
 
 
 @app.get("/api/health")

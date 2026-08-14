@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -556,3 +557,180 @@ def undo_review(
         "stage": sr.stage,
         "interval": sr.interval,
     }
+
+
+@router.get("/report/pdf")
+def export_study_report_pdf(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """导出学习进度报告为 PDF 文件。
+
+    包含：学习统计概览、SM-2 阶段分布、待复习单词列表。
+    """
+    from ..services.pdf_service import _encode_filename, _jp_font_name, _build_styles, _header_footer
+    from io import BytesIO
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    font_name = _jp_font_name()
+    styles = _build_styles(font_name)
+    buf = BytesIO()
+
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        rightMargin=20 * mm,
+        leftMargin=20 * mm,
+        topMargin=20 * mm + 8,
+        bottomMargin=20 * mm + 16,
+        title="学习报告",
+        author="多模态日语词汇学习",
+        creator="多模态日语词汇学习 PDF Export",
+    )
+
+    today = date.today()
+    elements: list = []
+
+    # ── Title ──
+    elements.append(Paragraph("多模态日语词汇学习 — 学习报告", styles["title"]))
+    elements.append(Spacer(1, 12))
+
+    # ── Stats ──
+    total_learned = db.query(func.count(StudyRecord.id)).filter(
+        StudyRecord.user_id == user.id
+    ).scalar() or 0
+
+    total_words = db.query(func.count(Word.id)).filter(
+        Word.user_id == user.id
+    ).scalar() or 0
+
+    mastered = db.query(func.count(StudyRecord.id)).filter(
+        StudyRecord.user_id == user.id,
+        StudyRecord.stage >= 5,
+    ).scalar() or 0
+
+    due_review = db.query(func.count(StudyRecord.id)).filter(
+        StudyRecord.user_id == user.id,
+        StudyRecord.next_review_date <= today,
+        StudyRecord.stage < 7,
+    ).scalar() or 0
+
+    today_reviewed = db.query(func.count(StudyRecord.id)).filter(
+        StudyRecord.user_id == user.id,
+        StudyRecord.last_review_date == today,
+    ).scalar() or 0
+
+    stats_data = [
+        ["总词库", "已学习", "掌握中", "待复习", "今日已复习"],
+        [str(total_words), str(total_learned), str(mastered), str(due_review), str(today_reviewed)],
+    ]
+    stats_tbl = Table(stats_data, colWidths=[90, 90, 90, 90, 100])
+    stats_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_name),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#6366f1")),
+        ("BACKGROUND", (0, 1), (-1, 1), colors.HexColor("#f9fafb")),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d1d5db")),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(stats_tbl)
+    elements.append(Spacer(1, 20))
+
+    # ── SM-2 Stage distribution ──
+    elements.append(Paragraph("SM-2 阶段分布", styles["heading"]))
+    stage_counts = db.execute(
+        db.query(StudyRecord.stage, func.count(StudyRecord.id))
+        .filter(StudyRecord.user_id == user.id)
+        .group_by(StudyRecord.stage)
+        .order_by(StudyRecord.stage)
+    ).all()
+    stage_map = {s: c for s, c in stage_counts}
+
+    stage_labels = ["阶段0\n(新卡)", "阶段1\n(1天)", "阶段2\n(2-3天)", "阶段3\n(4-7天)",
+                    "阶段4\n(8-21天)", "阶段5\n(22-60天)", "阶段6\n(61-180天)", "阶段7\n(已掌握)"]
+    stage_data = [["阶段", "数量", "进度"]]
+    max_count = max(stage_map.values()) if stage_map else 1
+    for s in range(8):
+        cnt = stage_map.get(s, 0)
+        bar = "█" * max(1, int(cnt / max(max_count, 1) * 20))
+        stage_data.append([stage_labels[s], str(cnt), bar])
+
+    stage_tbl = Table(stage_data, colWidths=[120, 60, 280])
+    stage_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_name),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#6366f1")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d1d5db")),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    elements.append(stage_tbl)
+    elements.append(Spacer(1, 20))
+
+    # ── Due review word list ──
+    if due_review > 0:
+        elements.append(Paragraph(f"待复习单词（共 {due_review} 个）", styles["heading"]))
+        due_words = (
+            db.query(Word, StudyRecord)
+            .join(StudyRecord, Word.id == StudyRecord.word_id)
+            .filter(
+                StudyRecord.user_id == user.id,
+                StudyRecord.next_review_date <= today,
+                StudyRecord.stage < 7,
+            )
+            .order_by(StudyRecord.stage, StudyRecord.next_review_date)
+            .limit(50)
+            .all()
+        )
+        dw_header = ["序号", "日语", "假名", "中文", "阶段", "间隔(天)"]
+        dw_data = [dw_header]
+        for i, (w, sr) in enumerate(due_words):
+            dw_data.append([
+                str(i + 1), w.japanese, w.kana, w.chinese,
+                str(sr.stage), str(sr.interval or 0),
+            ])
+        dw_tbl = Table(dw_data, colWidths=[30, 72, 72, 72, 36, 48])
+        dw_tbl.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), font_name),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#6366f1")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d1d5db")),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        elements.append(dw_tbl)
+
+    elements.append(Spacer(1, 20))
+    now_dt = datetime.now()
+    elements.append(Paragraph(
+        f"报告生成时间: {now_dt.strftime('%Y-%m-%d %H:%M')}",
+        styles["footer"],
+    ))
+
+    doc.build(elements, onFirstPage=lambda c, d: _header_footer(c, d, "学习报告"),
+               onLaterPages=lambda c, d: _header_footer(c, d, "学习报告"))
+    buf.seek(0)
+
+    filename = f"学习报告_{now_dt.strftime('%Y%m%d')}.pdf"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*={_encode_filename(filename)}",
+        },
+    )

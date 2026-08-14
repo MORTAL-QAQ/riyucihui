@@ -90,6 +90,16 @@ def run_migrations():
             conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_words_{col} ON words ({col})"))
             conn.commit()
 
+        # Composite indexes for common query patterns (performance)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_words_user_created ON words (user_id, created_at DESC)"
+        ))
+        conn.commit()
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_words_user_topic ON words (user_id, topic)"
+        ))
+        conn.commit()
+
         # words — image_base64 column (added for AI image generation feature)
         existing_w_img = {c["name"] for c in inspector.get_columns("words")}
         if "image_base64" not in existing_w_img:
@@ -105,6 +115,8 @@ def run_migrations():
             ("daily_ai_limit", "INTEGER", "INTEGER"),
             ("daily_voice_limit", "INTEGER", "INTEGER"),
             ("daily_image_limit", "INTEGER", "INTEGER"),
+            ("daily_word_limit", "INTEGER", "INTEGER"),
+            ("remark", "VARCHAR(200)", "VARCHAR(200)"),
         ]:
             if col not in existing_u:
                 col_type = col_type_pg if dialect == "postgresql" else col_type_sqlite

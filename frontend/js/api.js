@@ -1,5 +1,5 @@
 /**
- * AIGC多模态日语词汇学习 — API 客户端模块
+ * 多模态日语词汇学习 — API 客户端模块
  *
  * 提供两个核心请求函数和所有 API 端点的封装方法。
  *
@@ -116,6 +116,10 @@ const api = {
   },
 
   // ── Words ──
+  generateQuota() {
+    return request("/generate/quota");
+  },
+
   generate(topic, difficulty, extra, count, excludeWords) {
     return request("/generate", {
       method: "POST",
@@ -195,12 +199,36 @@ const api = {
     return request(`/words/${wordId}/image`, { method: "POST" });
   },
 
-  listImageCards() {
-    return request("/image-cards");
+  listImageCards(includeData = false) {
+    return request(`/image-cards?include_data=${includeData}`);
+  },
+
+  getImageCardData(wordId) {
+    return request(`/words/${wordId}/image-data`);
   },
 
   mergeDuplicates() {
     return request("/words/deduplicate", { method: "POST" });
+  },
+
+  /** 导出 PDF — 使用 fetch + blob 模式（同 voice），确保 Authorization 头正确传递。 */
+  exportPdf(url, params = {}) {
+    const token = getToken();
+    const headers = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const qs = Object.keys(params).length ? `?${new URLSearchParams(params)}` : "";
+    return fetch(BASE + url + qs, { headers }).then(async (res) => {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || `导出失败 (${res.status})`);
+      }
+      const blob = await res.blob();
+      // Extract filename from Content-Disposition header
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?(.+?)(?:;|$)/);
+      const filename = match ? decodeURIComponent(match[1]) : "export.pdf";
+      return { blob, filename };
+    });
   },
 
   async voice(text) {
@@ -297,6 +325,13 @@ const api = {
     return request("/admin/login-history");
   },
 
+  adminCreateUser(username, password) {
+    return request("/admin/create-user", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+  },
+
   toggleAdmin(userId) {
     return request(`/admin/users/${userId}/admin`, { method: "PUT", body: "{}" });
   },
@@ -305,13 +340,22 @@ const api = {
     return request(`/admin/users/${userId}`, { method: "DELETE" });
   },
 
-  setUserLimits(userId, aiLimit, voiceLimit) {
+  setUserLimits(userId, aiLimit, voiceLimit, wordLimit, imageLimit) {
     return request(`/admin/users/${userId}/limits`, {
       method: "PUT",
       body: JSON.stringify({
         daily_ai_limit: aiLimit,
         daily_voice_limit: voiceLimit,
+        daily_word_limit: wordLimit,
+        daily_image_limit: imageLimit,
       }),
+    });
+  },
+
+  setUserRemark(userId, remark) {
+    return request(`/admin/users/${userId}/remark`, {
+      method: "PUT",
+      body: JSON.stringify({ remark }),
     });
   },
 
@@ -382,5 +426,9 @@ const api = {
   // ── Achievement ──
   listAchievements() {
     return request("/achievements");
+  },
+
+  awardAchievement(key) {
+    return request("/achievements/award/" + key, { method: "POST", body: "{}" });
   },
 };

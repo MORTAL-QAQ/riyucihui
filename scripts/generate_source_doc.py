@@ -3,7 +3,7 @@
 
 输出格式：
 - 每页 50 行代码
-- 页眉：AIGC多模态日语词汇学习 V1.0
+- 页眉：多模态日语词汇学习 V1.0
 - 页脚：页码（第 X 页 / 共 60 页）
 - 前30页：核心模块
 - 后30页：辅助模块
@@ -15,7 +15,7 @@ import sys
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINES_PER_PAGE = 50
 TOTAL_PAGES = 60
-HEADER = "AIGC多模态日语词汇学习 V1.0"
+HEADER = "多模态日语词汇学习 V1.0"
 
 # ── 前30页：核心模块 ──
 FRONT_FILES = [

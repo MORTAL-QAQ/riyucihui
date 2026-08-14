@@ -16,6 +16,7 @@ CATEGORIES = {
     "study": "📖 背诵练习",
     "streak": "🔥 连续学习",
     "mastery": "👑 单词掌握",
+    "easter_egg": "🥚 彩蛋",
 }
 
 ACHIEVEMENTS = {
@@ -55,6 +56,8 @@ ACHIEVEMENTS = {
     "master_50": {"category": "mastery", "name": "単語仙人", "description": "掌握50个单词（达到阶段7）", "icon": "👑"},
     "master_100": {"category": "mastery", "name": "単語皇帝", "description": "掌握100个单词（达到阶段7）", "icon": "🏅"},
     "master_200": {"category": "mastery", "name": "語彙の神髄", "description": "掌握200个单词（达到阶段7）", "icon": "🎖️"},
+    # ── 彩蛋 ──
+    "konami_code": {"category": "easter_egg", "name": "隠し玉", "description": "发现隐藏的彩蛋", "icon": "🥚"},
 }
 
 

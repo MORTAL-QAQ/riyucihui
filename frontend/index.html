@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  AIGC多模态日语词汇学习 — 单页面应用（SPA）
+  多模态日语词汇学习 — 单页面应用（SPA）
 
   页面结构：
   - 认证层（auth-page）：登录/注册
@@ -16,17 +16,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AIGC多模态日语词汇学习</title>
-    <link rel="stylesheet" href="/css/style.css?v={style_version}" />
+    <title>多模态日语词汇学习</title>
+    <link rel="stylesheet" href="/css/desktop.css?v=12" />
+    <link rel="stylesheet" href="/css/mobile.css?v=12" media="(max-width: 768px)" />
   </head>
   <body>
     <!-- ===== 登录/注册页面 ===== -->
-    <div class="auth-overlay" id="auth-page" style="display: none">
+    <div class="auth-overlay" id="auth-page">
       <div class="auth-container">
         <div class="auth-brand">
           <div class="auth-brand-icon">あ</div>
-          <div class="auth-brand-title">にほんご たんごちょう</div>
-          <div class="auth-brand-sub">AIGC多模态日语词汇学习</div>
+          <div class="auth-brand-title">たのしい にほんご</div>
+          <div class="auth-brand-sub">多模态日语词汇学习</div>
         </div>
         <div class="auth-panel">
           <div class="auth-panel-header">
@@ -62,10 +63,31 @@
       <!-- 主界面（登录后可见） -->
       <div id="main-app" style="display: none">
         <!-- 侧边栏 -->
+        <!-- 移动端专属元素：桌面端完全隐藏 -->
+        <div class="mobile-only">
+          <button class="hamburger" id="hamburger-btn" aria-label="菜单">☰</button>
+          <div class="sidebar-overlay" id="sidebar-overlay"></div>
+          <div class="mobile-bottom-nav" id="mobile-bottom-nav">
+            <button data-tab="study"><span class="mb-icon">📝</span>学习</button>
+            <button data-tab="wordbank"><span class="mb-icon">📖</span>词库</button>
+            <button data-tab="generate" class="active"><span class="mb-icon">✦</span>生成</button>
+            <button data-tab="essay"><span class="mb-icon">📄</span>短文</button>
+            <button data-tab="more" id="btn-more-menu"><span class="mb-icon">⋯</span>更多</button>
+          </div>
+          <div class="more-menu-overlay" id="more-menu-overlay"></div>
+          <div class="more-menu-popup" id="more-menu-popup">
+            <button data-tab="cloze"><span class="mb-icon">📝</span>完型填空</button>
+            <button data-tab="grammar"><span class="mb-icon">📐</span>语法</button>
+            <button data-tab="image"><span class="mb-icon">📷</span>图片词卡</button>
+            <button data-tab="achievement"><span class="mb-icon">🏆</span>成就</button>
+            <button data-tab="saved"><span class="mb-icon">📋</span>我的保存</button>
+            <button data-tab="settings"><span class="mb-icon">⚙</span>设置</button>
+          </div>
+        </div>
         <aside class="sidebar">
           <div class="logo">
             <span class="logo-icon">あ</span>
-            <span class="logo-text">AIGC多模态日语词汇学习</span>
+            <span class="logo-text">多模态日语词汇学习</span>
           </div>
           <div class="sidebar-greeting">日本語の世界へようこそ！(≧∇≦)ﾉ</div>
           <nav class="nav">
@@ -116,6 +138,12 @@
           </div>
         </aside>
 
+        <!-- 页面加载指示器 -->
+        <div class="page-loader" id="page-loader" style="display:none">
+          <div class="page-loader-spinner"></div>
+          <span class="page-loader-text">加载中...</span>
+        </div>
+
         <!-- 主内容区 -->
         <main class="main">
           <!-- 生成单词页面 -->
@@ -126,6 +154,11 @@
             </div>
 
             <div class="generate-box">
+              <div class="quota-bar" id="quota-bar">
+                <span class="quota-icon">📊</span>
+                <span class="quota-text" id="quota-text">今日可生成 <span class="quota-highlight">100</span> 个单词</span>
+                <div class="quota-progress"><div class="quota-progress-fill" id="quota-progress-fill" style="width:0%"></div></div>
+              </div>
               <div class="input-row">
                 <input
                   type="text"
@@ -229,6 +262,7 @@
                   <div class="wordbank-info" id="wordbank-info"></div>
                   <button class="btn btn-outline btn-sm" id="btn-show-add-form">＋ 添加单词</button>
                   <button class="btn btn-outline btn-sm" id="btn-merge-duplicates">合并相同单词</button>
+                  <button class="btn btn-outline btn-sm" id="btn-export-pdf">导出PDF</button>
                 </div>
 
                 <div class="add-word-form" id="add-word-form" style="display: none">
@@ -733,6 +767,11 @@
               <p class="subtitle">已保存的短文、完型填空和语法辨析</p>
             </div>
 
+            <div class="saved-search-bar">
+              <input type="text" id="saved-search" class="saved-search-input" placeholder="搜索已保存的内容..." autocomplete="off" />
+              <button class="btn btn-outline btn-sm" id="btn-saved-batch-delete" style="display:none">删除选中</button>
+            </div>
+
             <div class="study-tabs">
               <button class="study-subtab active" id="saved-subtab-essay">短文</button>
               <button class="study-subtab" id="saved-subtab-cloze">完型填空</button>
@@ -764,6 +803,79 @@
             </div>
 
           </section>
+
+          <!-- 内容查看模态窗 -->
+          <div class="modal-overlay" id="content-modal" style="display:none">
+            <div class="modal-content saved-modal">
+              <div class="modal-header">
+                <h3 id="modal-title"></h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+              </div>
+              <div class="modal-body" id="modal-body"></div>
+              <div class="modal-footer">
+                <button class="btn btn-outline btn-sm" id="modal-btn-delete">删除</button>
+                <button class="btn btn-primary btn-sm" id="modal-btn-close">关闭</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PDF 导出对话框 -->
+          <div class="modal-overlay" id="export-modal" style="display:none">
+            <div class="export-panel">
+              <!-- 头部 -->
+              <div class="export-panel-header">
+                <div>
+                  <div class="export-panel-title">导出 PDF</div>
+                  <div class="export-panel-sub" id="export-topic-label">全部词单 · <span id="export-word-count">--</span> 个单词</div>
+                </div>
+                <button class="modal-close" id="export-modal-close">&times;</button>
+              </div>
+
+              <!-- 选项 -->
+              <div class="export-panel-body" id="export-panel-options">
+                <div class="export-quick-row">
+                  <label class="export-quick-opt">
+                    <input type="radio" name="export-layout" value="table" checked />
+                    <span>📊 表格</span>
+                  </label>
+                  <label class="export-quick-opt">
+                    <input type="radio" name="export-layout" value="card" />
+                    <span>🃏 卡片</span>
+                  </label>
+                </div>
+                <div class="export-checks">
+                  <label><input type="checkbox" id="export-include-images" checked /> 含配图</label>
+                  <label><input type="checkbox" id="export-include-examples" checked /> 含例句</label>
+                </div>
+              </div>
+
+              <!-- 生成中 -->
+              <div class="export-panel-body" id="export-generating" style="display:none">
+                <div class="export-loading-box">
+                  <div class="spinner"></div>
+                  <div>
+                    <div class="export-loading-title">正在生成 PDF...</div>
+                    <div class="export-loading-sub" id="export-generating-detail"></div>
+                  </div>
+                </div>
+                <div class="export-progress"><div class="export-progress-fill" id="export-progress-fill"></div></div>
+              </div>
+
+              <!-- 完成 -->
+              <div class="export-panel-body" id="export-done" style="display:none">
+                <div class="export-done-box">
+                  <span class="export-done-icon">✅</span>
+                  <span>PDF 已下载</span>
+                </div>
+              </div>
+
+              <!-- 底部按钮 -->
+              <div class="export-panel-footer" id="export-modal-footer">
+                <button class="btn btn-outline btn-sm" id="export-modal-cancel">取消</button>
+                <button class="btn btn-primary" id="export-modal-confirm">📥 导出 PDF</button>
+              </div>
+            </div>
+          </div>
 
           <!-- 成就页面 -->
           <section class="page" id="page-achievement">
@@ -866,9 +978,12 @@
               <p class="subtitle">用户管理 & 用量监控</p>
             </div>
 
+            <div style="display:flex;gap:8px;margin-bottom:16px">
+              <button class="btn btn-primary btn-sm" id="btn-admin-create-user">＋ 创建用户</button>
+            </div>
+
             <div class="admin-tabs">
               <button class="admin-tab active" id="admin-tab-users">用户管理</button>
-              <button class="admin-tab" id="admin-tab-usage">用量监控</button>
               <button class="admin-tab" id="admin-tab-logins">登录记录</button>
             </div>
 
@@ -892,47 +1007,9 @@
               </div>
             </div>
 
-            <!-- 用户管理面板 -->
+            <!-- 用户管理 — 卡片视图 -->
             <div id="admin-panel-users">
-              <div class="admin-table-wrap">
-                <table class="admin-table" id="admin-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>用户名</th>
-                      <th>角色</th>
-                      <th>单词</th>
-                      <th>今日AI</th>
-                      <th>AI限额</th>
-                      <th>今日语音</th>
-                      <th>语音限额</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-tbody"></tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- 用量监控面板 -->
-            <div id="admin-panel-usage" style="display: none">
-              <div class="admin-table-wrap">
-                <table class="admin-table" id="admin-usage-table">
-                  <thead>
-                    <tr>
-                      <th>用户</th>
-                      <th>今日AI</th>
-                      <th>总AI</th>
-                      <th>AI限额</th>
-                      <th>今日语音</th>
-                      <th>总语音</th>
-                      <th>语音限额</th>
-                      <th>设置限额</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-usage-tbody"></tbody>
-                </table>
-              </div>
+              <div class="admin-cards-grid" id="admin-cards-grid"></div>
             </div>
 
             <!-- 登录记录面板 -->
@@ -946,7 +1023,15 @@
     </div>
     <!-- #app -->
 
-    <script src="/js/api.js?v={api_version}"></script>
-    <script src="/js/app.js?v={app_version}"></script>
+    <footer class="site-footer">
+      <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=42280202423028" target="_blank" rel="noopener">
+        <img src="/img/beian.png" style="vertical-align:middle;margin-right:4px;width:16px;height:16px" alt="">鄂公网安备42280202423028号
+      </a>
+      <span style="margin:0 8px;color:var(--border)">|</span>
+      <a href="http://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2026038430号</a>
+    </footer>
+
+    <script src="/js/api.js?v=12"></script>
+    <script src="/js/app.js?v=12"></script>
   </body>
 </html>

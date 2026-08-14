@@ -1,7 +1,8 @@
 import json
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -199,3 +200,34 @@ def delete_compare(
     db.delete(entry)
     db.commit()
     return {"message": "已删除"}
+
+
+@router.get("/compares/{entry_id}/export/pdf")
+def export_grammar_compare_pdf(
+    entry_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """导出语法辨析结果为 PDF 文件。"""
+    from ..services.pdf_service import generate_grammar_compare_pdf, _encode_filename
+
+    entry = (
+        db.query(GrammarCompare)
+        .filter(GrammarCompare.id == entry_id, GrammarCompare.user_id == user.id)
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="记录不存在")
+
+    buf = generate_grammar_compare_pdf(entry)
+
+    now = datetime.now()
+    safe_topic = entry.topic[:30].replace("/", "_").replace("\\", "_")
+    filename = f"语法辨析_{safe_topic}_{now.strftime('%Y%m%d')}.pdf"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*={_encode_filename(filename)}",
+        },
+    )

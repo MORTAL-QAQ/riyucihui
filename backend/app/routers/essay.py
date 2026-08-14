@@ -3,13 +3,15 @@
 POST /api/essay — AI 生成日语短文（流式/非流式），可使用用户的词单单词
 POST /api/essays — 保存生成的短文
 GET /api/essays — 分页列出已保存的短文
+GET /api/essays/{essay_id}/export/pdf — 导出短文为 PDF
 DELETE /api/essays/{essay_id} — 删除短文
 """
 
 import json
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -162,6 +164,33 @@ def delete_essay(
     db.delete(essay)
     db.commit()
     return {"message": "已删除"}
+
+
+@router.get("/essays/{essay_id}/export/pdf")
+def export_essay_pdf(
+    essay_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """导出单篇短文为 PDF 文件。"""
+    from ..services.pdf_service import generate_essay_pdf, _encode_filename
+
+    essay = db.get(Essay, essay_id)
+    if not essay or essay.user_id != user.id:
+        raise HTTPException(status_code=404, detail="短文不存在")
+
+    buf = generate_essay_pdf(essay)
+
+    now = datetime.now()
+    safe_title = essay.title[:30].replace("/", "_").replace("\\", "_")
+    filename = f"短文_{safe_title}_{now.strftime('%Y%m%d')}.pdf"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*={_encode_filename(filename)}",
+        },
+    )
 
 
 def _essay_out(e: Essay) -> EssayOut:

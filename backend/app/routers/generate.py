@@ -16,7 +16,7 @@ from ..database import get_db
 from ..models import User
 from ..schemas import GenerateRequest, GenerateResponse
 from ..services.ai_service import generate_words, generate_words_stream
-from ..services.usage_service import check_limit, record_usage
+from ..services.usage_service import check_limit, count_today, get_user_daily_limit, record_usage
 
 router = APIRouter(prefix="/api", tags=["generate"])
 
@@ -27,19 +27,37 @@ def _sse(generator):
         yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
 
+@router.get("/generate/quota")
+def get_generate_quota(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """Return today's word generation usage and limit for the current user."""
+    today_used = count_today(db, user.id, "generated_words")
+    daily_limit = get_user_daily_limit(db, user.id, "generated_words")
+    remaining = None if daily_limit is None else max(0, daily_limit - today_used)
+    return {
+        "today_generated": today_used,
+        "daily_limit": daily_limit,
+        "remaining": remaining,
+        "is_admin": user.is_admin,
+    }
+
+
 @router.post("/generate")
 def generate(
     req: GenerateRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    allowed, msg = check_limit(db, user.id, "generate")
-    if not allowed:
-        raise HTTPException(status_code=429, detail=msg)
+    # 检查每日生成单词数量限制（默认100个/天，独立于AI调用次数限制）
+    word_allowed, word_msg = check_limit(db, user.id, "generated_words")
+    if not word_allowed:
+        raise HTTPException(status_code=429, detail=word_msg)
 
     if req.stream:
         difficulty = req.difficulty
 
         def _stream_and_record():
             tokens_est = 0
+            word_count = 0
             for event in generate_words_stream(
                 req.topic, difficulty, req.extra, req.count, req.exclude_words
             ):
@@ -49,8 +67,11 @@ def generate(
                         w["jlpt_level"] = difficulty
                 yield event
                 if event.get("done"):
-                    tokens_est = len(json.dumps(event.get("result", []), ensure_ascii=False)) // 2
+                    result_words = event.get("result", [])
+                    word_count = len(result_words)
+                    tokens_est = len(json.dumps(result_words, ensure_ascii=False)) // 2
             record_usage(db, user.id, "generate", tokens_est)
+            record_usage(db, user.id, "generated_words", word_count)
 
         return StreamingResponse(
             _sse(_stream_and_record()),
@@ -65,6 +86,7 @@ def generate(
             for w in words:
                 w["jlpt_level"] = req.difficulty
         record_usage(db, user.id, "generate", tokens)
+        record_usage(db, user.id, "generated_words", len(words))
         return GenerateResponse(topic=req.topic, words=words)
     except HTTPException:
         raise

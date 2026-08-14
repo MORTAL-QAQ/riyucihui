@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -44,15 +47,22 @@ def list_words(
     search: str | None = None,
     offset: int = 0,
     limit: int = 50,
+    include_images: bool = False,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """列出单词。include_images=False 时不返回 base64 图片数据（大幅减小响应体积）。"""
     if search and len(search) > 100:
         raise HTTPException(status_code=400, detail="搜索关键词不能超过100个字符")
     if limit > 200:
         limit = 200
     words, total = word_service.get_words(db, user.id, topic, search, offset, limit)
-    return WordListResponse(words=[WordOut.model_validate(w) for w in words], total=total)
+    out = [WordOut.model_validate(w) for w in words]
+    # Strip heavy image_base64 by default for performance
+    if not include_images:
+        for w in out:
+            w.image_base64 = None
+    return WordListResponse(words=out, total=total)
 
 
 @router.get("/topics")
@@ -118,6 +128,8 @@ def generate_image(
             japanese=word.japanese,
             chinese=word.chinese,
             kana=word.kana or "",
+            example_ja=word.example_ja or "",
+            example_cn=word.example_cn or "",
         )
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
@@ -129,13 +141,26 @@ def generate_image(
     return WordOut.model_validate(word)
 
 
+@router.get("/words/{word_id}/image-data")
+def get_word_image_data(
+    word_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """仅返回单张图片的 base64 数据（懒加载用）。"""
+    word = db.get(Word, word_id)
+    if not word or word.user_id != user.id:
+        raise HTTPException(status_code=404, detail="单词不存在")
+    return {"id": word.id, "image_base64": word.image_base64 or ""}
+
+
 @router.get("/image-cards", response_model=ImageCardListResponse)
 def list_image_cards(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    include_data: bool = True,
 ):
-    """按词单分组返回已有配图的单词，用于图片词卡页面。"""
-    # 查询当前用户所有有配图的单词
+    """按词单分组返回已有配图的单词。include_data=false 时不返回图片 base64 数据。"""
     rows = db.execute(
         select(Word)
         .where(
@@ -146,7 +171,6 @@ def list_image_cards(
         .order_by(Word.topic, Word.created_at.desc())
     ).scalars().all()
 
-    # 按 topic 分组
     topic_map: dict[str, list[Word]] = {}
     for w in rows:
         topic_map.setdefault(w.topic, []).append(w)
@@ -158,7 +182,8 @@ def list_image_cards(
             words=[ImageCardOut(
                 id=w.id, japanese=w.japanese, kana=w.kana, chinese=w.chinese,
                 example_ja=w.example_ja, example_cn=w.example_cn,
-                image_base64=w.image_base64 or "", topic=w.topic,
+                image_base64=(w.image_base64 or "") if include_data else "",
+                topic=w.topic,
             ) for w in words],
         )
         for topic, words in topic_map.items()
@@ -176,3 +201,32 @@ def merge_duplicates(
     if removed == 0:
         return {"message": "没有重复单词需要合并", "removed": 0}
     return {"message": f"已合并 {removed} 个重复单词", "removed": removed}
+
+
+@router.get("/words/export/pdf")
+def export_words_pdf(
+    topic: str | None = None,
+    layout: str = Query("table", pattern=r"^(table|card)$"),
+    include_images: bool = True,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """导出词单为 PDF 文件。支持 table/card 两种布局。"""
+    from ..services.pdf_service import generate_words_pdf, _encode_filename
+
+    words, total = word_service.get_words(db, user.id, topic, None, 0, 10000)
+    if not words:
+        raise HTTPException(status_code=404, detail="没有可导出的单词")
+
+    topic_name = topic or "全部词单"
+    buf = generate_words_pdf(words, topic_name, total, layout=layout, include_images=include_images)
+
+    now = datetime.now()
+    filename = f"词单_{topic_name}_{now.strftime('%Y%m%d')}.pdf"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*={_encode_filename(filename)}",
+        },
+    )

@@ -86,7 +86,14 @@ def login_report(username: str | None = None) -> str:
         lines.append(f"  生成时间: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
         lines.append("=" * 78)
 
-        for user_id, data in user_logins.items():
+        # 按最后一次登陆时间降序排列用户
+        sorted_users = sorted(
+            user_logins.items(),
+            key=lambda item: item[1]["logins"][-1][0] if item[1]["logins"] else datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+
+        for user_id, data in sorted_users:
             uname = data["username"]
             logins = data["logins"]
             total = len(logins)

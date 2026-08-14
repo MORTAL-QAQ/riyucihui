@@ -30,7 +30,7 @@ services:
       - "50021"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:50021/version || exit 1"]
+      test: ["CMD-SHELL", "/opt/python/bin/python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:50021/version')\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -44,6 +44,15 @@ services:
       POSTGRES_USER: jpvocab
       POSTGRES_PASSWORD: ${DB_PASSWORD:-jpvocab}
       POSTGRES_DB: jpvocab
+    command: |
+      -c shared_buffers=32MB
+      -c work_mem=2MB
+      -c max_connections=20
+      -c maintenance_work_mem=16MB
+      -c effective_cache_size=512MB
+      -c wal_buffers=4MB
+      -c max_wal_size=256MB
+      -c bgwriter_lru_maxpages=50
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
@@ -56,6 +65,7 @@ services:
   backend:
     build: .
     container_name: jp-vocab-backend
+    mem_limit: 512M
     expose:
       - "8000"
     volumes:
@@ -66,6 +76,7 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - SECRET_KEY=${SECRET_KEY}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - VOLCANO_API_KEY=${VOLCANO_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy

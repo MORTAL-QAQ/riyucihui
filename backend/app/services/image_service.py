@@ -5,14 +5,27 @@
 """
 
 import base64
+import gc
 import time
 
 import httpx
 
 from .. import config
 
+# 复用 httpx 客户端，避免每次请求创建新连接池
+_client = None
 
-def generate_word_image(japanese: str, chinese: str, kana: str = "") -> str | None:
+def _get_client():
+    global _client
+    if _client is None:
+        _client = httpx.Client(
+            timeout=120,
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+        )
+    return _client
+
+
+def generate_word_image(japanese: str, chinese: str, kana: str = "", example_ja: str = "", example_cn: str = "") -> str | None:
     """为单词生成 AI 配图，返回 base64 编码的 PNG 图片字符串。
 
     Args:
@@ -26,16 +39,28 @@ def generate_word_image(japanese: str, chinese: str, kana: str = "") -> str | No
     if not config.VOLCANO_API_KEY:
         raise RuntimeError("未配置火山引擎 API Key（VOLCANO_API_KEY）")
 
-    # 构造图片生成 prompt
+    # 构造图片生成 prompt：用例句场景 + 强调单词主体
+    example_context = ""
+    if example_ja:
+        example_context = (
+            f" The scene should be inspired by this example sentence: \"{example_ja}\""
+            f"{' (' + example_cn + ')' if example_cn else ''}."
+        )
     prompt = (
-        f"日语单词「{japanese}」的配图，中文意思：{chinese}。"
-        f"简洁可爱的插画风格，画面干净明亮，适合日语学习卡片使用。"
-        f"不要出现任何文字。"
+        f"A high-quality realistic photograph that clearly illustrates the Japanese word \"{japanese}\" "
+        f"(meaning: {chinese}{', reading: ' + kana if kana else ''}). "
+        f"The word \"{japanese}\" must be the most prominent and clearly visible subject in the image."
+        f"{example_context}"
+        f"Professional photography style with natural lighting, sharp focus on \"{japanese}\", "
+        f"and a clean uncluttered composition with shallow depth of field. "
+        f"Photorealistic, detailed textures, vibrant but natural colors, no distracting elements. "
+        f"Absolutely NO text, letters, characters, or watermarks in the image."
     )
 
     # 1. 调用火山引擎 API 生成图片
+    client = _get_client()
     try:
-        resp = httpx.post(
+        resp = client.post(
             f"{config.VOLCANO_IMAGE_BASE_URL}/images/generations",
             headers={
                 "Content-Type": "application/json",
@@ -68,7 +93,7 @@ def generate_word_image(japanese: str, chinese: str, kana: str = "") -> str | No
     image_bytes = None
     for attempt in range(3):
         try:
-            img_resp = httpx.get(image_url, timeout=30)
+            img_resp = client.get(image_url, timeout=30)
             img_resp.raise_for_status()
             image_bytes = img_resp.content
             break
@@ -83,4 +108,8 @@ def generate_word_image(japanese: str, chinese: str, kana: str = "") -> str | No
 
     # 4. 转为 base64（含 data URI 前缀）
     b64 = base64.b64encode(image_bytes).decode("utf-8")
-    return f"data:image/png;base64,{b64}"
+    result = f"data:image/png;base64,{b64}"
+    # 及时释放大内存对象
+    del image_bytes, b64, data
+    gc.collect()
+    return result

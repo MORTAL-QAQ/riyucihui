@@ -47,11 +47,16 @@ SYSTEM_PROMPT = """你是一位专业的日语教师。根据用户提供的主�
 ]"""
 
 
+_ai_client = None
+
 def _build_client() -> OpenAI:
-    return OpenAI(
-        api_key=config.DEEPSEEK_API_KEY,
-        base_url=config.DEEPSEEK_BASE_URL,
-    )
+    global _ai_client
+    if _ai_client is None:
+        _ai_client = OpenAI(
+            api_key=config.DEEPSEEK_API_KEY,
+            base_url=config.DEEPSEEK_BASE_URL,
+        )
+    return _ai_client
 
 
 def _parse_response(text: str) -> list[dict]:

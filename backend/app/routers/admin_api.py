@@ -1,6 +1,18 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+
+# 北京时间
+CST = timezone(timedelta(hours=8))
+
+
+def _to_cst(dt: datetime | None) -> str:
+    """将 UTC 时间转为北京时间字符串"""
+    if dt is None:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(CST).strftime("%Y-%m-%d %H:%M:%S")
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
@@ -19,6 +31,9 @@ class AdminUserOut(BaseModel):
     is_admin: bool
     daily_ai_limit: int | None = None
     daily_voice_limit: int | None = None
+    daily_word_limit: int | None = None
+    daily_image_limit: int | None = None
+    remark: str | None = None
     created_at: str
     word_count: int
     study_count: int
@@ -41,6 +56,7 @@ class AdminStatsOut(BaseModel):
 class SetLimitsRequest(BaseModel):
     daily_ai_limit: int | None = None  # null = 不限
     daily_voice_limit: int | None = None  # null = 不限
+    daily_word_limit: int | None = None  # null = 不限（普通用户默认100）
 
 
 class ResetPasswordRequest(BaseModel):
@@ -70,27 +86,35 @@ def list_users(
         )
         .outerjoin(wc_sub, User.id == wc_sub.c.user_id)
         .outerjoin(sc_sub, User.id == sc_sub.c.user_id)
-        .order_by(User.id)
+        .order_by(User.is_admin.desc(), User.id)
     )
     rows = db.execute(stmt).all()
 
     # Batch usage for all users — single query instead of N
+    # AI 调用种类（与 usage_service._AI_KINDS 保持一致）
+    _ADMIN_AI_KINDS = ["essay", "cloze", "grammar_analyze", "grammar_correct", "grammar_compare"]
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     usage_rows = db.execute(
         select(
             UsageRecord.user_id,
             func.sum(
-                case((UsageRecord.kind.in_(["generate", "essay", "grammar"]), 1), else_=0)
+                case((UsageRecord.kind.in_(_ADMIN_AI_KINDS), 1), else_=0)
             ).label("total_ai"),
             func.sum(
                 case((UsageRecord.kind == "voice", 1), else_=0)
             ).label("total_voice"),
             func.sum(
+                case((UsageRecord.kind == "image_generation", 1), else_=0)
+            ).label("total_image"),
+            func.sum(
+                case((UsageRecord.kind == "generated_words", UsageRecord.tokens_used), else_=0)
+            ).label("total_word"),
+            func.sum(
                 case(
                     (
                         and_(
                             UsageRecord.created_at >= today,
-                            UsageRecord.kind.in_(["generate", "essay", "grammar"]),
+                            UsageRecord.kind.in_(_ADMIN_AI_KINDS),
                         ),
                         1,
                     ),
@@ -109,6 +133,30 @@ def list_users(
                     else_=0,
                 )
             ).label("today_voice"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            UsageRecord.created_at >= today,
+                            UsageRecord.kind == "generated_words",
+                        ),
+                        UsageRecord.tokens_used,
+                    ),
+                    else_=0,
+                )
+            ).label("today_word"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            UsageRecord.created_at >= today,
+                            UsageRecord.kind == "image_generation",
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("today_image"),
         ).group_by(UsageRecord.user_id)
     ).all()
 
@@ -119,6 +167,10 @@ def list_users(
             "today_voice": row.today_voice or 0,
             "total_ai": row.total_ai or 0,
             "total_voice": row.total_voice or 0,
+            "today_word": row.today_word or 0,
+            "total_word": row.total_word or 0,
+            "today_image": row.today_image or 0,
+            "total_image": row.total_image or 0,
         }
 
     result = []
@@ -132,12 +184,15 @@ def list_users(
                 is_admin=u.is_admin,
                 daily_ai_limit=u.daily_ai_limit,
                 daily_voice_limit=u.daily_voice_limit,
-                created_at=u.created_at.isoformat() if u.created_at else "",
+                daily_word_limit=u.daily_word_limit,
+                daily_image_limit=u.daily_image_limit,
+                remark=u.remark,
+                created_at=_to_cst(u.created_at),
                 word_count=row.word_count,
                 study_count=row.study_count,
                 usage=usage_map.get(
                     uid,
-                    {"today_ai": 0, "today_voice": 0, "total_ai": 0, "total_voice": 0},
+                    {"today_ai": 0, "today_voice": 0, "total_ai": 0, "total_voice": 0, "today_word": 0, "total_word": 0, "today_image": 0, "total_image": 0},
                 ),
             )
         )
@@ -208,13 +263,35 @@ def set_user_limits(
 
     user.daily_ai_limit = body.daily_ai_limit
     user.daily_voice_limit = body.daily_voice_limit
+    user.daily_word_limit = body.daily_word_limit
     db.commit()
 
     return {
         "message": f"用户 {user.username} 限额已更新",
         "daily_ai_limit": user.daily_ai_limit,
         "daily_voice_limit": user.daily_voice_limit,
+        "daily_word_limit": user.daily_word_limit,
     }
+
+
+class SetRemarkRequest(BaseModel):
+    remark: str | None = Field(default=None, max_length=200)
+
+
+@router.put("/users/{user_id}/remark")
+def set_user_remark(
+    user_id: int,
+    body: SetRemarkRequest,
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Set or clear the admin remark for a user."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    user.remark = body.remark
+    db.commit()
+    return {"message": "备注已更新", "remark": user.remark}
 
 
 @router.put("/users/{user_id}/password")
@@ -321,7 +398,7 @@ def get_login_history(
         user_data[uid]["logins"].append(
             LoginHistoryOut(
                 username=uname,
-                login_at=login_at.isoformat() if login_at else "",
+                login_at=_to_cst(login_at),
                 ip_address=ip_addr,
                 user_agent=ua,
             )
@@ -340,5 +417,8 @@ def get_login_history(
                 logins=logins,
             )
         )
+
+    # 按最后一次登陆时间降序排列
+    result.sort(key=lambda r: r.last_login or "", reverse=True)
 
     return result

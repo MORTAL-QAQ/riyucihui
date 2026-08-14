@@ -1,5 +1,5 @@
 /**
- * AIGC多模态日语词汇学习 — 前端主逻辑
+ * 多模态日语词汇学习 — 前端主逻辑
  *
  * 单页面应用（SPA），通过显示/隐藏不同 page section 实现页面切换。
  * 核心功能模块（按代码顺序）：
@@ -88,12 +88,29 @@ const wordbankCards = $("#wordbank-cards");
 const wordbankInfo = $("#wordbank-info");
 const emptyState = $("#empty-state");
 const btnGoGenerate = $("#btn-go-generate");
+const quotaBar = $("#quota-bar");
+const quotaText = $("#quota-text");
+const quotaProgressFill = $("#quota-progress-fill");
 const wbPagination = $("#wordbank-pagination");
 const wbPrev = $("#wb-prev");
 const wbNext = $("#wb-next");
 const wbPageInfo = $("#wb-page-info");
 const wbJumpInput = $("#wb-jump-input");
 const apiStatus = $("#api-status");
+const pageLoader = $("#page-loader");
+
+// 页面加载缓存：首次加载显示指示器，再次进入直接用缓存
+var pageLoadCache = {};
+function withLoader(key, fn) {
+  if (pageLoadCache[key]) {
+    fn(); // 直接用缓存数据刷新（不显示 loading）
+    return;
+  }
+  pageLoader.style.display = "flex";
+  fn().then(function() { pageLoadCache[key] = true; }).finally(function() {
+    pageLoader.style.display = "none";
+  });
+}
 
 // ===== 认证状态 =====
 let isRegisterMode = false;
@@ -175,6 +192,7 @@ async function doAuth() {
     }
     showMainApp();
     initApp();
+    loadGenerateQuota();
   } catch (err) {
     setAuthError(err.message);
   } finally {
@@ -202,6 +220,7 @@ btnLogout.addEventListener("click", async () => {
 let generatedWords = [];
 let generatedDifficulty = null;  // 当前生成结果的 JLPT 等级
 let selectedSet = new Set();
+let savedWordIndices = new Set();  // 已快速收藏的单词索引
 let currentTab = "generate";
 let currentTopic = "";
 let currentSearch = "";
@@ -220,40 +239,41 @@ function switchTab(tab) {
   if (tab === "generate") {
     navGenerate.classList.add("active");
     pageGenerate.classList.add("active");
+    loadGenerateQuota();
   } else if (tab === "wordbank") {
     navWordbank.classList.add("active");
     pageWordbank.classList.add("active");
-    loadWordbank();
+    withLoader("wordbank", loadWordbank);
   } else if (tab === "study") {
     navStudy.classList.add("active");
     pageStudy.classList.add("active");
     updateStudyBadge();
-    loadStudyPick();
+    withLoader("study", loadStudyPick);
   } else if (tab === "essay") {
     navEssay.classList.add("active");
     pageEssay.classList.add("active");
-    loadEssayPick();
+    withLoader("essay", loadEssayPick);
   } else if (tab === "cloze") {
     navCloze.classList.add("active");
     pageCloze.classList.add("active");
-    loadClozePick();
+    withLoader("cloze", loadClozePick);
   } else if (tab === "image") {
     navImage.classList.add("active");
     pageImage.classList.add("active");
-    loadImageCards();
+    withLoader("image", loadImageCards);
   } else if (tab === "grammar") {
     navGrammar.classList.add("active");
     pageGrammar.classList.add("active");
   } else if (tab === "saved") {
     navSaved.classList.add("active");
     pageSaved.classList.add("active");
-    loadSavedEssays();
-    loadGrammarSaved();
-    loadClozeSaved();
+    withLoader("saved", function() {
+      return Promise.all([loadSavedEssays(), loadGrammarSaved(), loadClozeSaved()]);
+    });
   } else if (tab === "achievement") {
     navAchievement.classList.add("active");
     pageAchievement.classList.add("active");
-    loadAchievements();
+    withLoader("achievement", loadAchievements);
   } else if (tab === "settings") {
     navSettings.classList.add("active");
     pageSettings.classList.add("active");
@@ -387,12 +407,50 @@ document.addEventListener("click", (e) => {
   }
 });
 
+async function loadGenerateQuota() {
+  try {
+    const q = await api.generateQuota();
+
+    const remaining = q.remaining;
+    const limit = q.daily_limit;
+    const used = q.today_generated;
+
+    if (q.is_admin || limit === null) {
+      // 管理员或不限
+      quotaText.className = "quota-text unlimited";
+      quotaText.innerHTML = `今日已生成 <span class="quota-highlight">${used}</span> 个单词 · <span class="quota-highlight">不限</span>`;
+      quotaProgressFill.style.width = "0%";
+      quotaProgressFill.className = "quota-progress-fill";
+    } else {
+      const pct = Math.min(100, (used / limit) * 100);
+      quotaProgressFill.style.width = pct + "%";
+
+      if (remaining <= 0) {
+        quotaText.className = "quota-text danger";
+        quotaProgressFill.className = "quota-progress-fill danger";
+      } else if (pct >= 80) {
+        quotaText.className = "quota-text warning";
+        quotaProgressFill.className = "quota-progress-fill warning";
+      } else {
+        quotaText.className = "quota-text";
+        quotaProgressFill.className = "quota-progress-fill";
+      }
+
+      quotaText.innerHTML = `今日已生成 <span class="quota-highlight">${used}</span> / <span class="quota-highlight">${limit}</span> 个单词（剩余 <span class="quota-highlight">${remaining}</span> 个）`;
+    }
+  } catch {
+    // API 不可用时保留默认显示（HTML 初始值："今日可生成 100 个单词"）
+  }
+}
+
 async function doGenerate() {
   const topic = topicInput.value.trim();
   if (!topic) {
     topicInput.focus();
     return;
   }
+  currentTopic = topic;  // 记住主题，供快速收藏和批量保存使用
+  savedWordIndices = new Set();  // 重置收藏状态
 
   const difficulty = difficultySelect.value;
   generatedDifficulty = difficulty || null;
@@ -427,6 +485,7 @@ async function doGenerate() {
         resultArea.style.display = "block";
         generateWelcome.style.display = "none";
         resultArea.scrollIntoView({ behavior: "smooth" });
+        loadGenerateQuota();
       } else if (event.error) {
         throw new Error(event.error);
       }
@@ -449,6 +508,7 @@ function renderResultCards(topic) {
   generatedWords.forEach((w, i) => {
     const card = document.createElement("div");
     card.className = `word-card ${selectedSet.has(i) ? "selected" : ""}`;
+    const saved = savedWordIndices.has(i);
     card.innerHTML = `
       <div class="checkbox">✓</div>
       <div class="card-body">
@@ -458,6 +518,7 @@ function renderResultCards(topic) {
           <span class="card-kana">${esc(w.kana)}</span>
           <span class="card-chinese">${esc(w.chinese)}</span>
           ${jlptBadge(w.jlpt_level)}
+          <button class="star-btn ${saved ? 'saved' : ''}" data-index="${i}" title="${saved ? '已收藏' : '收藏到词库'}">${saved ? '★' : '☆'}</button>
         </div>
         <div class="card-example">
           <span>${esc(w.example_ja)}</span>
@@ -465,7 +526,7 @@ function renderResultCards(topic) {
         </div>
       </div>`;
     card.addEventListener("click", (e) => {
-      if (e.target.closest(".speak-btn")) return;
+      if (e.target.closest(".speak-btn") || e.target.closest(".star-btn")) return;
       toggleCard(i, card);
     });
     wordCards.appendChild(card);
@@ -475,9 +536,36 @@ function renderResultCards(topic) {
 }
 
 wordCards.addEventListener("click", (e) => {
-  const btn = e.target.closest(".speak-btn");
-  if (btn) speakWord(btn.dataset.speak, btn.dataset.kana, btn);
+  const speakBtn = e.target.closest(".speak-btn");
+  if (speakBtn) {
+    speakWord(speakBtn.dataset.speak, speakBtn.dataset.kana, speakBtn);
+    return;
+  }
+  const starBtn = e.target.closest(".star-btn");
+  if (starBtn) {
+    e.stopPropagation();
+    const idx = parseInt(starBtn.dataset.index);
+    quickSaveWord(idx, starBtn);
+  }
 });
+
+async function quickSaveWord(index, btn) {
+  const w = generatedWords[index];
+  if (!w) return;
+  btn.disabled = true;
+  try {
+    await api.saveWords(currentTopic || w.japanese, [w], generatedDifficulty);
+    savedWordIndices.add(index);
+    btn.classList.add("saved");
+    btn.textContent = "★";
+    btn.title = "已收藏";
+    showToast("已收藏到词库");
+  } catch (err) {
+    showToast(`收藏失败：${err.message}`, "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 function toggleCard(index, card) {
   if (selectedSet.has(index)) {
@@ -573,6 +661,7 @@ btnGenerateMore.addEventListener("click", async () => {
         renderResultCards(topic);
         streamPreview.style.display = "none";
         showToast(`新增 ${event.result.length} 个单词`);
+        loadGenerateQuota();
       } else if (event.error) {
         throw new Error(event.error);
       }
@@ -603,9 +692,56 @@ async function loadWordbank(reset = true) {
     ]);
     renderTopics(topicsData);
     renderWordbankCards(wordsData);
+    // Load study status in background after cards are rendered
+    if (wordsData.words.length > 0) {
+      loadStudyStatus(wordsData.words);
+    }
   } catch (err) {
     showToast(`加载词库失败：${err.message}`, "error");
   }
+}
+
+async function loadStudyStatus(words) {
+  const ids = words.map(w => w.id);
+  try {
+    const statusList = await api.studyWordsStatus(ids);
+    const statusMap = {};
+    statusList.forEach(s => { statusMap[s.word_id] = s; });
+    words.forEach(w => {
+      const row = wordbankCards.querySelector(`.wordbank-study-row[data-word-id="${w.id}"]`);
+      if (!row) return;
+      renderStudyRow(row, statusMap[w.id]);
+    });
+  } catch (_) { /* status load is non-critical */ }
+}
+
+function renderStudyRow(row, s) {
+  if (!s) {
+    row.innerHTML = '<span style="font-size:11px;color:#bbb">未学习</span>';
+    return;
+  }
+  let dotsHtml = '<span class="study-stage-bar">';
+  for (let i = 0; i < 7; i++) {
+    const filled = i < s.stage;
+    const cls = s.stage >= 7 ? "mastered" : filled ? "filled" : "";
+    dotsHtml += `<span class="study-stage-dot ${cls}"></span>`;
+  }
+  dotsHtml += "</span>";
+  let reviewHtml = "";
+  if (s.next_review_date) {
+    const nextDate = new Date(s.next_review_date + "T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((nextDate - today) / 86400000);
+    let cls = "", label;
+    if (s.stage >= 7) { label = "已掌握"; }
+    else if (diffDays < 0) { cls = "overdue"; label = `逾期${Math.abs(diffDays)}天`; }
+    else if (diffDays === 0) { cls = "today"; label = "今天复习"; }
+    else if (diffDays === 1) { label = "明天复习"; }
+    else { label = `${diffDays}天后复习`; }
+    reviewHtml = `<span class="study-next-review ${cls}">${label}</span>`;
+  }
+  row.innerHTML = dotsHtml + reviewHtml;
 }
 
 function goWordbankPage(page) {
@@ -649,7 +785,7 @@ function renderWordbankCards(data) {
           <span class="card-chinese">${esc(w.chinese)}</span>
           ${jlptBadge(w.jlpt_level)}
           ${w.image_base64
-            ? `<button class="img-gen-btn has-image" data-id="${w.id}" data-img="${esc(w.image_base64)}">展示图片</button>`
+            ? `<button class="img-gen-btn has-image" data-id="${w.id}">展示图片</button>`
             : `<button class="img-gen-btn" data-id="${w.id}">生成图片</button>`
           }
         </div>
@@ -666,64 +802,6 @@ function renderWordbankCards(data) {
     .join("");
 
   wordbankCards.innerHTML = html;
-
-  const displayedIds = words.map((w) => w.id);
-  api
-    .studyWordsStatus(displayedIds)
-    .then((statusList) => {
-      const statusMap = {};
-      statusList.forEach((s) => {
-        statusMap[s.word_id] = s;
-      });
-
-      words.forEach((w) => {
-        const row = wordbankCards.querySelector(`.wordbank-study-row[data-word-id="${w.id}"]`);
-        if (!row) return;
-
-        const s = statusMap[w.id];
-        if (!s) {
-          row.innerHTML = '<span style="font-size:11px;color:#bbb">未学习</span>';
-          return;
-        }
-
-        let dotsHtml = '<span class="study-stage-bar">';
-        for (let i = 0; i < 7; i++) {
-          const filled = i < s.stage;
-          const cls = s.stage >= 7 ? "mastered" : filled ? "filled" : "";
-          dotsHtml += `<span class="study-stage-dot ${cls}"></span>`;
-        }
-        dotsHtml += "</span>";
-
-        let reviewHtml = "";
-        if (s.next_review_date) {
-          const nextDate = new Date(s.next_review_date + "T00:00:00");
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const diffDays = Math.round((nextDate - today) / 86400000);
-          let cls = "";
-          let label;
-          if (s.stage >= 7) {
-            label = "已掌握";
-          } else if (diffDays < 0) {
-            cls = "overdue";
-            label = `逾期${Math.abs(diffDays)}天`;
-          } else if (diffDays === 0) {
-            cls = "today";
-            label = "今天复习";
-          } else if (diffDays === 1) {
-            label = "明天复习";
-          } else {
-            label = `${diffDays}天后复习`;
-          }
-          reviewHtml = `<span class="study-next-review ${cls}">${label}</span>`;
-        }
-
-        row.innerHTML = dotsHtml + reviewHtml;
-      });
-    })
-    .catch((err) => {
-      console.error("加载学习状态失败:", err);
-    });
 }
 
 function renderTopics(topics) {
@@ -814,7 +892,7 @@ wordbankCards.addEventListener("click", async (e) => {
     const id = parseInt(imgBtn.dataset.id);
     const card = imgBtn.closest(".wordbank-card");
 
-    // 已有图片 → 展开/收起内嵌图片
+    // 已有图片 → 展开/收起内嵌图片（懒加载：点击时从 API 获取）
     if (imgBtn.classList.contains("has-image")) {
       const existingImg = card.querySelector(".wordbank-card-inline-img");
       if (existingImg) {
@@ -822,34 +900,103 @@ wordbankCards.addEventListener("click", async (e) => {
         imgBtn.textContent = "展示图片";
         return;
       }
-      const imgWrap = document.createElement("div");
-      imgWrap.className = "wordbank-card-inline-img";
-      imgWrap.innerHTML = `<img src="${esc(imgBtn.dataset.img)}" alt="" />`;
-      imgWrap.querySelector("img").addEventListener("click", () => showImageLightbox(imgBtn.dataset.img));
-      card.appendChild(imgWrap);
-      imgBtn.textContent = "收起图片";
+      // Fetch image data on demand (lazy load)
+      imgBtn.disabled = true;
+      imgBtn.textContent = "加载中...";
+      api.getImageCardData(id).then(data => {
+        if (!data.image_base64) {
+          imgBtn.textContent = "无图片";
+          imgBtn.disabled = false;
+          return;
+        }
+        const imgWrap = document.createElement("div");
+        imgWrap.className = "wordbank-card-inline-img";
+        imgWrap.innerHTML = `<img src="${esc(data.image_base64)}" alt="" />`;
+        imgWrap.querySelector("img").addEventListener("click", () => showImageLightbox(data.image_base64));
+        card.appendChild(imgWrap);
+        imgBtn.textContent = "收起图片";
+        imgBtn.disabled = false;
+      }).catch(() => {
+        imgBtn.textContent = "加载失败";
+        imgBtn.disabled = false;
+      });
       return;
     }
 
-    // 生成图片
+    // 生成图片（带安抚进度条）
     imgBtn.disabled = true;
     imgBtn.textContent = "生成中...";
-    const waitToast = showToast("⏳ 正在生成配图，请勿离开此页面...", "info", 0);  // 0 = 持久显示
-    try {
-      const result = await api.generateWordImage(id);
+
+    // 创建行内进度条
+    var progressWrap = document.createElement("div");
+    progressWrap.className = "img-gen-progress";
+    progressWrap.innerHTML = '<div class="img-gen-progress-track"><div class="img-gen-progress-bar"></div></div><span class="img-gen-progress-text">0%</span>';
+    card.appendChild(progressWrap);
+
+    var bar = progressWrap.querySelector(".img-gen-progress-bar");
+    var text = progressWrap.querySelector(".img-gen-progress-text");
+    var progress = 0;
+    var stalls = [0, 15, 32, 48, 67, 78, 90]; // 停顿点（含起终点）
+    var stage = 0;
+    var timer = null;
+
+    function nextStage() {
+      if (stage >= stalls.length - 1) return; // 已到 90%，等待 API
+      var from = stalls[stage];
+      var to = stalls[stage + 1];
+      var steps = 8 + Math.floor(Math.random() * 12); // 8~20 小步
+      var duration = 1000 + Math.random() * 2000;        // 段耗时 1~3s
+      var stepSize = (to - from) / steps;
+      var stepDelay = duration / steps;
+      var i = 0;
+
+      function step() {
+        if (stage >= stalls.length - 1) return;
+        i++;
+        progress = from + stepSize * i;
+        if (progress >= to) { progress = to; stage++; }
+        bar.style.width = progress + "%";
+        text.textContent = Math.round(progress) + "%";
+        if (progress < to && progress < 90) {
+          timer = setTimeout(step, stepDelay);
+        } else if (stage < stalls.length - 1) {
+          // 段间停顿 0.3~0.8s
+          timer = setTimeout(nextStage, 600 + Math.random() * 1000);
+        }
+      }
+      step();
+    }
+    nextStage();
+
+    // Toast 提示
+    var waitToast = showToast("⏳ 正在生成配图，请勿离开此页面...", "info", 0);
+
+    // 同时发起图片生成
+    api.generateWordImage(id).then(function(result) {
+      clearTimeout(timer);
+      progress = 100; stage = stalls.length;
+      bar.style.width = "100%";
+      text.textContent = "100%";
       waitToast.remove();
-      showToast("配图生成成功");
-      // 将按钮切换为"展示图片"状态
+      setTimeout(function() { progressWrap.remove(); showToast("配图生成成功"); }, 400);
       imgBtn.disabled = false;
       imgBtn.textContent = "展示图片";
       imgBtn.classList.add("has-image");
       imgBtn.dataset.img = result.image_base64;
-    } catch (err) {
+    }).catch(function(err) {
+      clearTimeout(timer);
       waitToast.remove();
-      imgBtn.disabled = false;
-      imgBtn.textContent = "生成图片";
-      showToast(`配图生成失败：${err.message}`, "error");
-    }
+      bar.style.width = "100%";
+      bar.style.background = "#ef4444";
+      text.textContent = "失败";
+      text.style.color = "#ef4444";
+      setTimeout(function() {
+        progressWrap.remove();
+        imgBtn.disabled = false;
+        imgBtn.textContent = "生成图片";
+      }, 600);
+      showToast("配图生成失败：" + err.message, "error");
+    });
     return;
   }
 
@@ -926,6 +1073,143 @@ btnMergeDuplicates.addEventListener("click", async () => {
     showToast(`合并失败：${err.message}`, "error");
   }
 });
+
+// ── PDF 导出对话框 ──
+const exportModal = $("#export-modal");
+const exportPanelBody = $("#export-panel-options");
+const exportGeneratingEl = $("#export-generating");
+const exportDoneEl = $("#export-done");
+const exportFooter = $("#export-modal-footer");
+const exportConfirmBtn = $("#export-modal-confirm");
+
+let _exportWordCount = 0;
+let _exportTopic = "";
+
+function openExportDialog() {
+  // Reset to options view
+  exportPanelBody.style.display = "block";
+  exportGeneratingEl.style.display = "none";
+  exportDoneEl.style.display = "none";
+  exportFooter.style.display = "flex";
+  exportConfirmBtn.disabled = false;
+  exportConfirmBtn.textContent = "📥 导出 PDF";
+
+  // Reset progress bar
+  $("#export-progress-fill").style.width = "0%";
+
+  // Read current topic from sidebar
+  const activeEl = document.querySelector(".topic-item.active");
+  _exportTopic = activeEl ? activeEl.dataset.topic : "";
+  const label = _exportTopic || "全部词单";
+  $("#export-topic-label").innerHTML = label + ' · <span id="export-word-count">--</span> 个单词';
+
+  // Default: table layout
+  document.querySelector("input[name='export-layout'][value='table']").checked = true;
+  $("#export-include-images").checked = true;
+  $("#export-include-examples").checked = true;
+
+  // Fetch word count
+  const token = getToken();
+  const qs = _exportTopic ? "?topic=" + encodeURIComponent(_exportTopic) + "&limit=1" : "?limit=1";
+  fetch(BASE + "/words" + qs, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  }).then(r => r.json()).then(data => {
+    _exportWordCount = data.total || 0;
+    var countEl = $("#export-word-count");
+    if (countEl) countEl.textContent = _exportWordCount;
+    if (_exportWordCount === 0) {
+      exportConfirmBtn.disabled = true;
+      exportConfirmBtn.textContent = "没有可导出的单词";
+    }
+  }).catch(() => {});
+
+  exportModal.style.display = "flex";
+}
+
+function closeExportDialog() {
+  exportModal.style.display = "none";
+}
+
+$("#export-modal-close").addEventListener("click", closeExportDialog);
+$("#export-modal-cancel").addEventListener("click", closeExportDialog);
+exportModal.addEventListener("click", function(e) {
+  if (e.target === exportModal) closeExportDialog();
+});
+
+// Progress bar animation
+var _progressTimer = null;
+function startProgress() {
+  var w = 0;
+  $("#export-progress-fill").style.width = "0%";
+  _progressTimer = setInterval(function() {
+    w += (100 - w) * 0.08;
+    if (w > 95) w = 95;
+    $("#export-progress-fill").style.width = w + "%";
+  }, 200);
+}
+function finishProgress() {
+  clearInterval(_progressTimer);
+  $("#export-progress-fill").style.width = "100%";
+}
+
+// Confirm button → start export
+exportConfirmBtn.addEventListener("click", function() {
+  if (_exportWordCount === 0) return;
+
+  var layout = document.querySelector("input[name='export-layout']:checked");
+  layout = layout ? layout.value : "table";
+  var includeImages = $("#export-include-images").checked;
+  var includeExamples = $("#export-include-examples").checked;
+
+  // Switch to loading state
+  exportPanelBody.style.display = "none";
+  exportGeneratingEl.style.display = "block";
+  exportFooter.style.display = "none";
+  var label = _exportTopic || "全部词单";
+  $("#export-generating-detail").textContent = "正在导出「" + label + "」的 " + _exportWordCount + " 个单词";
+  startProgress();
+
+  var params = {};
+  if (_exportTopic) params.topic = _exportTopic;
+  params.layout = layout;
+  params.include_images = includeImages;
+
+  api.exportPdf("/words/export/pdf", params).then(function(result) {
+    finishProgress();
+
+    // Download
+    var url = URL.createObjectURL(result.blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = result.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    // Show done state
+    exportGeneratingEl.style.display = "none";
+    exportDoneEl.style.display = "block";
+    exportFooter.style.display = "flex";
+    exportConfirmBtn.textContent = "✅ 完成";
+    exportConfirmBtn.disabled = true;
+
+    // Auto close
+    setTimeout(function() {
+      if (exportModal.style.display !== "none") closeExportDialog();
+    }, 2000);
+  }).catch(function(err) {
+    // Restore options on error
+    clearInterval(_progressTimer);
+    exportGeneratingEl.style.display = "none";
+    exportPanelBody.style.display = "block";
+    exportFooter.style.display = "flex";
+    showToast("导出失败：" + err.message, "error");
+  });
+});
+
+// 导出词单 PDF
+$("#btn-export-pdf").addEventListener("click", openExportDialog);
 
 async function populateAddTopicOptions() {
   try {
@@ -1286,8 +1570,23 @@ function renderFlashcard() {
 }
 
 // 点击翻牌（听力模式下点击卡片也可翻牌）
+let touchStartX = 0, touchStartY = 0, touchMoved = false;
+
+flashcard.addEventListener("touchstart", (e) => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  touchMoved = false;
+}, { passive: true });
+
+flashcard.addEventListener("touchmove", (e) => {
+  const dx = e.touches[0].clientX - touchStartX;
+  const dy = e.touches[0].clientY - touchStartY;
+  if (Math.abs(dx) > 5 || Math.abs(dy) > 5) touchMoved = true;
+}, { passive: true });
+
 flashcard.addEventListener("click", () => {
   if (studyReviewing) return;
+  if (touchMoved) return; // 滑动不触发点击
   if (studyMode === "listening" && !showBack) {
     revealListeningAnswer();
     return;
@@ -1297,6 +1596,21 @@ flashcard.addEventListener("click", () => {
   showBack = true;
   const speakBtn = $("#flashcard-speak-btn");
   speakWord(speakBtn.dataset.speak, speakBtn.dataset.kana, speakBtn);
+});
+
+// 滑动评分：背面状态下左滑=忘了(1) 右滑=掌握(5)
+flashcard.addEventListener("touchend", (e) => {
+  if (!showBack || studyReviewing || !touchMoved) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) < 50) return; // 滑动距离不够
+  if (dx > 0) {
+    // 右滑 → 掌握
+    recordReview(5);
+  } else {
+    // 左滑 → 忘了
+    recordReview(1);
+  }
+  touchMoved = false;
 });
 
 // 听力模式：播放音频按钮
@@ -1896,6 +2210,7 @@ async function doGenerateEssay() {
 
 function renderEssayResult(data) {
   currentEssayData = data;
+  btnEssaySave.style.display = "";
   essayTitle.textContent = data.title;
 
   let essayHtml = esc(data.essay);
@@ -1929,6 +2244,7 @@ async function saveCurrentEssay() {
       jlpt_level: config.level || "N3",
     });
     showToast("短文已保存");
+    btnEssaySave.style.display = "none";
     loadSavedEssays();
   } catch (err) {
     showToast(`保存失败：${err.message}`, "error");
@@ -1938,50 +2254,15 @@ async function saveCurrentEssay() {
 async function loadSavedEssays() {
   try {
     const data = await api.listEssays(0, 50);
-    if (data.total === 0) {
-      essaySavedList.innerHTML = "";
-      essaySavedEmpty.style.display = "block";
-      return;
-    }
-    essaySavedEmpty.style.display = "none";
-    essaySavedList.innerHTML = data.essays
-      .map(
-        (e, i) => `
-      <div class="essay-saved-card">
-        <div class="essay-saved-card-header">
-          <span class="essay-saved-card-title">
-            <span class="saved-card-num">#${i + 1}</span>
-            <span class="es-arrow">▶</span> ${esc(e.title)}
-          </span>
-          <span class="essay-saved-card-meta">
-            <span>${jlptBadge(e.jlpt_level)} · ${e.word_count}字</span>
-            <span>${esc(e.topics.join(", "))}</span>
-            <span>${e.created_at ? e.created_at.slice(0, 10) : ""}</span>
-          </span>
-          <div class="essay-saved-card-preview">${esc(e.content.slice(0, 60))}...</div>
-        </div>
-        <div class="essay-saved-card-body">
-          <div class="essay-saved-card-content">${esc(e.content)}</div>
-          <div class="essay-saved-card-translation">${esc(e.chinese_translation)}</div>
-          <div class="essay-saved-card-actions">
-            <button class="btn btn-danger btn-sm essay-del-btn" data-id="${e.id}">删除</button>
-          </div>
-        </div>
-      </div>`,
-      )
-      .join("");
-
-    essaySavedList.querySelectorAll(".essay-saved-card-header").forEach((header) => {
-      header.addEventListener("click", () => {
-        header.parentElement.classList.toggle("expanded");
-      });
-    });
-    essaySavedList.querySelectorAll(".essay-del-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteSavedEssay(parseInt(btn.dataset.id));
-      });
-    });
+    renderSavedItems("essay", data.essays || [], essaySavedList, essaySavedEmpty, (e) => ({
+      id: e.id, title: e.title,
+      meta: `${jlptBadge(e.jlpt_level)} · ${e.word_count}字 · ${esc((e.topics||[]).join(", "))}`,
+      date: e.created_at ? e.created_at.slice(0, 10) : "",
+      preview: esc(e.content.slice(0, 80)),
+      body: esc(e.content),
+      translation: esc(e.chinese_translation),
+      type: "essay",
+    }));
   } catch (err) {
     console.error("加载已保存短文失败:", err);
   }
@@ -2001,6 +2282,165 @@ function viewSavedEssay(essays, id) {
   essayResult.style.display = "block";
   essayResult.scrollIntoView({ behavior: "smooth" });
 }
+
+// ── 保存列表通用渲染 + 模态窗 ──
+let savedItemsCache = { essay: [], cloze: [], grammar: [] };
+let savedModalItem = null;
+
+function renderSavedItems(type, items, listEl, emptyEl, mapper) {
+  const searchTerm = ($("#saved-search").value || "").toLowerCase();
+  const filtered = items.filter(item => {
+    if (!searchTerm) return true;
+    const m = mapper(item);
+    return (m.title || "").toLowerCase().includes(searchTerm) ||
+           (m.preview || "").toLowerCase().includes(searchTerm) ||
+           (m.body || "").toLowerCase().includes(searchTerm);
+  });
+
+  savedItemsCache[type] = items;
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = "";
+    emptyEl.style.display = "block";
+    return;
+  }
+  emptyEl.style.display = "none";
+
+  listEl.innerHTML = filtered.map((item, i) => {
+    const m = mapper(item);
+    return `
+    <div class="essay-saved-card" data-type="${type}" data-id="${item.id}">
+      <div class="essay-saved-card-header" data-action="view-saved">
+        <span class="essay-saved-card-title">
+          <span class="saved-card-num">#${i + 1}</span>
+          ${esc(m.title)}
+        </span>
+        <span class="essay-saved-card-meta">
+          <span>${m.meta}</span>
+          <span>${esc(m.date)}</span>
+        </span>
+        <div class="essay-saved-card-preview">${m.preview}...</div>
+      </div>
+      <div class="essay-saved-card-actions">
+        <button class="btn btn-outline btn-sm" data-action="view-saved">查看</button>
+        <button class="btn btn-outline btn-sm btn-export-saved" data-id="${item.id}" data-type="${type}">导出PDF</button>
+        <button class="btn btn-outline btn-sm btn-del-saved" data-id="${item.id}" data-type="${type}">删除</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  // View → modal
+  listEl.querySelectorAll('[data-action="view-saved"]').forEach(el => {
+    el.addEventListener("click", () => {
+      const card = el.closest(".essay-saved-card");
+      const id = parseInt(card.dataset.id);
+      const tp = card.dataset.type;
+      const item = savedItemsCache[tp].find(x => x.id === id);
+      if (item) openSavedModal(tp, item);
+    });
+  });
+
+  // Delete
+  listEl.querySelectorAll(".btn-del-saved").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      const tp = btn.dataset.type;
+      if (tp === "essay") deleteSavedEssay(id);
+      else if (tp === "cloze") deleteSavedCloze(id);
+      else if (tp === "grammar") deleteSavedGrammar(id);
+    });
+  });
+
+  // Export PDF for saved items
+  listEl.querySelectorAll(".btn-export-saved").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      const tp = btn.dataset.type;
+      let url = "";
+      if (tp === "essay") url = `/essays/${id}/export/pdf`;
+      else if (tp === "cloze") url = `/clozes/${id}/export/pdf`;
+      else if (tp === "grammar") url = `/grammar/compares/${id}/export/pdf`;
+      if (!url) return;
+      try {
+        showToast("正在生成 PDF...");
+        const { blob, filename } = await api.exportPdf(url);
+        const a = document.createElement("a");
+        const objUrl = URL.createObjectURL(blob);
+        a.href = objUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objUrl);
+      } catch (err) {
+        showToast(`导出失败：${err.message}`, "error");
+      }
+    });
+  });
+}
+
+function openSavedModal(type, item) {
+  const modal = $("#content-modal");
+  const titleEl = $("#modal-title");
+  const bodyEl = $("#modal-body");
+  const delBtn = $("#modal-btn-delete");
+
+  savedModalItem = { type, id: item.id };
+
+  if (type === "essay") {
+    titleEl.textContent = item.title;
+    bodyEl.innerHTML = `<div style="font-size:16px;line-height:2;margin-bottom:16px">${esc(item.content)}</div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;color:var(--text-muted)">${esc(item.chinese_translation)}</div>`;
+  } else if (type === "cloze") {
+    titleEl.textContent = item.title;
+    const blanks = typeof item.blanks === "string" ? JSON.parse(item.blanks) : item.blanks;
+    const blankMap = {}; (blanks || []).forEach(b => { blankMap[b.id] = b; });
+    const passageHtml = (item.passage || "").replace(/____(\d+)____/g, (_, id) => {
+      const b = blankMap[parseInt(id)];
+      return `<span style="border-bottom:2px dashed var(--primary);padding:0 4px;font-weight:600" title="${b ? b.answer : ''}">＿＿</span>`;
+    });
+    bodyEl.innerHTML = `<div style="font-size:16px;line-height:2.4;margin-bottom:16px">${passageHtml}</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">答案：${(blanks||[]).map(b => `${b.answer}(${b.kana})`).join(" / ")}</div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;color:var(--text-muted)">${esc(item.chinese_translation || "")}</div>`;
+  } else if (type === "grammar") {
+    titleEl.textContent = item.topic;
+    const result = typeof item.result === "string" ? JSON.parse(item.result) : item.result;
+    const summary = result.summary || "";
+    bodyEl.innerHTML = `<div style="margin-bottom:12px;line-height:1.8">${esc(summary)}</div>
+      <div style="overflow-x:auto"><table class="grammar-compare-table"><thead><tr><th>语法</th><th>接续</th><th>含义</th><th>例句</th></tr></thead><tbody>
+      ${(result.rows || []).map(r => `<tr><td>${esc(r.grammar)}</td><td>${esc(r.pattern)}</td><td>${esc(r.meaning)}</td><td>${esc(r.example)}<br><span style="color:var(--text-muted);font-size:12px">${esc(r.example_cn||"")}</span></td></tr>`).join("")}
+      </tbody></table></div>`;
+  }
+
+  modal.style.display = "flex";
+  delBtn.onclick = () => {
+    if (type === "essay") deleteSavedEssay(item.id);
+    else if (type === "cloze") deleteSavedCloze(item.id);
+    else if (type === "grammar") deleteSavedGrammar(item.id);
+    modal.style.display = "none";
+  };
+}
+
+// Modal close
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("content-modal");
+  if (!modal) return;
+  document.getElementById("modal-close").addEventListener("click", () => modal.style.display = "none");
+  document.getElementById("modal-btn-close").addEventListener("click", () => modal.style.display = "none");
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.style.display = "none"; });
+});
+
+// Saved search live filter
+document.addEventListener("input", (e) => {
+  if (e.target.id === "saved-search") {
+    if (currentTab === "saved") {
+      const subtab = document.querySelector(".study-subtab.active");
+      if (subtab) subtab.click();
+    }
+  }
+});
 
 async function deleteSavedEssay(id) {
   if (!confirm("确定删除这篇短文？")) return;
@@ -2281,83 +2721,17 @@ $("#btn-grammar-save-compare").addEventListener("click", async () => {
 async function loadGrammarSaved() {
   try {
     const data = await api.listGrammarCompares(0, 50);
-    const list = $("#grammar-saved-list");
-    const empty = $("#grammar-saved-empty");
-
-    if (data.total === 0) {
-      list.innerHTML = "";
-      empty.style.display = "block";
-      return;
-    }
-
-    empty.style.display = "none";
-    list.innerHTML = data.items
-      .map(
-        (item, i) => {
-          let result;
-          try { result = JSON.parse(item.result); } catch { result = { summary: "", rows: [] }; }
-          const rowsHtml = (result.rows || [])
-            .map(
-              (r) => `
-            <tr>
-              <td><strong>${escHtml(r.grammar)}</strong></td>
-              <td class="gct-pattern">${escHtml(r.pattern)}</td>
-              <td>${escHtml(r.meaning)}</td>
-              <td>${escHtml(r.example)}<br><small>${escHtml(r.example_cn)}</small></td>
-            </tr>`,
-            )
-            .join("");
-
-          return `
-        <div class="grammar-saved-card" data-id="${item.id}">
-          <div class="grammar-saved-card-header">
-            <span class="grammar-saved-card-topic">
-              <span class="saved-card-num">#${i + 1}</span>
-              <span class="gs-arrow">▶</span> ${escHtml(item.topic)}
-            </span>
-            <span class="grammar-saved-card-meta">
-              <span>${item.created_at ? item.created_at.slice(0, 10) : ""}</span>
-              <button class="btn btn-danger btn-sm gs-del-btn" data-id="${item.id}">删除</button>
-            </span>
-            <div class="essay-saved-card-preview">${escHtml((result.summary || "").slice(0, 50))}${(result.summary || "").length > 50 ? "..." : ""}</div>
-          </div>
-          <div class="grammar-saved-card-body">
-            <div class="grammar-compare-summary"><strong>总结：</strong>${escHtml(result.summary || "")}</div>
-            <div class="grammar-compare-table-wrap">
-              <table class="grammar-compare-table">
-                <thead>
-                  <tr><th>语法</th><th>接续</th><th>含义</th><th>例句</th></tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-              </table>
-            </div>
-          </div>
-        </div>`;
-        },
-      )
-      .join("");
-
-    // Toggle expand on header click
-    list.querySelectorAll(".grammar-saved-card-header").forEach((header) => {
-      header.addEventListener("click", () => {
-        header.parentElement.classList.toggle("expanded");
-      });
-    });
-
-    // Delete button
-    list.querySelectorAll(".gs-del-btn").forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const id = parseInt(btn.dataset.id);
-        if (!confirm("确定删除这条语法记录吗？")) return;
-        try {
-          await api.deleteGrammarCompare(id);
-          showToast("已删除");
-          loadGrammarSaved();
-        } catch (err) {
-          showToast(`删除失败：${err.message}`, "error");
-        }
-      });
+    renderSavedItems("grammar", data.items || [], $("#grammar-saved-list"), $("#grammar-saved-empty"), (item) => {
+      let result;
+      try { result = JSON.parse(item.result); } catch { result = { summary: "", rows: [] }; }
+      return {
+        id: item.id, title: item.topic,
+        meta: `${(result.rows||[]).length} 个语法点`,
+        date: item.created_at ? item.created_at.slice(0, 10) : "",
+        preview: esc((result.summary || "").slice(0, 80)),
+        body: "",
+        type: "grammar",
+      };
     });
   } catch (err) {
     showToast(`加载语法记录失败：${err.message}`, "error");
@@ -2451,32 +2825,43 @@ async function updateStudyBadge() {
 }
 
 // ===== 管理员页 =====
-const adminStatsGrid = $("#admin-stats-grid");
-const adminTbody = $("#admin-tbody");
-const adminUsageTbody = $("#admin-usage-tbody");
+const adminCardsGrid = $("#admin-cards-grid");
 const adminTabUsers = $("#admin-tab-users");
-const adminTabUsage = $("#admin-tab-usage");
 const adminTabLogins = $("#admin-tab-logins");
 const adminPanelUsers = $("#admin-panel-users");
-const adminPanelUsage = $("#admin-panel-usage");
 const adminPanelLogins = $("#admin-panel-logins");
 const adminLoginReports = $("#admin-login-reports");
 
-let adminCurrentTab = "users";
 let adminUsersCache = [];
 
 adminTabUsers.addEventListener("click", () => switchAdminTab("users"));
-adminTabUsage.addEventListener("click", () => switchAdminTab("usage"));
 adminTabLogins.addEventListener("click", () => switchAdminTab("logins"));
 
+// 管理员创建用户
+$("#btn-admin-create-user").addEventListener("click", async () => {
+  const uname = prompt("请输入新用户名（2-50个字符）：");
+  if (!uname) return;
+  if (uname.length < 2 || uname.length > 50) { showToast("用户名需2-50个字符", "error"); return; }
+  const pw1 = prompt("请输入密码（至少6位）：");
+  if (!pw1) return;
+  if (pw1.length < 6) { showToast("密码至少6位", "error"); return; }
+  const pw2 = prompt("请再次输入密码确认：");
+  if (pw1 !== pw2) { showToast("两次密码不一致", "error"); return; }
+  try {
+    const res = await api.adminCreateUser(uname, pw1);
+    showToast(res.message);
+    loadAdmin();
+  } catch (err) {
+    showToast(`创建失败：${err.message}`, "error");
+  }
+});
+
 function switchAdminTab(tab) {
-  adminCurrentTab = tab;
   adminTabUsers.classList.toggle("active", tab === "users");
-  adminTabUsage.classList.toggle("active", tab === "usage");
   adminTabLogins.classList.toggle("active", tab === "logins");
   adminPanelUsers.style.display = tab === "users" ? "block" : "none";
-  adminPanelUsage.style.display = tab === "usage" ? "block" : "none";
   adminPanelLogins.style.display = tab === "logins" ? "block" : "none";
+  if (tab === "users") renderAdminCards();
   if (tab === "logins") loadAdminLogins();
 }
 
@@ -2568,8 +2953,7 @@ async function loadAdmin() {
 
     const users = await api.adminUsers();
     adminUsersCache = users;
-    renderAdminUsers(users);
-    renderAdminUsage(users);
+    renderAdminCards();
   } catch (err) {
     showToast(`加载管理页失败：${err.message}`, "error");
   }
@@ -2581,41 +2965,154 @@ function formatTokens(n) {
   return String(n);
 }
 
-function formatLimit(v) {
-  if (v === null || v === undefined) return "不限";
-  return String(v) + "/天";
+function effectiveLimit(dbValue, defaultValue) {
+  if (dbValue !== null && dbValue !== undefined) return dbValue;
+  return defaultValue;
 }
 
-function renderAdminUsers(users) {
-  adminTbody.innerHTML = users
-    .map((u) => {
-      const usage = u.usage || {};
-      const aiUsed = usage.today_ai || 0;
-      const aiLimit = u.daily_ai_limit;
-      const voiceUsed = usage.today_voice || 0;
-      const voiceLimit = u.daily_voice_limit;
-      return `
-    <tr>
-      <td>${u.id}</td>
-      <td>${esc(u.username)}</td>
-      <td><span class="admin-badge ${u.is_admin ? "admin" : "user"}">${u.is_admin ? "管理员" : "用户"}</span></td>
-      <td>${u.word_count}</td>
-      <td>${aiUsed}</td>
-      <td><span class="limit-badge ${aiLimit == null ? "unlimited" : aiUsed >= aiLimit ? "limited" : "unlimited"}">${formatLimit(aiLimit)}</span></td>
-      <td>${voiceUsed}</td>
-      <td><span class="limit-badge ${voiceLimit == null ? "unlimited" : voiceUsed >= voiceLimit ? "limited" : "unlimited"}">${formatLimit(voiceLimit)}</span></td>
-      <td>
-        <button class="btn btn-outline btn-sm" data-action="toggle-admin" data-id="${u.id}" data-username="${esc(u.username)}" data-current="${u.is_admin}">
+function formatLimit(v, effectiveDefault) {
+  const eff = effectiveLimit(v, effectiveDefault);
+  if (eff === null || eff === undefined) return "不限";
+  return String(eff) + "/天";
+}
+
+function limitUsageClass(used, limit) {
+  if (limit === null || limit === undefined || limit <= 0) return "";
+  if (used >= limit) return "full";
+  if (used / limit >= 0.8) return "warn";
+  return "";
+}
+
+function limitBarPct(used, limit) {
+  if (!limit) return 0;
+  return Math.min(100, (used / limit) * 100);
+}
+
+function renderLimitRow(opts) {
+  const { icon, label, used, total, limit, effectiveDefault, kind, selectOptions } = opts;
+  const eff = effectiveLimit(limit, effectiveDefault);
+  const pct = limitBarPct(used, eff);
+  const barClass = limitUsageClass(used, eff);
+  const usedClass = limitUsageClass(used, eff);
+
+  const usedDisplay = eff != null ? `${used}<span class="dim"> / ${eff}</span>` : `${used}<span class="dim"> / 不限</span>`;
+  const countLabel = total != null ? `<span class="dim">总${total}</span>` : "";
+
+  return `
+    <div class="admin-limit-row">
+      <span class="admin-limit-icon">${icon}</span>
+      <span class="admin-limit-label">${label}</span>
+      <div class="admin-limit-bar-wrap">
+        <div class="admin-limit-bar-fill ${barClass}" style="width:${pct}%"></div>
+      </div>
+      <span class="admin-limit-usage">
+        <span class="${usedClass}">${usedDisplay}</span>
+        ${countLabel}
+      </span>
+      <select class="admin-limit-select" data-kind="${kind}" data-userid="${opts.userId}" data-username="${opts.username}">
+        <option value="">设置</option>
+        ${selectOptions.map(o => `<option value="${o.val}">${o.label}</option>`).join("")}
+      </select>
+    </div>`;
+}
+
+function renderAdminCards() {
+  const grid = adminCardsGrid;
+  const users = adminUsersCache;
+
+  // Limit preset options
+  const aiOptions = [
+    { val: "0", label: "AI: 0次" },
+    { val: "10", label: "AI: 10次" },
+    { val: "25", label: "AI: 25次" },
+    { val: "50", label: "AI: 50次" },
+    { val: "100", label: "AI: 100次" },
+    { val: "-1", label: "AI: 不限" },
+  ];
+  const voiceOptions = [
+    { val: "0", label: "语音: 0次" },
+    { val: "20", label: "语音: 20次" },
+    { val: "50", label: "语音: 50次" },
+    { val: "100", label: "语音: 100次" },
+    { val: "-1", label: "语音: 不限" },
+  ];
+  const wordOptions = [
+    { val: "0", label: "单词: 0个" },
+    { val: "50", label: "单词: 50个" },
+    { val: "100", label: "单词: 100个" },
+    { val: "200", label: "单词: 200个" },
+    { val: "500", label: "单词: 500个" },
+    { val: "-1", label: "单词: 不限" },
+  ];
+  const imageOptions = [
+    { val: "0", label: "图片: 0张" },
+    { val: "3", label: "图片: 3张" },
+    { val: "10", label: "图片: 10张" },
+    { val: "30", label: "图片: 30张" },
+    { val: "-1", label: "图片: 不限" },
+  ];
+
+  grid.innerHTML = users.map((u) => {
+    const usage = u.usage || {};
+    const aid = u.id;
+    const unm = esc(u.username);
+
+    return `
+    <div class="admin-user-card">
+      <div class="admin-card-header">
+        <div class="admin-card-user">
+          <span class="admin-card-avatar">${u.is_admin ? "🛡" : "👤"}</span>
+          <span class="admin-card-username">${unm}</span>
+          <span class="admin-card-role ${u.is_admin ? "admin" : "user"}">${u.is_admin ? "管理员" : "用户"}</span>
+        </div>
+        <div class="admin-card-meta">
+          <span>ID:${aid}</span>
+          <span>单词:${u.word_count}</span>
+          <span>学习:${u.study_count}</span>
+        </div>
+      </div>
+      <div class="admin-card-remark" data-userid="${aid}">
+        <span class="admin-card-remark-text">${u.remark ? esc(u.remark) : '<span class="dim">无备注</span>'}</span>
+        <button class="admin-card-remark-edit" data-action="edit-remark" data-id="${aid}" data-username="${unm}" data-remark="${u.remark ? esc(u.remark) : ''}">✎</button>
+      </div>
+      <div class="admin-card-body">
+        ${renderLimitRow({
+          icon: "🤖", label: "AI调用", kind: "ai",
+          used: usage.today_ai || 0, total: usage.total_ai || 0,
+          limit: u.daily_ai_limit, effectiveDefault: u.is_admin ? null : 25,
+          userId: aid, username: unm, selectOptions: aiOptions,
+        })}
+        ${renderLimitRow({
+          icon: "🎤", label: "语音", kind: "voice",
+          used: usage.today_voice || 0, total: usage.total_voice || 0,
+          limit: u.daily_voice_limit, effectiveDefault: null,
+          userId: aid, username: unm, selectOptions: voiceOptions,
+        })}
+        ${renderLimitRow({
+          icon: "📝", label: "单词", kind: "word",
+          used: usage.today_word || 0, total: usage.total_word || 0,
+          limit: u.daily_word_limit, effectiveDefault: u.is_admin ? null : 100,
+          userId: aid, username: unm, selectOptions: wordOptions,
+        })}
+        ${renderLimitRow({
+          icon: "🖼", label: "图片", kind: "image",
+          used: usage.today_image || 0, total: usage.total_image || 0,
+          limit: u.daily_image_limit, effectiveDefault: u.is_admin ? null : 3,
+          userId: aid, username: unm, selectOptions: imageOptions,
+        })}
+      </div>
+      <div class="admin-card-actions">
+        <button class="btn btn-outline btn-sm" data-action="toggle-admin" data-id="${aid}" data-username="${unm}" data-current="${u.is_admin}">
           ${u.is_admin ? "取消管理" : "设为管理"}
         </button>
-        <button class="btn btn-outline btn-sm" data-action="reset-password" data-id="${u.id}" data-username="${esc(u.username)}">重置密码</button>
-        <button class="btn-sm-danger" data-action="delete-user" data-id="${u.id}" data-username="${esc(u.username)}">删除</button>
-      </td>
-    </tr>`;
-    })
-    .join("");
+        <button class="btn btn-outline btn-sm" data-action="reset-password" data-id="${aid}" data-username="${unm}">重置密码</button>
+        <button class="btn-sm-danger" data-action="delete-user" data-id="${aid}" data-username="${unm}">删除</button>
+      </div>
+    </div>`;
+  }).join("");
 
-  adminTbody.querySelectorAll('[data-action="toggle-admin"]').forEach((btn) => {
+  // Toggle admin
+  grid.querySelectorAll('[data-action="toggle-admin"]').forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.dataset.id);
       const username = btn.dataset.username;
@@ -2630,7 +3127,8 @@ function renderAdminUsers(users) {
     });
   });
 
-  adminTbody.querySelectorAll('[data-action="reset-password"]').forEach((btn) => {
+  // Reset password
+  grid.querySelectorAll('[data-action="reset-password"]').forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.dataset.id);
       const username = btn.dataset.username;
@@ -2649,7 +3147,8 @@ function renderAdminUsers(users) {
     });
   });
 
-  adminTbody.querySelectorAll('[data-action="delete-user"]').forEach((btn) => {
+  // Delete user
+  grid.querySelectorAll('[data-action="delete-user"]').forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.dataset.id);
       const username = btn.dataset.username;
@@ -2663,84 +3162,56 @@ function renderAdminUsers(users) {
       }
     });
   });
-}
 
-function renderAdminUsage(users) {
-  adminUsageTbody.innerHTML = users
-    .map((u) => {
-      const usage = u.usage || {};
-      const aiUsedToday = usage.today_ai || 0;
-      const aiTotal = usage.total_ai || 0;
-      const aiLimit = u.daily_ai_limit;
-      const voiceUsedToday = usage.today_voice || 0;
-      const voiceTotal = usage.total_voice || 0;
-      const voiceLimit = u.daily_voice_limit;
+  // Edit remark
+  grid.querySelectorAll('[data-action="edit-remark"]').forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = parseInt(btn.dataset.id);
+      const username = btn.dataset.username;
+      const current = btn.dataset.remark || "";
+      const remark = prompt(`「${username}」的备注（最多200字）：`, current);
+      if (remark === null) return; // cancelled
+      if (remark.length > 200) { showToast("备注不能超过200字", "error"); return; }
+      try {
+        await api.setUserRemark(id, remark || null);
+        showToast("备注已更新");
+        loadAdmin();
+      } catch (err) {
+        showToast(`备注保存失败：${err.message}`, "error");
+      }
+    });
+  });
 
-      const aiPct = aiLimit ? Math.min(100, (aiUsedToday / aiLimit) * 100) : 0;
-      const voicePct = voiceLimit ? Math.min(100, (voiceUsedToday / voiceLimit) * 100) : 0;
-
-      const aiBarClass = aiLimit && aiUsedToday >= aiLimit ? "full" : aiPct > 80 ? "warn" : "";
-      const voiceBarClass =
-        voiceLimit && voiceUsedToday >= voiceLimit ? "full" : voicePct > 80 ? "warn" : "";
-
-      return `
-    <tr>
-      <td>${esc(u.username)}</td>
-      <td>
-        <div class="usage-bar-wrap">
-          <span>${aiUsedToday}</span>
-          ${aiLimit ? `<div class="usage-bar"><div class="usage-bar-fill ${aiBarClass}" style="width:${aiPct}%"></div></div>` : ""}
-        </div>
-      </td>
-      <td>${aiTotal}</td>
-      <td><span class="limit-badge ${aiLimit == null ? "unlimited" : "limited"}">${formatLimit(aiLimit)}</span></td>
-      <td>
-        <div class="usage-bar-wrap">
-          <span>${voiceUsedToday}</span>
-          ${voiceLimit ? `<div class="usage-bar"><div class="usage-bar-fill ${voiceBarClass}" style="width:${voicePct}%"></div></div>` : ""}
-        </div>
-      </td>
-      <td>${voiceTotal}</td>
-      <td><span class="limit-badge ${voiceLimit == null ? "unlimited" : "limited"}">${formatLimit(voiceLimit)}</span></td>
-      <td>
-        <select class="limit-select" data-action="set-limits" data-id="${u.id}" data-username="${esc(u.username)}">
-          <option value="">设置限额...</option>
-          <option value="ai:0">AI: 禁止</option>
-          <option value="ai:5">AI: 5次/天</option>
-          <option value="ai:10">AI: 10次/天</option>
-          <option value="ai:20">AI: 20次/天</option>
-          <option value="ai:50">AI: 50次/天</option>
-          <option value="ai:-1">AI: 不限</option>
-          <option value="voice:0">语音: 禁止</option>
-          <option value="voice:20">语音: 20次/天</option>
-          <option value="voice:50">语音: 50次/天</option>
-          <option value="voice:100">语音: 100次/天</option>
-          <option value="voice:-1">语音: 不限</option>
-        </select>
-      </td>
-    </tr>`;
-    })
-    .join("");
-
-  adminUsageTbody.querySelectorAll('[data-action="set-limits"]').forEach((sel) => {
+  // Set limits — per-row select
+  grid.querySelectorAll('.admin-limit-select').forEach((sel) => {
     sel.addEventListener("change", async () => {
-      const value = sel.value;
-      if (!value) return;
-      const [kind, val] = value.split(":");
+      const val = sel.value;
+      if (!val) return;
+      const kind = sel.dataset.kind;
       const limitVal = val === "-1" ? null : parseInt(val);
-      const userId = parseInt(sel.dataset.id);
+      const userId = parseInt(sel.dataset.userid);
       const username = sel.dataset.username;
 
-      // Get current limits from cache
       const user = adminUsersCache.find((u) => u.id === userId);
       if (!user) return;
 
       const aiLimit = kind === "ai" ? limitVal : user.daily_ai_limit;
       const voiceLimit = kind === "voice" ? limitVal : user.daily_voice_limit;
+      const wordLimit = kind === "word" ? limitVal : user.daily_word_limit;
+      const imageLimit = kind === "image" ? limitVal : user.daily_image_limit;
 
       try {
-        const res = await api.setUserLimits(userId, aiLimit, voiceLimit);
-        showToast(res.message);
+        // Use extended setUserLimits with image support
+        await request("/admin/users/" + userId + "/limits", {
+          method: "PUT",
+          body: JSON.stringify({
+            daily_ai_limit: aiLimit,
+            daily_voice_limit: voiceLimit,
+            daily_word_limit: wordLimit,
+            daily_image_limit: imageLimit,
+          }),
+        });
+        showToast(`已更新 ${username} 的限额`);
         sel.value = "";
         loadAdmin();
       } catch (err) {
@@ -2749,6 +3220,11 @@ function renderAdminUsage(users) {
       }
     });
   });
+}
+
+function formatLimit(v) {
+  if (v === null || v === undefined) return "不限";
+  return String(v) + "/天";
 }
 
 // ===== 初始化 =====
@@ -2794,6 +3270,7 @@ function jlptBadge(level) {
         authPage.style.display = "none";
         mainApp.style.display = "flex";
         initApp();
+        loadGenerateQuota();
         // 新成就提醒
         if (data.new_achievements && data.new_achievements.length > 0) {
           data.new_achievements.forEach((a, i) => {
@@ -2811,8 +3288,7 @@ function jlptBadge(level) {
         mainApp.style.display = "none";
       });
   } else {
-    // 无 token，直接显示登录页
-    authPage.style.display = "flex";
+    // 无 token，确保显示登录页（auth-page 默认已可见）
     mainApp.style.display = "none";
   }
 })();
@@ -2959,6 +3435,7 @@ async function doGenerateCloze() {
 
 function renderClozeResult(data) {
   currentClozeData = data;
+  btnClozeSave.style.display = "";
   clozeTitle.textContent = data.title;
   clozeUserAnswers = {};
 
@@ -3084,6 +3561,7 @@ async function saveClozeResult() {
       jlpt_level: config.level,
     });
     showToast("完型填空已保存");
+    btnClozeSave.style.display = "none";
     if (currentTab === "saved") loadClozeSaved();
   } catch (err) {
     showToast(`保存失败：${err.message}`, "error");
@@ -3093,69 +3571,16 @@ async function saveClozeResult() {
 async function loadClozeSaved() {
   try {
     const data = await api.listClozes(0, 50);
-    if (!data.clozes || data.clozes.length === 0) {
-      clozeSavedList.innerHTML = "";
-      clozeSavedEmpty.style.display = "block";
-      return;
-    }
-    clozeSavedEmpty.style.display = "none";
-    clozeSavedList.innerHTML = data.clozes
-      .map((c, i) => `
-      <div class="essay-saved-card">
-        <div class="essay-saved-card-header">
-          <span class="essay-saved-card-title">
-            <span class="saved-card-num">#${i + 1}</span>
-            <span class="es-arrow">▶</span> ${esc(c.title)}
-          </span>
-          <span class="essay-saved-card-meta">
-            <span>${jlptBadge(c.jlpt_level)} · ${c.length}字</span>
-            <span>${esc((c.topics || []).join(", "))}</span>
-            <span>${(c.blanks || []).length} 个填空</span>
-            <span>${c.created_at ? c.created_at.slice(0, 10) : ""}</span>
-          </span>
-          <div class="essay-saved-card-preview">${esc(c.passage.slice(0, 60))}...</div>
-        </div>
-        <div class="essay-saved-card-body">
-          <div class="cloze-saved-passage"></div>
-          <div class="essay-saved-card-translation">${esc(c.chinese_translation || "")}</div>
-          <div class="essay-saved-card-actions">
-            <button class="btn btn-primary btn-sm cloze-view-btn" data-id="${c.id}">查看练习</button>
-            <button class="btn btn-danger btn-sm cloze-del-btn" data-id="${c.id}">删除</button>
-          </div>
-        </div>
-      </div>`,
-      )
-      .join("");
-
-    clozeSavedList.querySelectorAll(".essay-saved-card-header").forEach((header, idx) => {
-      header.addEventListener("click", () => {
-        const card = header.parentElement;
-        card.classList.toggle("expanded");
-        if (card.classList.contains("expanded")) {
-          const c = data.clozes[idx];
-          const passageDiv = card.querySelector(".cloze-saved-passage");
-          if (passageDiv && !passageDiv.innerHTML) {
-            passageDiv.innerHTML = renderClozePassageStatic(c.passage, c.blanks || []);
-          }
-        }
-      });
-    });
-
-    clozeSavedList.querySelectorAll(".cloze-del-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteSavedCloze(parseInt(btn.dataset.id));
-      });
-    });
-
-    clozeSavedList.querySelectorAll(".cloze-view-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        viewSavedCloze(data.clozes, parseInt(btn.dataset.id));
-      });
-    });
+    renderSavedItems("cloze", data.clozes || [], clozeSavedList, clozeSavedEmpty, (c) => ({
+      id: c.id, title: c.title,
+      meta: `${jlptBadge(c.jlpt_level)} · ${c.length}字 · ${(c.blanks||[]).length}个填空`,
+      date: c.created_at ? c.created_at.slice(0, 10) : "",
+      preview: esc((c.passage || "").replace(/____\d+____/g, "＿＿").slice(0, 80)),
+      body: c.passage,
+      type: "cloze",
+    }));
   } catch (err) {
-    console.error("加载已保存完型填空失败:", err);
+    console.error("加载完型填空失败:", err);
   }
 }
 
@@ -3178,6 +3603,17 @@ async function deleteSavedCloze(id) {
     await api.deleteCloze(id);
     showToast("已删除");
     loadClozeSaved();
+  } catch (err) {
+    showToast(`删除失败：${err.message}`, "error");
+  }
+}
+
+async function deleteSavedGrammar(id) {
+  if (!confirm("确定删除这条语法记录吗？")) return;
+  try {
+    await api.deleteGrammarCompare(id);
+    showToast("已删除");
+    loadGrammarSaved();
   } catch (err) {
     showToast(`删除失败：${err.message}`, "error");
   }
@@ -3210,7 +3646,8 @@ let imageSelectedTopic = null;
 
 async function loadImageCards() {
   try {
-    const data = await api.listImageCards();
+    // 首次加载只获取元数据（不含 base64），速度极快
+    const data = await api.listImageCards(false);
     imageCardsData = data;
 
     if (!data.topics || data.topics.length === 0) {
@@ -3267,8 +3704,10 @@ function renderImageCards() {
   imageCardGrid.innerHTML = allWords
     .map((w) => `
       <div class="image-card">
-        <div class="image-card-img-wrap">
-          <img src="${esc(w.image_base64)}" alt="${esc(w.japanese)}" />
+        <div class="image-card-img-wrap" data-word-id="${w.id}">
+          ${w.image_base64
+            ? `<img src="${esc(w.image_base64)}" alt="${esc(w.japanese)}" />`
+            : `<div class="img-placeholder"><span>📷</span><span>加载中...</span></div>`}
         </div>
         <div class="image-card-body">
           <div class="image-card-words">
@@ -3284,6 +3723,32 @@ function renderImageCards() {
     `)
     .join("");
 
+  // 懒加载：IntersectionObserver 监听图片容器，可见时加载 base64
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (!entry.isIntersecting) return;
+      var wrap = entry.target;
+      var wordId = parseInt(wrap.dataset.wordId);
+      if (!wordId || wrap.dataset.loaded === "1") return;
+      wrap.dataset.loaded = "1";
+      api.getImageCardData(wordId).then(function(data) {
+        if (data.image_base64) {
+          wrap.innerHTML = '<img src="' + esc(data.image_base64) + '" alt="" />';
+          wrap.querySelector("img").addEventListener("click", function() {
+            showImageLightbox(data.image_base64);
+          });
+        }
+      }).catch(function() {
+        wrap.innerHTML = '<div class="img-placeholder"><span>❌</span></div>';
+      });
+    });
+  }, { rootMargin: "200px" });
+
+  imageCardGrid.querySelectorAll(".image-card-img-wrap").forEach(function(wrap) {
+    if (!wrap.querySelector("img")) observer.observe(wrap);
+  });
+
+  // 已有图片的点击事件
   imageCardGrid.querySelectorAll("img").forEach((img) => {
     img.addEventListener("click", () => showImageLightbox(img.src));
   });
@@ -3302,3 +3767,166 @@ function renderImageCards() {
     });
   });
 }
+
+/* ===== 移动端适配 ===== */
+(function() {
+  'use strict';
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.getElementById('sidebar-overlay');
+  var hamburger = document.getElementById('hamburger-btn');
+  var bottomNav = document.getElementById('mobile-bottom-nav');
+  var mainApp = document.getElementById('main-app');
+  var moreOverlay = document.getElementById('more-menu-overlay');
+  var morePopup = document.getElementById('more-menu-popup');
+  var btnMore = document.getElementById('btn-more-menu');
+
+  if (!sidebar || !hamburger) return;
+
+  // ── "更多"弹出菜单 ──
+  function showMoreMenu() {
+    moreOverlay.classList.add('show');
+    morePopup.classList.add('show');
+  }
+  function hideMoreMenu() {
+    moreOverlay.classList.remove('show');
+    morePopup.classList.remove('show');
+  }
+  if (btnMore) {
+    btnMore.addEventListener('click', function(e) {
+      e.stopPropagation();
+      morePopup.classList.contains('show') ? hideMoreMenu() : showMoreMenu();
+    });
+  }
+  if (moreOverlay) {
+    moreOverlay.addEventListener('click', hideMoreMenu);
+  }
+
+  // 打开侧边栏
+  function openSidebar() {
+    sidebar.classList.add('open');
+    if (overlay) overlay.classList.add('show');
+  }
+
+  // 关闭侧边栏
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('show');
+  }
+
+  // 汉堡按钮点击
+  hamburger.addEventListener('click', function() {
+    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+
+  // 遮罩点击关闭
+  if (overlay) {
+    overlay.addEventListener('click', closeSidebar);
+  }
+
+  // 所有导航按钮（侧边栏+底部导航）点击关闭侧边栏
+  document.addEventListener('click', function(e) {
+    // 侧边栏导航按钮
+    if (e.target.closest('.nav-btn')) {
+      closeSidebar();
+    }
+    // 底部导航按钮
+    if (e.target.closest('.mobile-bottom-nav button')) {
+      var tab = e.target.closest('button').getAttribute('data-tab');
+      if (tab && tab !== 'more') {
+        var navBtn = document.querySelector('.nav-btn[data-tab="' + tab + '"]');
+        if (navBtn) navBtn.click();
+        // 更新底部导航 active（跳过"更多"按钮）
+        var btns = bottomNav.querySelectorAll('button');
+        btns.forEach(function(b) { b.classList.remove('active'); });
+        e.target.closest('button').classList.add('active');
+      }
+      closeSidebar();
+      hideMoreMenu();
+    }
+    // "更多"弹出菜单中的按钮
+    if (e.target.closest('.more-menu-popup button')) {
+      var tab2 = e.target.closest('button').getAttribute('data-tab');
+      if (tab2) {
+        var navBtn2 = document.querySelector('.nav-btn[data-tab="' + tab2 + '"]');
+        if (navBtn2) navBtn2.click();
+      }
+      hideMoreMenu();
+      closeSidebar();
+    }
+  });
+
+  // 主内容区点击也关闭（可选，点击空白区域）
+  if (document.querySelector('.main')) {
+    document.querySelector('.main').addEventListener('click', function() {
+      if (window.innerWidth <= 768) closeSidebar();
+    });
+  }
+
+  // 监听侧边栏 nav-btn 点击，同步底部导航 active
+  var navBtns = document.querySelectorAll('.nav-btn');
+  navBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tab = btn.getAttribute('data-tab');
+      if (bottomNav && tab) {
+        var mbBtns = bottomNav.querySelectorAll('button');
+        mbBtns.forEach(function(b) { b.classList.remove('active'); });
+        var target = bottomNav.querySelector('button[data-tab="' + tab + '"]');
+        if (target) target.classList.add('active');
+      }
+    });
+  });
+
+  // 窗口大小变化时关闭侧边栏
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) closeSidebar();
+  });
+})();
+
+// ══════════════════════════════════════════
+// 🥚 彩蛋：连点 Logo 或标题「あ」7次 → 樱花飘落 + 成就解锁
+// 同时监听侧边栏 logo 和登录页 logo
+// ══════════════════════════════════════════
+(function() {
+  var clicks = 0;
+  var timer = null;
+  var fired = false;
+
+  function handleClick() {
+    if (fired) return;
+    clicks++;
+    clearTimeout(timer);
+    timer = setTimeout(function() { clicks = 0; }, 1500);
+    if (clicks >= 7) {
+      fired = true;
+      clicks = 0;
+      if (typeof api !== 'undefined') {
+        api.awardAchievement('konami_code').then(function(res) {
+          if (res.awarded) showToast(res.icon + ' 解锁成就：' + res.name, 'achievement');
+        }).catch(function(){});
+      }
+      var container = document.createElement('div');
+      container.className = 'sakura-container';
+      for (var i = 0; i < 50; i++) {
+        var petal = document.createElement('span');
+        petal.className = 'sakura-petal';
+        petal.textContent = ['🌸','💮','🌺','🍂','✨'][Math.floor(Math.random()*5)];
+        petal.style.left = Math.random() * 100 + '%';
+        petal.style.animationDelay = Math.random() * 3 + 's';
+        petal.style.animationDuration = (Math.random() * 3 + 3) + 's';
+        petal.style.fontSize = (Math.random() * 16 + 12) + 'px';
+        container.appendChild(petal);
+      }
+      document.body.appendChild(container);
+      showToast('やった！隠し機能を発見した！\n(>ω<)  七回クリックの秘密!', 'achievement');
+      setTimeout(function() { container.remove(); fired = false; }, 6000);
+    }
+  }
+
+  // 用事件代理监听所有 "あ" 图标（侧边栏和登录页）
+  document.addEventListener('click', function(e) {
+    var target = e.target;
+    if (target.classList.contains('logo-icon') || target.classList.contains('auth-brand-icon')) {
+      handleClick();
+    }
+  });
+})();

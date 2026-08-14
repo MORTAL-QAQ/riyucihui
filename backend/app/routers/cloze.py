@@ -3,15 +3,17 @@
 POST /api/cloze — AI 生成完型填空练习（流式/非流式）
 POST /api/clozes — 保存完型填空
 GET /api/clozes — 分页列出已保存的完型填空
+GET /api/clozes/{cloze_id}/export/pdf — 导出完型填空为 PDF
 DELETE /api/clozes/{cloze_id} — 删除完型填空
 
 生成的短文中包含 ____ 占位符，前端将其替换为输入框供用户填写。
 """
 
 import json
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -160,6 +162,33 @@ def delete_cloze(
     db.delete(cloze)
     db.commit()
     return {"message": "已删除"}
+
+
+@router.get("/clozes/{cloze_id}/export/pdf")
+def export_cloze_pdf(
+    cloze_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """导出单个完型填空为 PDF 文件（含答案）。"""
+    from ..services.pdf_service import generate_cloze_pdf, _encode_filename
+
+    cloze = db.get(Cloze, cloze_id)
+    if not cloze or cloze.user_id != user.id:
+        raise HTTPException(status_code=404, detail="完型填空不存在")
+
+    buf = generate_cloze_pdf(cloze)
+
+    now = datetime.now()
+    safe_title = cloze.title[:30].replace("/", "_").replace("\\", "_")
+    filename = f"完型填空_{safe_title}_{now.strftime('%Y%m%d')}.pdf"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*={_encode_filename(filename)}",
+        },
+    )
 
 
 def _cloze_out(c: Cloze):

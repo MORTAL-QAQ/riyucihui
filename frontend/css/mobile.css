@@ -1,0 +1,538 @@
+/* ═══════════════════════════════════════════════════════════════════
+   移动端样式 — ≤768px
+   覆盖桌面端布局（desktop.css 作为基础样式始终加载）
+   ═══════════════════════════════════════════════════════════════════ */
+
+body { -webkit-text-size-adjust: 100%; }
+
+/* ── 移动端专属容器：显示（必须 !important 覆盖 desktop.css） ── */
+.mobile-only {
+  display: block !important;
+  visibility: visible !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+  position: static !important;
+  pointer-events: auto !important;
+  clip: auto !important;
+}
+
+body {
+  -webkit-text-size-adjust: 100%;
+  font-size: 14px;
+}
+
+/* ── 汉堡菜单 ── */
+.hamburger {
+  display: flex; align-items: center; justify-content: center;
+  position: fixed; top: 12px; left: 12px; z-index: 1000;
+  width: 42px; height: 42px;
+  background: var(--primary); color: #fff;
+  border: none; border-radius: 12px; font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.5);
+}
+
+/* ── 侧边栏遮罩 ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,0.45);
+}
+.sidebar-overlay.show { display: block; }
+
+/* ── 侧边栏抽屉 ── */
+.sidebar {
+  position: fixed; top: 0; left: -85vw; bottom: 0;
+  width: 80vw; max-width: 300px; z-index: 1000;
+  transition: left 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+}
+.sidebar.open { left: 0; }
+.sidebar-footer { display: none; }
+.sidebar .logo { padding: 16px 14px; }
+.sidebar .logo-icon { width: 32px; height: 32px; font-size: 15px; }
+.sidebar .logo-text { font-size: 12px; }
+.sidebar .sidebar-greeting { font-size: 9px; padding: 0 12px 8px; }
+.sidebar .nav { padding: 10px 8px; gap: 1px; }
+.sidebar .nav-btn {
+  padding: 12px 14px; font-size: 14px; border-radius: 10px;
+  min-height: 48px;
+  gap: 10px;
+}
+.sidebar .nav-icon { font-size: 18px; width: 22px; }
+
+/* ── App 布局重置 ── */
+#app { display: block !important; }
+
+.main {
+  display: block !important;
+  flex: none !important;
+  margin-left: 0 !important;
+  padding: 52px 14px 90px 14px !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+.page-header {
+  padding-top: 0 !important;
+  margin-bottom: 16px;
+}
+.page-header h1 { font-size: 22px; }
+.subtitle { font-size: 13px; }
+
+/* ── 底部导航栏 ── */
+.mobile-bottom-nav {
+  display: flex !important;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001;
+  background: #fff;
+  border-top: 1px solid var(--border);
+  justify-content: space-around;
+  padding: 6px 0 calc(8px + env(safe-area-inset-bottom));
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+}
+.mobile-bottom-nav button {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: none; border: none;
+  font-size: 11px; color: var(--text-muted);
+  padding: 4px 10px; min-width: 50px;
+  transition: color 0.2s;
+  min-height: auto;
+}
+.mobile-bottom-nav button .mb-icon { font-size: 20px; }
+.mobile-bottom-nav button.active { color: var(--primary); font-weight: 600; }
+
+/* "更多"弹出菜单 */
+.more-menu-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 1002;
+  background: rgba(0,0,0,0.4);
+}
+.more-menu-overlay.show { display: block; }
+
+.more-menu-popup {
+  position: fixed; bottom: 70px; left: 12px; right: 12px; z-index: 1003;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  transform: translateY(120%);
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: none;
+  opacity: 0;
+}
+.more-menu-popup.show {
+  transform: translateY(0);
+  pointer-events: auto;
+  opacity: 1;
+}
+.more-menu-popup button {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: none; border-radius: 12px;
+  padding: 12px 8px; font-size: 12px; color: var(--text);
+  transition: background 0.15s;
+  min-height: auto;
+}
+.more-menu-popup button:active { background: var(--bg); }
+.more-menu-popup button .mb-icon { font-size: 24px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   登录页
+   ═══════════════════════════════════════════════════════════════════ */
+.auth-overlay {
+  background: linear-gradient(160deg, #312e81 0%, #4338ca 50%, #6366f1 100%) !important;
+  padding: 0 !important;
+}
+.auth-container {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  min-height: 100vh !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+.auth-brand {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  padding: 60px 24px 32px 24px !important;
+  background: transparent !important;
+  color: #fff !important;
+  text-align: center !important;
+}
+.auth-brand::before, .auth-brand::after { display: none !important; }
+.auth-brand-icon { font-size: 52px !important; font-weight: 300 !important; display: block !important; margin-bottom: 10px !important; }
+.auth-brand-title { font-size: 12px !important; letter-spacing: 3px !important; opacity: 0.7 !important; margin-bottom: 8px !important; }
+.auth-brand-sub { font-size: 19px !important; font-weight: 800 !important; letter-spacing: 1px !important; color: #fff !important; line-height: 1.4 !important; text-shadow: 0 2px 6px rgba(0,0,0,0.2) !important; }
+.auth-panel { flex: 1 !important; padding: 20px 24px 50px 24px !important; background: #fff !important; border-radius: 24px 24px 0 0 !important; }
+.auth-panel-header { margin-bottom: 20px !important; }
+.auth-panel-title { font-size: 22px !important; text-align: center !important; }
+.auth-fields { gap: 12px !important; }
+.auth-field-input { padding: 15px 16px !important; font-size: 16px !important; border-radius: 12px !important; background: #f3f4f6 !important; width: 100% !important; box-sizing: border-box !important; }
+.auth-submit { padding: 14px !important; font-size: 16px !important; border-radius: 12px !important; margin-top: 16px !important; width: 100% !important; }
+.auth-msg { text-align: center !important; }
+.auth-foot { margin-top: 16px !important; text-align: center !important; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   通用移动端覆盖
+   ═══════════════════════════════════════════════════════════════════ */
+input, textarea, select {
+  font-size: 16px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+button { min-height: 48px; }
+
+/* 页面标题 */
+.page-header h1 { font-size: 20px !important; }
+.subtitle { font-size: 12px; }
+
+/* ── 所有横向弹性布局改为纵向 ── */
+.input-row,
+.result-header,
+.result-actions,
+.study-mode-row,
+.study-actions,
+.essay-config-row,
+.essay-generate-row,
+.setting-actions,
+.wordbank-toolbar,
+.add-word-row,
+.study-session-actions,
+.essay-word-actions {
+  flex-direction: column !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+}
+
+/* 按钮等宽 */
+.result-actions .btn,
+.setting-actions .btn,
+.essay-word-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* 卡片通用：紧凑间距 */
+.page { /* 允许页面内容贴边 */ }
+.generate-box,
+.essay-card,
+.settings-box {
+  padding: 14px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   生成单词页
+   ═══════════════════════════════════════════════════════════════════ */
+.generate-box {
+  padding: 16px !important;
+}
+
+/* 输入框行 */
+.topic-input { width: 100%; }
+.difficulty-select { min-width: auto; width: 100%; }
+.extra-input { width: 100%; }
+#btn-generate { width: 100%; justify-content: center; }
+
+/* 配额条 */
+.quota-bar {
+  margin-bottom: 10px;
+  font-size: 12px;
+  padding: 8px 10px;
+  flex-wrap: wrap;
+}
+.quota-bar .quota-progress { min-width: 40px; flex: 1; }
+
+/* 话题建议标签 */
+.topic-suggestions { gap: 4px; }
+.topic-suggestions .tag { font-size: 12px; padding: 4px 10px; }
+
+/* 单词卡片 */
+.word-card {
+  padding: 12px 14px;
+  gap: 10px;
+}
+.card-main { flex-wrap: wrap; gap: 6px; }
+.card-jp { font-size: 16px; }
+.card-chinese { margin-left: 0; font-size: 13px; }
+
+/* 结果区域 */
+.result-header {
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.result-header h2 { font-size: 15px; }
+
+/* 欢迎语 */
+.generate-welcome { padding: 32px 10px; }
+.generate-welcome-text { font-size: 18px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   词库页
+   ═══════════════════════════════════════════════════════════════════ */
+.wordbank-layout {
+  flex-direction: column !important;
+  gap: 12px;
+}
+.wordbank-sidebar {
+  width: 100% !important;
+}
+.topic-list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.topic-item {
+  font-size: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.topic-item.active {
+  border-color: var(--primary);
+}
+
+/* 添加单词表单 */
+.add-word-form { padding: 12px; }
+.add-word-select { min-width: auto; }
+
+/* 分页 */
+.wordbank-pagination {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   背词页
+   ═══════════════════════════════════════════════════════════════════ */
+/* 子标签 */
+.study-subtabs { width: 100%; }
+.study-subtab { flex: 1; text-align: center; padding: 8px 10px; font-size: 13px; }
+
+/* 统计卡片 */
+.study-stats { gap: 8px; }
+.study-stat-card { min-width: auto; flex: 1; padding: 12px 10px; }
+.study-stat-num { font-size: 24px; }
+
+/* 词单选择网格 */
+.study-topic-grid,
+.essay-topic-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px;
+  max-height: none;
+}
+
+/* 抽认卡 */
+.flashcard-inner { min-height: 220px; }
+.flashcard-front { font-size: 28px; }
+.flashcard-answer { font-size: 28px; }
+
+/* 评分按钮：6个→3个大按钮 */
+.study-quality-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.btn-quality {
+  min-width: auto;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 14px 8px;
+  border-radius: 12px;
+}
+/* 合并评分：0-1=忘了, 2-3=差不多, 4-5=掌握 */
+.btn-quality.q-0, .btn-quality.q-1 { background: #fecaca; color: #b91c1c; }
+.btn-quality.q-2, .btn-quality.q-3 { background: #fde68a; color: #a16207; }
+.btn-quality.q-4, .btn-quality.q-5 { background: #bbf7d0; color: #15803d; }
+
+/* 听力按钮 */
+.study-listening-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* 完成页面 */
+.session-stats-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.session-stat-card { padding: 12px 8px; }
+.session-stat-num { font-size: 22px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   短文 & 完型填空页
+   ═══════════════════════════════════════════════════════════════════ */
+.essay-toggle-btn { font-size: 14px; padding: 10px 12px; }
+
+.essay-config-group { width: 100%; }
+.essay-select { min-width: auto; width: 100%; }
+.essay-title-input { width: 100%; }
+
+/* 单词选择器 */
+.essay-word-chips { max-height: 180px; }
+.essay-word-chip { font-size: 12px; padding: 4px 10px; }
+
+/* 短文卡片 */
+.essay-card { padding: 16px 18px; }
+.essay-content { font-size: 16px; line-height: 1.8; }
+.essay-translation { font-size: 14px; }
+
+/* 完型填空 */
+.cloze-passage { font-size: 15px; line-height: 2.2; }
+.cloze-blank-input { width: 64px; font-size: 14px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   语法页
+   ═══════════════════════════════════════════════════════════════════ */
+.grammar-panel .input-row {
+  flex-direction: column !important;
+  gap: 8px;
+}
+.grammar-panel .input-row .topic-input { width: 100%; }
+.grammar-panel .input-row .btn { width: 100%; justify-content: center; }
+.grammar-hint { font-size: 12px; padding: 8px 10px; }
+.grammar-point-card { padding: 12px 14px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   图片词卡页
+   ═══════════════════════════════════════════════════════════════════ */
+.image-card-grid {
+  grid-template-columns: 1fr !important;
+  gap: 14px;
+}
+.image-card-img-wrap { height: 200px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   我的保存页
+   ═══════════════════════════════════════════════════════════════════ */
+.essay-saved-list,
+.grammar-saved-list {
+  grid-template-columns: 1fr !important;
+  gap: 10px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   成就页
+   ═══════════════════════════════════════════════════════════════════ */
+.achievement-stats-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.achievement-stat { flex: 1 1 40%; padding: 12px 8px; }
+.achievement-stat-num { font-size: 22px; }
+
+.achievement-cat-cards {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.achievement-card { padding: 14px 10px; }
+.achievement-icon { font-size: 32px; }
+.achievement-name { font-size: 13px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   设置页
+   ═══════════════════════════════════════════════════════════════════ */
+.settings-box {
+  max-width: 100%;
+  padding: 20px 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Toast 通知 — 顶部居中，2秒消失
+   ═══════════════════════════════════════════════════════════════════ */
+.toast {
+  top: 16px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: 24px;
+  min-width: auto;
+  max-width: 90vw;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   管理员后台
+   ═══════════════════════════════════════════════════════════════════ */
+.admin-stats-grid {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.admin-stat-card { padding: 14px 10px; }
+.admin-stat-num { font-size: 22px; }
+
+.admin-tabs { width: 100%; }
+.admin-tab { flex: 1; text-align: center; padding: 8px 12px; font-size: 13px; }
+
+/* 卡片在移动端单列 */
+.admin-cards-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.admin-card-header {
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  gap: 6px;
+}
+.admin-card-meta { gap: 8px; }
+
+.admin-card-body { padding: 4px 14px 10px; }
+.admin-limit-row { gap: 6px; padding: 8px 0; }
+.admin-limit-label { font-size: 12px; min-width: 36px; }
+.admin-limit-usage { font-size: 11px; min-width: 48px; }
+.admin-limit-select { font-size: 10px; max-width: 72px; }
+
+.admin-card-actions {
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  gap: 4px;
+}
+.admin-card-actions .btn { font-size: 11px; padding: 4px 8px; }
+.admin-card-actions .btn-sm-danger { font-size: 10px; padding: 4px 8px; }
+
+/* 旧表格样式保留，供登录记录使用 */
+.admin-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-table { font-size: 12px; }
+.admin-table th, .admin-table td {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   加载 & 空状态
+   ═══════════════════════════════════════════════════════════════════ */
+.loading { padding: 32px 0; }
+.empty-state { padding: 40px 14px; }
+.empty-icon { font-size: 44px; }
+
+/* ── 网站备案号 ── */
+.site-footer {
+  padding: 12px 16px calc(16px + 70px); /* 70px 避开底部导航 */
+  font-size: 11px;
+}
+
+/* ── 表格/代码块横滚 ── */
+table, .table-wrap {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── PDF 导出面板移动端 ── */
+.export-panel {
+  width: 94vw;
+  border-radius: 12px;
+}
+.export-panel-header { padding: 16px 18px 12px; }
+.export-panel-body { padding: 0 18px 14px; }
+.export-panel-footer { padding: 10px 18px 14px; }
+.export-panel-title { font-size: 17px; }

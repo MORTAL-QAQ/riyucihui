@@ -38,6 +38,8 @@ class User(Base):
     daily_ai_limit = Column(Integer, nullable=True)       # NULL=无限, N=每天N次AI调用
     daily_voice_limit = Column(Integer, nullable=True)    # NULL=无限, N=每天N次语音合成
     daily_image_limit = Column(Integer, nullable=True)    # NULL=无限, N=每天N张图片生成（默认普通用户3张）
+    daily_word_limit = Column(Integer, nullable=True)     # NULL=无限, N=每天N个单词生成（默认普通用户100个）
+    remark = Column(String(200), nullable=True)            # 管理员备注
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

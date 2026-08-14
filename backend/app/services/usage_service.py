@@ -5,8 +5,12 @@
 - record_usage(): 在独立事务中记录一次 API 调用（不干扰调用方的事务）
 - get_usage_summary(): 管理员仪表盘统计
 
-支持的调用类型（_AI_KINDS）：generate, essay, cloze, grammar_analyze, grammar_correct, grammar_compare
-语音合成单独计数，不加 AI 限制。
+支持的调用类型：
+- AI 调用（_AI_KINDS）：essay, cloze, grammar_analyze, grammar_correct, grammar_compare
+  默认 25 次/天（管理员不限）
+- 单词生成（generated_words）：独立计数，默认 100 个/天
+- 图片生成（image_generation）：独立计数，默认 3 张/天
+- 语音合成（voice）：独立计数，默认不限
 """
 
 from datetime import datetime, timezone
@@ -17,7 +21,7 @@ from sqlalchemy.orm import Session
 from ..database import engine
 from ..models import UsageRecord
 
-_AI_KINDS = {"generate", "essay", "cloze", "grammar_analyze", "grammar_correct", "grammar_compare"}
+_AI_KINDS = {"essay", "cloze", "grammar_analyze", "grammar_correct", "grammar_compare"}
 
 
 def _is_ai_kind(kind: str) -> bool:
@@ -62,12 +66,16 @@ def get_user_daily_limit(db: Session, user_id: int, kind: str) -> int | None:
     if user is None:
         return 0
     if _is_ai_kind(kind):
-        return user.daily_ai_limit
+        # 未设置时默认25次/天（管理员除外，管理员 unlimited）
+        return user.daily_ai_limit if user.daily_ai_limit is not None else (None if user.is_admin else 25)
     if kind == "voice":
         return user.daily_voice_limit
     if kind == "image_generation":
         # 未设置时默认3张/天（管理员除外，管理员 unlimited）
         return user.daily_image_limit if user.daily_image_limit is not None else (None if user.is_admin else 3)
+    if kind == "generated_words":
+        # 未设置时默认100个/天（管理员除外，管理员 unlimited）
+        return user.daily_word_limit if user.daily_word_limit is not None else (None if user.is_admin else 100)
     return None
 
 
@@ -91,7 +99,7 @@ def check_limit(db: Session, user_id: int, kind: str) -> tuple[bool, str]:
         kind_name = {
             "generate": "AI生成单词", "essay": "AI生成短文", "cloze": "AI完型填空", "voice": "语音合成",
             "grammar_analyze": "语法分析", "grammar_correct": "语法纠错", "grammar_compare": "语法辨析",
-            "image_generation": "AI图片生成",
+            "image_generation": "AI图片生成", "generated_words": "AI生成单词",
         }.get(kind, kind)
         return False, f"今日{kind_name}次数已达上限（{limit}次/天）"
     return True, ""
