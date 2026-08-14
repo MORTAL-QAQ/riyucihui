@@ -1,0 +1,185 @@
+<!doctype html>
+<!--
+  多模态日语词汇学习 — 词库独立子页（阶段二多页架构）
+  页面逻辑在 js/wordbank.js
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>我的词库 - 多模态日语词汇学习</title>
+    <link rel="stylesheet" href="/css/desktop.css?v={desktop_version}" />
+    <link rel="stylesheet" href="/css/mobile.css?v={mobile_version}" media="(max-width: 768px)" />
+  </head>
+  <body class="subpage" style="margin:0;">
+    <div id="app" style="display:block; min-height:100vh;">
+      <div id="main-app">
+        <!-- 独立子页顶栏（三区：左品牌 / 中导航居中 / 右贴右，内联样式） -->
+        <header class="subpage-header"
+                style="position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
+          <div style="flex:1; display:flex; align-items:center; min-width:0;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+              <span style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">あ</span>
+              <span style="color:#fff; font-weight:700; font-size:15px; white-space:nowrap;">日语学习</span>
+            </a>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
+            <a href="/"
+               style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
+              <span>🏠</span> 返回首页
+            </a>
+            <a href="/wordbank"
+               style="display:inline-flex; align-items:center; gap:4px; color:#fff; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(99,102,241,0.35); border:1px solid rgba(129,140,248,0.4);">
+              📖 词库
+            </a>
+            <a href="/study"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📝 背词
+            </a>
+            <a href="/generate"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              ✦ 生成
+            </a>
+            <a href="/community"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              💬 社区
+            </a>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0;">
+            <a href="/settings"
+               style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent; white-space:nowrap;">
+              ⚙ 设置
+            </a>
+            <button id="btn-logout" type="button"
+                    style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; background:transparent; cursor:pointer; white-space:nowrap;">
+              退出
+            </button>
+          </div>
+        </header>
+
+        <main class="main" style="margin-left:auto; margin-right:auto; max-width:1200px; width:100%; box-sizing:border-box; padding:24px 20px 60px;">
+          <section class="page active" id="page-wordbank">
+            <div class="page-header">
+              <h1>我的词库</h1>
+              <p class="subtitle">按主题浏览、搜索已保存的单词</p>
+            </div>
+
+            <div class="wordbank-layout">
+              <div class="wordbank-sidebar">
+                <div class="search-box">
+                  <input type="text" id="search-input" class="search-input"
+                         placeholder="搜索单词..." autocomplete="off" />
+                </div>
+                <div class="topic-list" id="topic-list">
+                  <button class="topic-item active" data-topic="">全部</button>
+                </div>
+              </div>
+              <div class="wordbank-main">
+                <div class="wordbank-toolbar">
+                  <div class="wordbank-info" id="wordbank-info"></div>
+                  <button class="btn btn-outline btn-sm" id="btn-show-add-form">＋ 添加单词</button>
+                  <button class="btn btn-outline btn-sm" id="btn-merge-duplicates">合并相同单词</button>
+                  <button class="btn btn-outline btn-sm" id="btn-export-pdf">导出PDF</button>
+                </div>
+
+                <div class="add-word-form" id="add-word-form" style="display: none">
+                  <div class="add-word-row">
+                    <select id="add-word-topic" class="add-word-select"></select>
+                    <input type="text" id="add-japanese" class="add-word-input" placeholder="日文汉字" autocomplete="off" />
+                    <input type="text" id="add-kana" class="add-word-input" placeholder="假名" autocomplete="off" />
+                    <input type="text" id="add-chinese" class="add-word-input" placeholder="中文释义" autocomplete="off" />
+                  </div>
+                  <div class="add-word-row">
+                    <input type="text" id="add-example-ja" class="add-word-input add-word-wide" placeholder="日文例句" autocomplete="off" />
+                    <input type="text" id="add-example-cn" class="add-word-input add-word-wide" placeholder="中文例句" autocomplete="off" />
+                    <button class="btn btn-primary btn-sm" id="btn-add-word">确认添加</button>
+                  </div>
+                </div>
+
+                <div class="wordbank-cards" id="wordbank-cards"></div>
+                <div class="wordbank-pagination" id="wordbank-pagination" style="display: none">
+                  <button class="btn btn-outline btn-sm" id="wb-prev">上一页</button>
+                  <span class="wb-page-info" id="wb-page-info"></span>
+                  <button class="btn btn-outline btn-sm" id="wb-next">下一页</button>
+                  <span class="wb-jump">
+                    跳至 <input type="number" id="wb-jump-input" class="wb-jump-input" min="1" /> 页
+                  </span>
+                </div>
+                <div class="empty-state" id="empty-state" style="display: none">
+                  <div class="empty-icon">📭</div>
+                  <p>词库还是空的</p>
+                  <a class="btn btn-primary" href="/generate">去生成单词</a>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- PDF 导出对话框 -->
+          <div class="modal-overlay" id="export-modal" style="display:none">
+            <div class="export-panel">
+              <div class="export-panel-header">
+                <div>
+                  <div class="export-panel-title">导出 PDF</div>
+                  <div class="export-panel-sub" id="export-topic-label">全部词单 · <span id="export-word-count">--</span> 个单词</div>
+                </div>
+                <button class="modal-close" id="export-modal-close">&times;</button>
+              </div>
+
+              <div class="export-panel-body" id="export-panel-options">
+                <div class="export-quick-row">
+                  <label class="export-quick-opt">
+                    <input type="radio" name="export-layout" value="table" checked />
+                    <span>📊 表格</span>
+                  </label>
+                  <label class="export-quick-opt">
+                    <input type="radio" name="export-layout" value="card" />
+                    <span>🃏 卡片</span>
+                  </label>
+                </div>
+                <div class="export-checks">
+                  <label><input type="checkbox" id="export-include-images" checked /> 含配图</label>
+                  <label><input type="checkbox" id="export-include-examples" checked /> 含例句</label>
+                </div>
+              </div>
+
+              <div class="export-panel-body" id="export-generating" style="display:none">
+                <div class="export-loading-box">
+                  <div class="spinner"></div>
+                  <div>
+                    <div class="export-loading-title">正在生成 PDF...</div>
+                    <div class="export-loading-sub" id="export-generating-detail"></div>
+                  </div>
+                </div>
+                <div class="export-progress"><div class="export-progress-fill" id="export-progress-fill"></div></div>
+              </div>
+
+              <div class="export-panel-body" id="export-done" style="display:none">
+                <div class="export-done-box">
+                  <span class="export-done-icon">✅</span>
+                  <span>PDF 已下载</span>
+                </div>
+              </div>
+
+              <div class="export-panel-footer" id="export-modal-footer">
+                <button class="btn btn-outline btn-sm" id="export-modal-cancel">取消</button>
+                <button class="btn btn-primary" id="export-modal-confirm">📥 导出 PDF</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=42280202423028" target="_blank" rel="noopener">
+        <img src="/img/beian.png" style="vertical-align:middle;margin-right:4px;width:16px;height:16px" alt="">鄂公网安备42280202423028号
+      </a>
+      <span style="margin:0 8px;color:var(--border)">|</span>
+      <a href="http://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2026038430号</a>
+    </footer>
+
+    <script src="/js/api.js?v={api_version}"></script>
+    <script src="/js/common.js?v={app_version}"></script>
+    <script src="/js/wordbank.js?v={app_version}"></script>
+  </body>
+</html>
