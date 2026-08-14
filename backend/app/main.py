@@ -194,6 +194,10 @@ def spa_fallback(full_path: str):
         candidate = FRONTEND_DIR / full_path
         if candidate.is_file():
             return FileResponse(candidate)
+        # 多页支持（阶段二）：/community → community.html
+        html_candidate = FRONTEND_DIR / f"{full_path}.html"
+        if html_candidate.is_file():
+            return FileResponse(html_candidate)
     return index()
 
 

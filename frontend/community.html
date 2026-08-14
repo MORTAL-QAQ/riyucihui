@@ -1,0 +1,118 @@
+<!doctype html>
+<!--
+  多模态日语词汇学习 — 社区独立子页（阶段二多页架构）
+  与 index.html 共享 css/js/common.js；页面逻辑在 js/community.js
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>社区 - 多模态日语词汇学习</title>
+    <link rel="stylesheet" href="/css/desktop.css?v={desktop_version}" />
+    <link rel="stylesheet" href="/css/mobile.css?v={mobile_version}" media="(max-width: 768px)" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="main-app">
+        <!-- 移动端专属元素 -->
+        <div class="mobile-only">
+          <button class="hamburger" id="hamburger-btn" aria-label="菜单">☰</button>
+          <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        </div>
+
+        <aside class="sidebar">
+          <div class="logo">
+            <span class="logo-icon">あ</span>
+            <span class="logo-text">多模态日语词汇学习</span>
+          </div>
+          <div class="sidebar-greeting">日本語の世界へようこそ！(≧∇≦)ﾉ</div>
+          <nav class="nav">
+            <a class="nav-btn" href="/"><span class="nav-icon">🏠</span> 首页</a>
+            <a class="nav-btn active" href="/community"><span class="nav-icon">💬</span> 社区</a>
+            <a class="nav-btn" href="/generate"><span class="nav-icon">✦</span> 生成单词</a>
+            <a class="nav-btn" href="/wordbank"><span class="nav-icon">📖</span> 我的词库</a>
+            <a class="nav-btn" href="/study"><span class="nav-icon">📝</span> 背词</a>
+            <a class="nav-btn" href="/essay"><span class="nav-icon">📄</span> 短文</a>
+            <a class="nav-btn" href="/grammar"><span class="nav-icon">📐</span> 语法</a>
+            <a class="nav-btn" href="/cloze"><span class="nav-icon">📝</span> 完型填空</a>
+            <a class="nav-btn" href="/image"><span class="nav-icon">📷</span> 图片词卡</a>
+            <a class="nav-btn" href="/saved"><span class="nav-icon">📋</span> 我的保存</a>
+            <a class="nav-btn" href="/achievement"><span class="nav-icon">🏆</span> 成就</a>
+            <a class="nav-btn" href="/settings"><span class="nav-icon">⚙</span> 设置</a>
+            <a class="nav-btn" href="/admin" id="nav-admin" style="display:none"><span class="nav-icon">🛡</span> 管理</a>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="user-info">
+              <span class="user-icon">👤</span>
+              <span class="user-name" id="sidebar-username"></span>
+            </div>
+            <button class="btn btn-link btn-logout" id="btn-logout">退出登录</button>
+          </div>
+        </aside>
+
+        <main class="main">
+          <section class="page active" id="page-community">
+            <div class="page-header">
+              <h1>社区</h1>
+              <p class="subtitle">分享学习心得，浏览大家的日语学习内容</p>
+            </div>
+
+            <!-- 公告区（置顶公告） -->
+            <div class="community-announcements" id="community-announcements" style="display:none"></div>
+
+            <!-- 发布区（普通用户发帖；管理员可发公告） -->
+            <div class="community-publish">
+              <input type="text" id="community-title-input" class="topic-input"
+                     placeholder="标题" maxlength="100" autocomplete="off" />
+              <textarea id="community-content-input" class="community-content-input"
+                        placeholder="分享你的学习内容…（5000 字以内）" maxlength="5000"></textarea>
+              <div class="community-publish-actions">
+                <button class="btn btn-primary" id="btn-community-submit">发布</button>
+                <button class="btn btn-outline" id="btn-announcement-submit" style="display:none">📢 发布公告</button>
+              </div>
+            </div>
+
+            <!-- 帖子列表 -->
+            <div class="community-list" id="community-list"></div>
+            <div class="empty-state" id="community-empty" style="display:none">
+              <div class="empty-icon">💬</div>
+              <p>还没有帖子，来发第一帖吧</p>
+            </div>
+            <div class="community-load-more" id="community-load-more" style="display:none">
+              <button class="btn btn-outline" id="btn-community-more">加载更多</button>
+            </div>
+          </section>
+
+          <!-- 社区帖子详情模态框 -->
+          <div class="modal-overlay" id="community-modal" style="display:none">
+            <div class="modal-content saved-modal">
+              <div class="modal-header">
+                <h3 id="community-modal-title"></h3>
+                <button class="modal-close" id="community-modal-close">&times;</button>
+              </div>
+              <div class="modal-body" id="community-modal-body"></div>
+              <div class="modal-footer" id="community-modal-footer">
+                <button class="btn btn-outline btn-sm" id="community-modal-like">👍 0</button>
+                <button class="btn btn-outline btn-sm" id="community-modal-pin" style="display:none">📌 置顶</button>
+                <button class="btn btn-outline btn-sm" id="community-modal-delete" style="display:none">🗑 删除</button>
+                <button class="btn btn-primary btn-sm" id="community-modal-close-btn">关闭</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=42280202423028" target="_blank" rel="noopener">
+        <img src="/img/beian.png" style="vertical-align:middle;margin-right:4px;width:16px;height:16px" alt="">鄂公网安备42280202423028号
+      </a>
+      <span style="margin:0 8px;color:var(--border)">|</span>
+      <a href="http://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2026038430号</a>
+    </footer>
+
+    <script src="/js/api.js?v={api_version}"></script>
+    <script src="/js/common.js?v={app_version}"></script>
+    <script src="/js/community.js?v={app_version}"></script>
+  </body>
+</html>

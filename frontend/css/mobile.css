@@ -537,14 +537,14 @@ table, .table-wrap {
 .export-panel-footer { padding: 10px 18px 14px; }
 .export-panel-title { font-size: 17px; }
 
-/* ©¤©¤ ÉçÇø£¨ÒÆ¶¯¶Ë£º¾¡Á¿ÉÙÓÃ !important£©©¤©¤ */
+/* â”€â”€ ç¤¾åŒºï¼ˆç§»åŠ¨ç«¯ï¼šå°½é‡å°‘ç”¨ !importantï¼‰â”€â”€ */
 .community-publish-actions .btn { flex: 1; }
 .community-comment { flex-wrap: wrap; }
 .community-comment-time { width: 100%; }
 .community-comment-form { flex-direction: column; }
 .community-comment-form .btn { width: 100%; }
 
-/* ©¤©¤ Ê×Ò³£¨ÒÆ¶¯¶Ë£©©¤©¤ */
+/* --- */
 .home-welcome { padding: 16px; }
 .home-welcome-emoji { font-size: 30px; }
 .home-stats { grid-template-columns: repeat(2, 1fr); }

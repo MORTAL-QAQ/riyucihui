@@ -50,9 +50,9 @@ ssh "${SERVER_USER}@${SERVER_IP}" "rm -rf ${SERVER_PROJECT_DIR}/backend.bak && c
 tar --exclude='.tmp' --exclude='.venv' --exclude='__pycache__' --exclude='*.pyc' \
     -C backend -cf - . | ssh "${SERVER_USER}@${SERVER_IP}" "rm -rf ${SERVER_PROJECT_DIR}/backend/* && tar -C ${SERVER_PROJECT_DIR}/backend -xf -"
 
-# 前端静态文件（用 frontend/* 避免在服务器上嵌套成 frontend/frontend/）
+# 前端静态文件（用 frontend/* 避免在服务器上嵌套成 frontend/frontend/；含独立子页 html）
 echo "  → frontend/"
-scp -r frontend/css frontend/js frontend/index.html "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/frontend/"
+scp -r frontend/css frontend/js frontend/*.html "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/frontend/"
 
 # 配置文件
 echo "  → 配置文件"
@@ -93,17 +93,17 @@ ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && docker compose re
 # ── 3.5 前端资源版本号注入（#37） ──
 # nginx 静态托管不经过 FastAPI 的 index()，需在部署时用内容哈希替换 index.html 占位符，
 # 使 css/js 修改后浏览器能拿到新 URL（避免 1 天强缓存内的旧版本）
+# 阶段二：对全部 HTML（index + 独立子页）统一注入版本号
 echo -e "${GREEN}[3.5] 注入前端资源版本号...${NC}"
 ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR}/frontend && \
-  for f in css/desktop.css css/mobile.css js/api.js js/app.js; do \
-    h=\$(md5sum \$f | cut -c1-8); \
-    case \$f in \
-      css/desktop.css) sed -i \"s|{desktop_version}|\$h|g\" index.html ;; \
-      css/mobile.css)  sed -i \"s|{mobile_version}|\$h|g\" index.html ;; \
-      js/api.js)       sed -i \"s|{api_version}|\$h|g\" index.html ;; \
-      js/app.js)       sed -i \"s|{app_version}|\$h|g\" index.html ;; \
-    esac; \
-  done && echo '  版本号注入完成' && grep -o 'v={[a-z_]*}' index.html | head -4 || echo '  (无未替换占位符)'"
+  H_DESKTOP=\$(md5sum css/desktop.css | cut -c1-8); \
+  H_MOBILE=\$(md5sum css/mobile.css | cut -c1-8); \
+  H_API=\$(md5sum js/api.js | cut -c1-8); \
+  H_APP=\$(md5sum js/app.js | cut -c1-8); \
+  for html in index.html community.html wordbank.html study.html; do \
+    [ -f \"\$html\" ] || continue; \
+    sed -i \"s|{desktop_version}|\$H_DESKTOP|g; s|{mobile_version}|\$H_MOBILE|g; s|{api_version}|\$H_API|g; s|{app_version}|\$H_APP|g\" \"\$html\"; \
+  done && echo '  版本号注入完成' && grep -l 'v={[a-z_]*}' *.html 2>/dev/null || echo '  (无未替换占位符)'"
 
 # ── 4. 等待并检查 ──
 echo -e "${GREEN}[4/4] 等待服务健康检查...${NC}"

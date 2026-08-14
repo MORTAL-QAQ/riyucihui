@@ -3997,7 +3997,7 @@ input::placeholder {
   clip: rect(0 0 0 0) !important;
 }
 
-/* ¨T¨T¨T ÉçÇø ¨T¨T¨T */
+/* â•â•â• ç¤¾åŒº â•â•â• */
 .community-announcements {
   background: #fffbeb;
   border: 1px solid #fcd34d;
@@ -4121,7 +4121,7 @@ input::placeholder {
 .community-comment-form .topic-input { flex: 1; }
 #community-modal-like.liked { color: var(--danger); }
 
-/* ¨T¨T¨T Ê×Ò³£¨Ñ§Ï°ÒÇ±íÅÌ£© ¨T¨T¨T */
+/* --- */
 .home-welcome {
   display: flex;
   align-items: center;
@@ -4222,3 +4222,10 @@ input::placeholder {
 .home-recommend-word { font-size: 17px; font-weight: 700; color: var(--primary); }
 .home-recommend-kana { font-size: 14px; color: var(--text-muted); }
 .home-recommend-cn { font-size: 13px; color: var(--text); }
+
+/* <a>  .nav-btn */
+.nav a.nav-btn {
+  text-decoration: none;
+  color: var(--text);
+  cursor: pointer;
+}
