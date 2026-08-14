@@ -3355,13 +3355,8 @@ async function loadHome() {
   const q = dailyQuote();
   $("#home-daily-jp").textContent = q.jp;
   $("#home-daily-cn").textContent = q.cn;
-  $("#btn-home-daily-speak").onclick = async () => {
-    try {
-      new Audio(await api.voice(q.jp)).play();
-    } catch (e) {
-      handleApiError(e, "发音失败");
-    }
-  };
+  // 发音走通用 speakWord（Web Audio 绕过 autoplay 策略，与词卡/社区一致）
+  $("#btn-home-daily-speak").onclick = (e) => speakWord(q.jp, null, e.currentTarget);
 
   // 推荐词（词库最新一条）
   try {
@@ -3373,13 +3368,8 @@ async function loadHome() {
       $("#home-recommend-word").textContent = w.japanese;
       $("#home-recommend-kana").textContent = w.kana || "";
       $("#home-recommend-cn").textContent = w.chinese || "";
-      $("#btn-home-recommend-speak").onclick = async () => {
-        try {
-          new Audio(await api.voice(w.japanese)).play();
-        } catch (e) {
-          handleApiError(e, "发音失败");
-        }
-      };
+      // 发音走通用 speakWord（与词卡一致）
+      $("#btn-home-recommend-speak").onclick = (e) => speakWord(w.japanese, w.kana, e.currentTarget);
     } else {
       rec.style.display = "none";
     }
