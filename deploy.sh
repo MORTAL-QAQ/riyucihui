@@ -56,7 +56,7 @@ scp -r frontend/css frontend/js frontend/index.html "${SERVER_USER}@${SERVER_IP}
 
 # 配置文件
 echo "  → 配置文件"
-scp docker-compose.yml Dockerfile nginx.conf .dockerignore "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
+scp docker-compose.yml Dockerfile nginx.conf .dockerignore entrypoint.sh "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
 
 # 运维脚本（备份 / 证书 / secrets 初始化）
 echo "  → scripts/ 运维脚本"
