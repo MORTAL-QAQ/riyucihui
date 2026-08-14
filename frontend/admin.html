@@ -1,0 +1,106 @@
+<!doctype html>
+<!--
+  多模态日语词汇学习 — 系统管理独立子页（阶段二多页架构，仅管理员可访问）
+  页面逻辑在 js/admin.js
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>系统管理 - 多模态日语词汇学习</title>
+    <link rel="stylesheet" href="/css/desktop.css?v={desktop_version}" />
+    <link rel="stylesheet" href="/css/mobile.css?v={mobile_version}" media="(max-width: 768px)" />
+  </head>
+  <body class="subpage" style="margin:0;">
+    <div id="app" style="display:block; min-height:100vh;">
+      <div id="main-app">
+        <header class="subpage-header"
+                style="position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
+          <div style="flex:1; display:flex; align-items:center; min-width:0;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+              <span style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">あ</span>
+              <span style="color:#fff; font-weight:700; font-size:15px; white-space:nowrap;">日语学习</span>
+            </a>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);"><span>🏠</span> 返回首页</a>
+            <a href="/wordbank" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">📖 词库</a>
+            <a href="/study" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">📝 背词</a>
+            <a href="/generate" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">✦ 生成</a>
+            <a href="/community" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">💬 社区</a>
+            <a href="/essay" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">📄 短文</a>
+            <a href="/cloze" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">📝 完型</a>
+            <a href="/grammar" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">📐 语法</a>
+            <a href="/image" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">📷 图片</a>
+            <a href="/achievement" style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">🏆 成就</a>
+            <a href="/admin" style="display:inline-flex; align-items:center; gap:4px; color:#fff; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(99,102,241,0.35); border:1px solid rgba(129,140,248,0.4);">🛡 管理</a>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0;">
+            <a href="/settings" style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent; white-space:nowrap;">⚙ 设置</a>
+            <button id="btn-logout" type="button" style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; background:transparent; cursor:pointer; white-space:nowrap;">退出</button>
+          </div>
+        </header>
+
+        <main class="main" style="margin-left:auto; margin-right:auto; max-width:1200px; width:100%; box-sizing:border-box; padding:24px 20px 60px;">
+          <section class="page active" id="page-admin">
+            <div class="page-header">
+              <h1>系统管理</h1>
+              <p class="subtitle">用户管理 & 用量监控</p>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-bottom:16px">
+              <button class="btn btn-primary btn-sm" id="btn-admin-create-user">＋ 创建用户</button>
+            </div>
+
+            <div class="admin-tabs">
+              <button class="admin-tab active" id="admin-tab-users">用户管理</button>
+              <button class="admin-tab" id="admin-tab-logins">登录记录</button>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="admin-stats-grid" id="admin-stats-grid">
+              <div class="admin-stat-card">
+                <div class="admin-stat-num" id="stat-users">-</div>
+                <div class="admin-stat-label">用户总数</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-num" id="stat-words">-</div>
+                <div class="admin-stat-label">单词总数</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-num" id="stat-ai">-</div>
+                <div class="admin-stat-label">AI 调用次数</div>
+              </div>
+              <div class="admin-stat-card">
+                <div class="admin-stat-num" id="stat-tokens">-</div>
+                <div class="admin-stat-label">Token 消耗</div>
+              </div>
+            </div>
+
+            <!-- 用户管理 — 卡片视图 -->
+            <div id="admin-panel-users">
+              <div class="admin-cards-grid" id="admin-cards-grid"></div>
+            </div>
+
+            <!-- 登录记录面板 -->
+            <div id="admin-panel-logins" style="display: none">
+              <div id="admin-login-reports"></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=42280202423028" target="_blank" rel="noopener">
+        <img src="/img/beian.png" style="vertical-align:middle;margin-right:4px;width:16px;height:16px" alt="">鄂公网安备42280202423028号
+      </a>
+      <span style="margin:0 8px;color:var(--border)">|</span>
+      <a href="http://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2026038430号</a>
+    </footer>
+
+    <script src="/js/api.js?v={api_version}"></script>
+    <script src="/js/common.js?v={app_version}"></script>
+    <script src="/js/admin.js?v={app_version}"></script>
+  </body>
+</html>
