@@ -227,6 +227,13 @@ function showImageLightbox(src) {
 // ===== SSE 流式统一处理（AI 生成页面共用） =====
 async function runStreamToPreview(url, body, previewId, handlers = {}) {
   const previewEl = $(previewId);
+  if (!previewEl) {
+    // 缓存不一致/页面结构缺失时给出明确提示，避免 null.style 崩溃
+    const { onError } = handlers;
+    if (onError) onError("页面组件未加载，请刷新页面后重试");
+    else showToast("页面组件未加载，请刷新页面后重试", "error");
+    return;
+  }
   previewEl.style.display = "block";
   previewEl.textContent = "";
   const { onChunk, onDone, onError } = handlers;

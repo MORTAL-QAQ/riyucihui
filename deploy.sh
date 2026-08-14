@@ -94,12 +94,14 @@ ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && docker compose re
 # nginx 静态托管不经过 FastAPI 的 index()，需在部署时用内容哈希替换 index.html 占位符，
 # 使 css/js 修改后浏览器能拿到新 URL（避免 1 天强缓存内的旧版本）
 # 阶段二：对全部 HTML（index + 所有独立子页）统一注入版本号
+# {app_version} 取全部 js 文件的合并哈希：任一 js 变化版本号即变，避免 common.js 等改动
+# 后浏览器仍命中旧缓存导致功能失效（生成/发声等依赖 common.js 的函数）
 echo -e "${GREEN}[3.5] 注入前端资源版本号...${NC}"
 ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR}/frontend && \
   H_DESKTOP=\$(md5sum css/desktop.css | cut -c1-8); \
   H_MOBILE=\$(md5sum css/mobile.css | cut -c1-8); \
   H_API=\$(md5sum js/api.js | cut -c1-8); \
-  H_APP=\$(md5sum js/app.js | cut -c1-8); \
+  H_APP=\$(cat js/*.js | md5sum | cut -c1-8); \
   for html in *.html; do \
     sed -i \"s|{desktop_version}|\$H_DESKTOP|g; s|{mobile_version}|\$H_MOBILE|g; s|{api_version}|\$H_API|g; s|{app_version}|\$H_APP|g\" \"\$html\"; \
   done && echo '  版本号注入完成' && grep -l 'v={[a-z_]*}' *.html 2>/dev/null || echo '  (无未替换占位符)'"
