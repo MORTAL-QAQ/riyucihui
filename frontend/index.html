@@ -232,65 +232,6 @@
 
           <!-- 语法页面已迁移至独立子页 /grammar（阶段二多页架构） -->
 
-          <!-- 我的保存页面 -->
-          <section class="page" id="page-saved">
-            <div class="page-header">
-              <h1>我的保存</h1>
-              <p class="subtitle">已保存的短文、完型填空和语法辨析</p>
-            </div>
-            <div class="saved-search-bar">
-              <input type="text" id="saved-search" class="saved-search-input" placeholder="搜索已保存的内容..." autocomplete="off" />
-              <button class="btn btn-outline btn-sm" id="btn-saved-batch-delete" style="display:none">删除选中</button>
-            </div>
-
-            <div class="study-tabs">
-              <button class="study-subtab active" id="saved-subtab-essay">短文</button>
-              <button class="study-subtab" id="saved-subtab-cloze">完型填空</button>
-              <button class="study-subtab" id="saved-subtab-grammar">语法</button>
-            </div>
-
-            <div class="saved-panel" id="saved-panel-essay">
-              <div class="essay-saved-list" id="essay-saved-list"></div>
-              <div class="empty-state" id="essay-saved-empty" style="display: none">
-                <div class="empty-icon">📭</div>
-                <p>还没有保存的短文</p>
-              </div>
-            </div>
-
-            <div class="saved-panel" id="saved-panel-grammar" style="display: none">
-              <div class="grammar-saved-list" id="grammar-saved-list"></div>
-              <div class="empty-state" id="grammar-saved-empty" style="display: none">
-                <div class="empty-icon">📭</div>
-                <p>还没有保存的语法辨析</p>
-              </div>
-            </div>
-
-            <div class="saved-panel" id="saved-panel-cloze" style="display: none">
-              <div class="essay-saved-list" id="cloze-saved-list"></div>
-              <div class="empty-state" id="cloze-saved-empty" style="display: none">
-                <div class="empty-icon">📭</div>
-                <p>还没有保存的完型填空</p>
-              </div>
-            </div>
-
-          </section>
-
-          <!-- 社区页面 -->
-          <!-- 内容查看模态窗 -->
-          <div class="modal-overlay" id="content-modal" style="display:none">
-            <div class="modal-content saved-modal">
-              <div class="modal-header">
-                <h3 id="modal-title"></h3>
-                <button class="modal-close" id="modal-close">&times;</button>
-              </div>
-              <div class="modal-body" id="modal-body"></div>
-              <div class="modal-footer">
-                <button class="btn btn-outline btn-sm" id="modal-btn-delete">删除</button>
-                <button class="btn btn-primary btn-sm" id="modal-btn-close">关闭</button>
-              </div>
-            </div>
-          </div>
-
           <!-- PDF 导出对话框已迁移至独立子页 /wordbank（阶段二多页架构） -->
 
           <!-- 社区帖子详情模态框已迁移至独立页 /community（阶段二多页架构） -->

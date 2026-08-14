@@ -31,24 +31,33 @@
 
 ## 前端结构（`frontend/`）—— 多页架构（阶段二）
 
-**架构**：SPA + 独立子页混合。高流量页面已拆为独立子页（独立 HTML + 独立 JS），其余保留在 `index.html` SPA 内。所有页面共享 `css/`（desktop/mobile）与 `js/common.js`（共享层）。
+**架构**：MPA 主导。全部业务页面已拆为独立子页（独立 HTML + 独立 JS，URL 路由化无后缀路径），`index.html` SPA 仅保留首页（仪表盘）与登录/注册。所有页面共享 `css/`（desktop/mobile）与 `js/common.js`（共享层）。
 
-**共享层 `js/common.js`**：`$`/`esc`/`fmtTime`/`showToast`/`handleApiError`/`speakWord`（Web Audio 发音）/`showImageLightbox`/`initPage`（认证守卫，未登录跳 `/`）/`initSidebar`（移动端抽屉）。
+**共享层 `js/common.js`**：`$`/`esc`/`escHtml`/`jlptBadge`/`fmtTime`/`showToast`/`handleApiError`/`speakWord`（Web Audio 发音）/`showImageLightbox`/`initPage`（认证守卫，未登录跳 `/`）/`initSidebar`（移动端抽屉）/`currentUsername`/`isAdmin`/`bindLogout`。
 
-**独立子页模板**（community/wordbank/study 已验证）：
-- 顶栏三区（全部内联样式，不依赖 CSS 缓存）：左品牌 / 中导航居中（返回首页·词库·背词·生成·社区，当前页高亮）/ 右「设置·退出」贴最右
-- `<body class="subpage" style="margin:0;">` + `<div id="app" style="display:block;">`（覆盖全局 `#app{display:flex}`，否则内容收缩左偏）
-- `<main class="main" style="margin-left:auto;margin-right:auto;max-width:1200px;...">` 内容居中
-- 页面 JS 入口：`initPage().then(ok => ok && 加载函数())`
+**独立子页模板**（全部子页统一）：
+- 顶栏三区（全部内联样式，不依赖 CSS 缓存）：左品牌 / 中导航居中（返回首页·词库·背词·生成·社区·短文·完型·语法·图片·成就·保存·管理，当前页高亮）/ 右「设置·退出」贴最右
+- `<body class="subpage" style="margin:0;">` + `<div id="app" style="display:block; min-height:100vh;">`（覆盖全局 `#app{display:flex}`，否则内容收缩左偏）
+- `<main class="main" style="margin-left:auto;margin-right:auto;max-width:1200px;width:100%;box-sizing:border-box;padding:24px 20px 60px;">` 内容居中
+- 页面 JS 入口：`initPage().then(ok => ok && 加载函数())`；管理页额外校验 `isAdmin` 否则跳回首页
+- nginx `try_files $uri $uri.html $uri/ /index.html` 支持无后缀路由 + SPA 回退
 
-**页面清单**：
+**页面清单**（全部已拆为独立子页）：
 | 页面 | URL | 文件 | 状态 |
 |------|-----|------|------|
-| 首页（仪表盘） | `/` | index.html（SPA） | ✅ |
+| 首页（仪表盘/登录） | `/` | index.html + js/app.js（SPA 剩余） | ✅ |
 | 社区 | `/community` | community.html + js/community.js | ✅ 已拆 |
 | 词库 | `/wordbank` | wordbank.html + js/wordbank.js | ✅ 已拆 |
 | 背词 | `/study` | study.html + js/study.js | ✅ 已拆 |
-| 生成/短文/完型/语法/图片/保存/成就/设置/管理 | SPA 内 | index.html + js/app.js | ⏳ 待拆 |
+| 生成 | `/generate` | generate.html + js/generate.js | ✅ 已拆 |
+| 短文 | `/essay` | essay.html + js/essay.js | ✅ 已拆 |
+| 完型 | `/cloze` | cloze.html + js/cloze.js | ✅ 已拆 |
+| 语法 | `/grammar` | grammar.html + js/grammar.js | ✅ 已拆 |
+| 图片 | `/image` | image.html + js/image.js | ✅ 已拆 |
+| 设置 | `/settings` | settings.html + js/settings.js | ✅ 已拆 |
+| 成就 | `/achievement` | achievement.html + js/achievement.js | ✅ 已拆 |
+| 管理（管理员） | `/admin` | admin.html + js/admin.js | ✅ 已拆 |
+| 保存 | `/saved` | saved.html + js/saved.js | ✅ 已拆 |
 
 **版本号机制**：index.html 与独立子页的 css/js 引用带 `?v={version}` 占位符，deploy.sh 部署时用内容哈希统一注入（所有 `*.html`）。
 
