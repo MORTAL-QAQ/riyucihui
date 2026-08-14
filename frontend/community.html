@@ -17,7 +17,12 @@
         <!-- 独立子页顶栏（内联样式：不依赖 CSS 缓存；左侧导航，右侧贴最右） -->
         <header class="subpage-header"
                 style="position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
-          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; margin-right:4px;">
+              <span style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">あ</span>
+              <span style="color:#fff; font-weight:700; font-size:15px;">日语学习</span>
+            </a>
+            <span style="color:rgba(255,255,255,0.25); font-size:15px;">|</span>
             <a href="/"
                style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
               <span>🏠</span> 返回首页
@@ -52,7 +57,7 @@
         </header>
 
         <!-- 内联样式强制左右居中：不依赖外部 CSS 是否加载/缓存（兼容旧版缓存场景） -->
-        <main class="main" style="margin-left:auto; margin-right:auto; max-width:960px; width:100%; box-sizing:border-box; padding:24px 20px 60px;">
+        <main class="main" style="margin-left:auto; margin-right:auto; max-width:1200px; width:100%; box-sizing:border-box; padding:24px 20px 60px;">
           <section class="page active" id="page-community">
             <div class="page-header">
               <h1>社区</h1>
