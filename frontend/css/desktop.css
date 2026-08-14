@@ -190,7 +190,8 @@ input::placeholder {
 /* ===== 主区域 ===== */
 /* ===== 主内容区 ===== */
 .main {
-  margin-left: var(--sidebar-w);
+  /* 视口内居中：宽屏时内容中心=屏幕中心；窄屏时自动取侧边栏宽度，避免遮挡 */
+  margin-left: max(var(--sidebar-w), calc((100% - 1040px) / 2));
   margin-right: auto;
   flex: 1;
   padding: 40px 48px;
