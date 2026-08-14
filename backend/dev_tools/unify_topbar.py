@@ -10,11 +10,11 @@ NAV_ITEMS = [
     ("/wordbank", "📖 词库", "wordbank"),
     ("/study", "📝 背词", "study"),
     ("/generate", "✦ 生成", "generate"),
-    ("/community", "💬 社区", "community"),
     ("/essay", "📄 短文", "essay"),
     ("/cloze", "📝 完型", "cloze"),
     ("/grammar", "📐 语法", "grammar"),
     ("/image", "📷 图片", "image"),
+    ("/community", "💬 社区", "community"),
     ("/achievement", "🏆 成就", "achievement"),
     ("/saved", "💾 保存", "saved"),
 ]
