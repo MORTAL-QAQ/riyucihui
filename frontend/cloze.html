@@ -1,0 +1,185 @@
+<!doctype html>
+<!--
+  多模态日语词汇学习 — 完型填空独立子页（阶段二多页架构）
+  页面逻辑在 js/cloze.js
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>完型填空 - 多模态日语词汇学习</title>
+    <link rel="stylesheet" href="/css/desktop.css?v={desktop_version}" />
+    <link rel="stylesheet" href="/css/mobile.css?v={mobile_version}" media="(max-width: 768px)" />
+  </head>
+  <body class="subpage" style="margin:0;">
+    <div id="app" style="display:block; min-height:100vh;">
+      <div id="main-app">
+        <!-- 独立子页顶栏（三区：左品牌 / 中导航居中 / 右贴右，内联样式） -->
+        <header class="subpage-header"
+                style="position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
+          <div style="flex:1; display:flex; align-items:center; min-width:0;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+              <span style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">あ</span>
+              <span style="color:#fff; font-weight:700; font-size:15px; white-space:nowrap;">日语学习</span>
+            </a>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
+            <a href="/"
+               style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
+              <span>🏠</span> 返回首页
+            </a>
+            <a href="/wordbank"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📖 词库
+            </a>
+            <a href="/study"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📝 背词
+            </a>
+            <a href="/generate"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              ✦ 生成
+            </a>
+            <a href="/community"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              💬 社区
+            </a>
+            <a href="/essay"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📄 短文
+            </a>
+            <a href="/cloze"
+               style="display:inline-flex; align-items:center; gap:4px; color:#fff; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(99,102,241,0.35); border:1px solid rgba(129,140,248,0.4);">
+              📝 完型
+            </a>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0;">
+            <a href="/settings"
+               style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent; white-space:nowrap;">
+              ⚙ 设置
+            </a>
+            <button id="btn-logout" type="button"
+                    style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; background:transparent; cursor:pointer; white-space:nowrap;">
+              退出
+            </button>
+          </div>
+        </header>
+
+        <main class="main" style="margin-left:auto; margin-right:auto; max-width:1200px; width:100%; box-sizing:border-box; padding:24px 20px 60px;">
+          <section class="page active" id="page-cloze">
+            <div class="page-header">
+              <h1>完型填空</h1>
+              <p class="subtitle">选择词单，AI 生成完型填空练习短文</p>
+            </div>
+
+            <!-- 配置阶段 -->
+            <div id="cloze-config">
+              <button class="essay-toggle-btn" id="btn-cloze-toggle-topics">
+                <span class="essay-toggle-arrow">▶</span> 选择词单（可多选）
+                <span class="essay-toggle-count" id="cloze-toggle-count"></span>
+              </button>
+              <div class="essay-topic-wrap" id="cloze-topic-wrap" style="display: none">
+                <div class="essay-topic-grid" id="cloze-topic-grid"></div>
+              </div>
+
+              <div class="essay-word-picker" id="cloze-word-picker" style="display: none">
+                <div class="essay-section-label">选择要重点考察的单词 <span class="essay-word-hint" id="cloze-word-hint"></span></div>
+                <div class="essay-word-chips" id="cloze-word-chips"></div>
+                <div class="essay-word-actions">
+                  <button class="btn btn-outline btn-sm" id="btn-cloze-select-all-words">全选</button>
+                  <button class="btn btn-outline btn-sm" id="btn-cloze-deselect-all-words">取消全选</button>
+                </div>
+              </div>
+
+              <div class="essay-config-row">
+                <div class="essay-config-group">
+                  <label class="essay-config-label">文章长度</label>
+                  <select id="cloze-length" class="essay-select">
+                    <option value="200">短 (~200字)</option>
+                    <option value="400" selected>中 (~400字)</option>
+                    <option value="600">长 (~600字)</option>
+                    <option value="custom">自定义</option>
+                  </select>
+                </div>
+                <div class="essay-config-group" style="flex:1">
+                  <label class="essay-config-label">自定义字数</label>
+                  <input type="number" id="cloze-length-custom" class="essay-title-input"
+                         placeholder="100-1000字" min="100" max="1000" value="400"
+                         autocomplete="off" style="display:none" />
+                </div>
+              </div>
+
+              <div class="essay-config-row">
+                <div class="essay-config-group">
+                  <label class="essay-config-label">难度</label>
+                  <select id="cloze-level" class="essay-select">
+                    <option value="N5">N5（最简单）</option>
+                    <option value="N4">N4</option>
+                    <option value="N3" selected>N3（中等）</option>
+                    <option value="N2">N2</option>
+                    <option value="N1">N1（最难）</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="essay-generate-row">
+                <button class="btn btn-primary" id="btn-generate-cloze" disabled>生成完型填空</button>
+              </div>
+            </div>
+
+            <!-- 加载阶段 -->
+            <div class="loading" id="cloze-loading" style="display: none">
+              <div class="spinner"></div>
+              <p>AI 正在生成完型填空，请稍候...</p>
+              <pre class="stream-preview" id="cloze-stream-preview"></pre>
+            </div>
+
+            <!-- 结果阶段 -->
+            <div class="result-area" id="cloze-result" style="display: none">
+              <div class="result-header">
+                <h2 id="cloze-title"></h2>
+                <div class="result-actions">
+                  <button class="btn btn-outline" id="btn-cloze-check">检查答案</button>
+                  <button class="btn btn-outline" id="btn-cloze-reveal">显示答案</button>
+                  <button class="btn btn-outline" id="btn-cloze-reset">重做</button>
+                  <button class="btn btn-primary" id="btn-cloze-save">保存练习</button>
+                  <button class="btn btn-outline" id="btn-cloze-regenerate">重新生成</button>
+                </div>
+              </div>
+
+              <div class="essay-card">
+                <div class="essay-section-label">短文填空</div>
+                <div class="cloze-passage" id="cloze-passage"></div>
+                <div class="cloze-score" id="cloze-score" style="display:none"></div>
+              </div>
+
+              <div class="essay-card" id="cloze-answers-card" style="display:none">
+                <div class="essay-section-label">正确答案</div>
+                <div class="cloze-answers" id="cloze-answers"></div>
+              </div>
+
+              <div class="essay-card" id="cloze-translation-card" style="display:none">
+                <div class="essay-section-label">中文翻译</div>
+                <div class="essay-translation" id="cloze-translation"></div>
+              </div>
+            </div>
+
+            <div class="error-msg" id="cloze-error" style="display: none"></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=42280202423028" target="_blank" rel="noopener">
+        <img src="/img/beian.png" style="vertical-align:middle;margin-right:4px;width:16px;height:16px" alt="">鄂公网安备42280202423028号
+      </a>
+      <span style="margin:0 8px;color:var(--border)">|</span>
+      <a href="http://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2026038430号</a>
+    </footer>
+
+    <script src="/js/api.js?v={api_version}"></script>
+    <script src="/js/common.js?v={app_version}"></script>
+    <script src="/js/cloze.js?v={app_version}"></script>
+  </body>
+</html>
