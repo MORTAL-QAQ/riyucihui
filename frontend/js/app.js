@@ -283,11 +283,7 @@ navAdmin.addEventListener("click", () => switchTab("admin"));
   });
 })();
 
-// ===== 发音 =====
-let audioCtx = null;
-let audioSource = null;
-let speakingBtn = null;
-
+// ===== 发音（状态变量 audioCtx/audioSource/speakingBtn 与 unlockAudio 由 common.js 提供，避免重复声明） =====
 // AudioContext must be created / resumed during a user gesture.
 // Once running, decodeAudioData + source.start() bypass autoplay policy.
 document.addEventListener("click", unlockAudio, { once: true });
