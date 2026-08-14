@@ -14,15 +14,18 @@
   <body class="subpage" style="margin:0;">
     <div id="app">
       <div id="main-app">
-        <!-- 独立子页顶栏（内联样式：不依赖 CSS 缓存；左侧导航，右侧贴最右） -->
+        <!-- 独立子页顶栏（三区：左品牌 / 中导航居中 / 右贴右，内联样式） -->
         <header class="subpage-header"
-                style="position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
-            <a href="/" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; margin-right:4px;">
+                style="position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
+          <!-- 左区：品牌 -->
+          <div style="flex:1; display:flex; align-items:center; min-width:0;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
               <span style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">あ</span>
-              <span style="color:#fff; font-weight:700; font-size:15px;">日语学习</span>
+              <span style="color:#fff; font-weight:700; font-size:15px; white-space:nowrap;">日语学习</span>
             </a>
-            <span style="color:rgba(255,255,255,0.25); font-size:15px;">|</span>
+          </div>
+          <!-- 中区：导航（居中） -->
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
             <a href="/"
                style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
               <span>🏠</span> 返回首页
@@ -44,13 +47,14 @@
               💬 社区
             </a>
           </div>
-          <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+          <!-- 右区：设置 / 退出（贴最右） -->
+          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0;">
             <a href="/settings"
-               style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent;">
+               style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent; white-space:nowrap;">
               ⚙ 设置
             </a>
             <button id="btn-logout" type="button"
-                    style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; background:transparent; cursor:pointer;">
+                    style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; background:transparent; cursor:pointer; white-space:nowrap;">
               退出
             </button>
           </div>
