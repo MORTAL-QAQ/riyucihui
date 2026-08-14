@@ -1,0 +1,182 @@
+<!doctype html>
+<!--
+  多模态日语词汇学习 — 背词独立子页（阶段二多页架构）
+  页面逻辑在 js/study.js
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>背词 - 多模态日语词汇学习</title>
+    <link rel="stylesheet" href="/css/desktop.css?v={desktop_version}" />
+    <link rel="stylesheet" href="/css/mobile.css?v={mobile_version}" media="(max-width: 768px)" />
+  </head>
+  <body class="subpage" style="margin:0;">
+    <div id="app" style="display:block; min-height:100vh;">
+      <div id="main-app">
+        <!-- 独立子页顶栏（三区：左品牌 / 中导航居中 / 右贴右，内联样式） -->
+        <header class="subpage-header"
+                style="position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
+          <div style="flex:1; display:flex; align-items:center; min-width:0;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+              <span style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">あ</span>
+              <span style="color:#fff; font-weight:700; font-size:15px; white-space:nowrap;">日语学习</span>
+            </a>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
+            <a href="/"
+               style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
+              <span>🏠</span> 返回首页
+            </a>
+            <a href="/wordbank"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📖 词库
+            </a>
+            <a href="/study"
+               style="display:inline-flex; align-items:center; gap:4px; color:#fff; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(99,102,241,0.35); border:1px solid rgba(129,140,248,0.4);">
+              📝 背词
+            </a>
+            <a href="/generate"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              ✦ 生成
+            </a>
+            <a href="/community"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              💬 社区
+            </a>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0;">
+            <a href="/settings"
+               style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent; white-space:nowrap;">
+              ⚙ 设置
+            </a>
+            <button id="btn-logout" type="button"
+                    style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; background:transparent; cursor:pointer; white-space:nowrap;">
+              退出
+            </button>
+          </div>
+        </header>
+
+        <main class="main" style="margin-left:auto; margin-right:auto; max-width:1200px; width:100%; box-sizing:border-box; padding:24px 20px 60px;">
+          <section class="page active" id="page-study">
+            <div class="page-header">
+              <h1>背词</h1>
+              <p class="subtitle" id="study-subtitle">选择词单开始背诵</p>
+            </div>
+
+            <!-- 选题阶段 -->
+            <div id="study-pick">
+              <div class="study-subtabs">
+                <button class="study-subtab active" id="study-subtab-new">学习新词</button>
+                <button class="study-subtab" id="study-subtab-review">复习旧词</button>
+              </div>
+              <div class="study-stats" id="study-stats"></div>
+              <div class="study-calendar" id="study-calendar" style="display: none">
+                <div class="study-calendar-header">
+                  <span class="study-calendar-title">复习计划</span>
+                  <span class="study-calendar-new-hint" id="study-calendar-new-hint"></span>
+                </div>
+                <div class="study-calendar-grid" id="study-calendar-grid"></div>
+              </div>
+              <button class="essay-toggle-btn" id="btn-study-toggle-topics">
+                <span class="essay-toggle-arrow">▶</span> 选择词单（可多选）
+                <span class="essay-toggle-count" id="study-toggle-count"></span>
+              </button>
+              <div class="essay-topic-wrap" id="study-topic-wrap" style="display: none">
+                <div class="study-topic-grid" id="study-topic-grid"></div>
+              </div>
+              <div class="study-mode-row">
+                <label class="study-mode-label">背诵模式：</label>
+                <button class="btn btn-outline btn-sm mode-btn active" data-mode="kanji2kana">
+                  汉字 → 假名
+                </button>
+                <button class="btn btn-outline btn-sm mode-btn" data-mode="kana2kanji">
+                  假名 → 汉字
+                </button>
+                <button class="btn btn-outline btn-sm mode-btn" data-mode="listening">
+                  听力
+                </button>
+              </div>
+              <div class="study-actions">
+                <button class="btn btn-primary" id="btn-start-study">开始背诵</button>
+              </div>
+            </div>
+
+            <!-- 背诵阶段 -->
+            <div id="study-session" style="display: none">
+              <div class="study-progress">
+                <span id="study-progress-text"></span>
+                <div class="study-bar"><div class="study-bar-fill" id="study-bar-fill"></div></div>
+              </div>
+
+              <div class="flashcard" id="flashcard">
+                <div class="flashcard-inner" id="flashcard-inner">
+                  <div class="flashcard-front" id="flashcard-front"></div>
+                  <div class="flashcard-back">
+                    <div id="flashcard-back-main"></div>
+                    <div class="flashcard-example" id="flashcard-example" style="display:none"></div>
+                    <div class="flashcard-img" id="flashcard-img" style="display:none"></div>
+                    <div class="flashcard-study-info" id="flashcard-study-info"></div>
+                    <button class="image-card-speak-btn flashcard-speak-btn" id="flashcard-speak-btn" title="朗读">▶</button>
+                  </div>
+                </div>
+                <p class="flashcard-hint" id="flashcard-hint">点击卡片翻转 · 空格键翻牌 · 1-6评分 · Ctrl+Z 返回上一词</p>
+              </div>
+
+              <!-- 听力模式控制按钮 -->
+              <div class="study-listening-actions" id="study-listening-actions" style="display:none">
+                <button class="btn btn-primary" id="btn-listening-play">
+                  🔊 播放音频
+                </button>
+                <button class="btn btn-outline" id="btn-listening-reveal">
+                  👁 显示答案
+                </button>
+              </div>
+
+              <div class="study-session-actions">
+                <button class="btn btn-outline btn-sm" id="btn-study-undo" style="display:none" title="返回上一个单词 (Ctrl+Z)">
+                  ↩ 返回上一个单词
+                </button>
+              </div>
+
+              <div class="study-quality-buttons">
+                <button class="btn btn-quality q-0" data-quality="0">完全忘了</button>
+                <button class="btn btn-quality q-1" data-quality="1">不太记得</button>
+                <button class="btn btn-quality q-2" data-quality="2">有点印象</button>
+                <button class="btn btn-quality q-3" data-quality="3">勉强正确</button>
+                <button class="btn btn-quality q-4" data-quality="4">比较顺畅</button>
+                <button class="btn btn-quality q-5" data-quality="5">完全掌握</button>
+              </div>
+            </div>
+
+            <!-- 完成阶段 -->
+            <div id="study-done" style="display: none">
+              <div class="study-done-container">
+                <div class="study-done-header">
+                  <div class="empty-icon" style="font-size:48px">🎉</div>
+                  <p id="study-done-msg" style="font-size:18px;font-weight:700;margin:8px 0"></p>
+                </div>
+                <div class="study-session-stats" id="study-session-stats"></div>
+                <div style="text-align:center;margin-top:20px">
+                  <button class="btn btn-primary" id="btn-study-again">继续背词</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=42280202423028" target="_blank" rel="noopener">
+        <img src="/img/beian.png" style="vertical-align:middle;margin-right:4px;width:16px;height:16px" alt="">鄂公网安备42280202423028号
+      </a>
+      <span style="margin:0 8px;color:var(--border)">|</span>
+      <a href="http://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2026038430号</a>
+    </footer>
+
+    <script src="/js/api.js?v={api_version}"></script>
+    <script src="/js/common.js?v={app_version}"></script>
+    <script src="/js/study.js?v={app_version}"></script>
+  </body>
+</html>

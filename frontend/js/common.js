@@ -201,3 +201,25 @@ function initSidebar() {
   if (overlay) overlay.addEventListener("click", close);
   sidebar.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", close));
 }
+
+// ===== 图片灯箱（词库/背词共用） =====
+function showImageLightbox(src) {
+  const existing = document.querySelector(".image-lightbox");
+  if (existing) existing.remove();
+
+  const lb = document.createElement("div");
+  lb.className = "image-lightbox";
+  lb.innerHTML = `
+    <div class="image-lightbox-bg"></div>
+    <img class="image-lightbox-img" src="${src}" />
+    <button class="image-lightbox-close">✕</button>
+  `;
+  document.body.appendChild(lb);
+
+  const close = () => lb.remove();
+  lb.querySelector(".image-lightbox-bg").addEventListener("click", close);
+  lb.querySelector(".image-lightbox-close").addEventListener("click", close);
+  document.addEventListener("keydown", function onEsc(e) {
+    if (e.key === "Escape") { close(); document.removeEventListener("keydown", onEsc); }
+  });
+}
