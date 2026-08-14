@@ -61,8 +61,10 @@ const navImage = $("#nav-image");
 const pageImage = $("#page-image");
 const navAchievement = $("#nav-achievement");
 const pageAchievement = $("#page-achievement");
-const navBtns = [navGenerate, navWordbank, navStudy, navEssay, navCloze, navImage, navGrammar, navSaved, navAchievement, navSettings, navAdmin];
-const pages = [pageGenerate, pageWordbank, pageStudy, pageEssay, pageCloze, pageImage, pageGrammar, pageSaved, pageAchievement, pageSettings, pageAdmin];
+const navCommunity = $("#nav-community");
+const pageCommunity = $("#page-community");
+const navBtns = [navCommunity, navGenerate, navWordbank, navStudy, navEssay, navCloze, navImage, navGrammar, navSaved, navAchievement, navSettings, navAdmin];
+const pages = [pageCommunity, pageGenerate, pageWordbank, pageStudy, pageEssay, pageCloze, pageImage, pageGrammar, pageSaved, pageAchievement, pageSettings, pageAdmin];
 
 // 生成页
 const topicInput = $("#topic-input");
@@ -235,8 +237,8 @@ function switchTab(tab) {
   pages.forEach((p) => p.classList.remove("active"));
 
   if (tab === "community") {
-    $("#nav-community").classList.add("active");
-    $("#page-community").classList.add("active");
+    navCommunity.classList.add("active");
+    pageCommunity.classList.add("active");
     withLoader("community", loadCommunity);
   } else if (tab === "generate") {
     navGenerate.classList.add("active");
@@ -288,6 +290,7 @@ function switchTab(tab) {
 }
 
 navGenerate.addEventListener("click", () => switchTab("generate"));
+navCommunity.addEventListener("click", () => switchTab("community"));
 navWordbank.addEventListener("click", () => switchTab("wordbank"));
 navStudy.addEventListener("click", () => switchTab("study"));
 navEssay.addEventListener("click", () => switchTab("essay"));
