@@ -40,7 +40,10 @@ printf '%s' "$DEEPSEEK_API_KEY" > secrets/DEEPSEEK_API_KEY
 printf '%s' "$VOLCANO_API_KEY" > secrets/VOLCANO_API_KEY
 printf '%s' "$DB_PASSWORD" > secrets/DB_PASSWORD
 printf 'postgresql://jpvocab:%s@postgres:5432/jpvocab' "$DB_PASSWORD" > secrets/DATABASE_URL
-chmod 600 secrets/*
+# 权限：目录 700（仅 root 可进）、文件 644——非 root 容器用户（appuser）需可读
+# （容器内 secrets 为只读挂载无法 chmod，权限必须由宿主机源文件控制，配合 #8）
+chmod 700 secrets
+chmod 644 secrets/*
 
 # 7. 清除 .env 中的明文密钥行
 sed -i -E '/^(SECRET_KEY|DEEPSEEK_API_KEY|VOLCANO_API_KEY|DB_PASSWORD|DATABASE_URL)=/d' .env

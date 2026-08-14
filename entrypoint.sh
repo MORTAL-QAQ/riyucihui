@@ -3,11 +3,9 @@
 # 避免容器以 root 运行（纵深防御：即使应用被攻破也不直接获得 root）。
 set -e
 
-# /run/secrets 文件默认 600(root)，降权后 appuser 无法读取。
-# 在 root 阶段统一放宽为 0444（Docker compose mode 之外的兜底，见 docker-compose.yml）
-if [ -d /run/secrets ]; then
-    chmod a+r /run/secrets/* 2>/dev/null || true
-fi
+# 注：/run/secrets 为只读挂载，容器内无法 chmod。
+# 非 root 用户（appuser）的读取权限由宿主机控制：secrets/ 目录 700、文件 644
+# （见 secrets/README.md 与 setup_secrets_prod.sh）。
 
 # 数据卷（backend_data:/app/data）可能由 root 属主，降权前修正
 if [ -d /app/data ]; then
