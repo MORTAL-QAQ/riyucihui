@@ -4228,3 +4228,49 @@ input::placeholder {
   text-decoration: none;
   cursor: pointer;
 }
+
+
+/* ═══ 独立子页（无侧边栏，简洁顶栏，阶段二） ═══ */
+body.subpage { background: var(--bg); }
+.subpage-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--sidebar-bg);
+  box-shadow: var(--shadow-sm);
+}
+.subpage-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #e5e7eb;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+.subpage-nav-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.subpage-header-actions { display: flex; align-items: center; gap: 8px; }
+/* 顶栏上的 outline 按钮：浅色边框/文字，适配深色背景 */
+.subpage-btn {
+  color: #e5e7eb !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  background: transparent !important;
+}
+.subpage-btn:hover { color: #fff !important; border-color: rgba(255, 255, 255, 0.6) !important; }
+body.subpage .main {
+  margin-left: 0;
+  padding-top: 20px;
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}

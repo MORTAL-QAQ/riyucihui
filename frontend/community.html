@@ -11,44 +11,17 @@
     <link rel="stylesheet" href="/css/desktop.css?v={desktop_version}" />
     <link rel="stylesheet" href="/css/mobile.css?v={mobile_version}" media="(max-width: 768px)" />
   </head>
-  <body>
+  <body class="subpage">
     <div id="app">
       <div id="main-app">
-        <!-- 移动端专属元素 -->
-        <div class="mobile-only">
-          <button class="hamburger" id="hamburger-btn" aria-label="菜单">☰</button>
-          <div class="sidebar-overlay" id="sidebar-overlay"></div>
-        </div>
-
-        <aside class="sidebar">
-          <div class="logo">
-            <span class="logo-icon">あ</span>
-            <span class="logo-text">多模态日语词汇学习</span>
+        <!-- 独立子页顶栏：返回首页 + 设置 + 退出（无侧边栏，阶段二） -->
+        <header class="subpage-header">
+          <a class="subpage-nav-btn" href="/"><span>🏠</span> 返回首页</a>
+          <div class="subpage-header-actions">
+            <a class="btn btn-outline btn-sm subpage-btn" href="/settings">⚙ 设置</a>
+            <button class="btn btn-outline btn-sm subpage-btn" id="btn-logout">退出</button>
           </div>
-          <div class="sidebar-greeting">日本語の世界へようこそ！(≧∇≦)ﾉ</div>
-          <nav class="nav">
-            <a class="nav-btn" href="/"><span class="nav-icon">🏠</span> 首页</a>
-            <a class="nav-btn active" href="/community"><span class="nav-icon">💬</span> 社区</a>
-            <a class="nav-btn" href="/generate"><span class="nav-icon">✦</span> 生成单词</a>
-            <a class="nav-btn" href="/wordbank"><span class="nav-icon">📖</span> 我的词库</a>
-            <a class="nav-btn" href="/study"><span class="nav-icon">📝</span> 背词</a>
-            <a class="nav-btn" href="/essay"><span class="nav-icon">📄</span> 短文</a>
-            <a class="nav-btn" href="/grammar"><span class="nav-icon">📐</span> 语法</a>
-            <a class="nav-btn" href="/cloze"><span class="nav-icon">📝</span> 完型填空</a>
-            <a class="nav-btn" href="/image"><span class="nav-icon">📷</span> 图片词卡</a>
-            <a class="nav-btn" href="/saved"><span class="nav-icon">📋</span> 我的保存</a>
-            <a class="nav-btn" href="/achievement"><span class="nav-icon">🏆</span> 成就</a>
-            <a class="nav-btn" href="/settings"><span class="nav-icon">⚙</span> 设置</a>
-            <a class="nav-btn" href="/admin" id="nav-admin" style="display:none"><span class="nav-icon">🛡</span> 管理</a>
-          </nav>
-          <div class="sidebar-footer">
-            <div class="user-info">
-              <span class="user-icon">👤</span>
-              <span class="user-name" id="sidebar-username"></span>
-            </div>
-            <button class="btn btn-link btn-logout" id="btn-logout">退出登录</button>
-          </div>
-        </aside>
+        </header>
 
         <main class="main">
           <section class="page active" id="page-community">
