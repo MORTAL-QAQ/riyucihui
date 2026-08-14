@@ -42,6 +42,13 @@ scp -r frontend/css frontend/js frontend/index.html "${SERVER_USER}@${SERVER_IP}
 echo "  → 配置文件"
 scp docker-compose.yml Dockerfile nginx.conf "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
 
+# secrets/ 密钥目录（SECRET_KEY / API Key / DB 密码等）
+# 注意：会覆盖服务器上的同名文件，部署前请确认本地 secrets/ 中为真实值
+if [ -d secrets ]; then
+  echo "  → secrets/ 密钥目录"
+  scp -r secrets "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
+fi
+
 # ── 2. 重建后端镜像 ──
 echo -e "${GREEN}[2/4] 重建后端镜像...${NC}"
 ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && docker compose build backend"

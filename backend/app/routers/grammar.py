@@ -30,9 +30,13 @@ from ..services.ai_service import (
     correct_grammar,
     correct_grammar_stream,
 )
+from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
 
 router = APIRouter(prefix="/api/grammar", tags=["grammar"])
+
+# IP 级限流：语法分析/纠错/辨析均为付费 AI 调用
+GRAMMAR_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
 
 
 def _sse(generator):
@@ -51,6 +55,7 @@ def grammar_analyze(
     req: GrammarAnalyzeRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _ip_rate: None = Depends(GRAMMAR_IP_LIMIT),
 ):
     _check(db, user.id)
 
@@ -83,6 +88,7 @@ def grammar_correct(
     req: GrammarCorrectRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _ip_rate: None = Depends(GRAMMAR_IP_LIMIT),
 ):
     _check(db, user.id)
 
@@ -115,6 +121,7 @@ def grammar_compare(
     req: GrammarCompareRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _ip_rate: None = Depends(GRAMMAR_IP_LIMIT),
 ):
     _check(db, user.id)
 

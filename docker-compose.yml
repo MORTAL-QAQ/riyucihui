@@ -21,6 +21,11 @@
 # === 本地开发注意事项 ===
 #   VOICEVOX 引擎在宿主机运行（端口 50021），backend 通过 host.docker.internal 访问
 #   生产部署时 VOICEVOX 已容器化，无需额外配置
+#
+# === 密钥管理（Docker secrets） ===
+#   敏感值（SECRET_KEY / DEEPSEEK_API_KEY / VOLCANO_API_KEY / DB_PASSWORD / DATABASE_URL）
+#   通过 secrets/ 目录下的文件注入，容器内挂载为 /run/secrets/<键名>，不落入 environment。
+#   部署前请确认 secrets/ 目录存在且包含真实值（本地模板见 secrets/README.md）。
 
 services:
   voicevox:
@@ -42,8 +47,10 @@ services:
       - "5432"
     environment:
       POSTGRES_USER: jpvocab
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-jpvocab}
+      POSTGRES_PASSWORD_FILE: /run/secrets/DB_PASSWORD
       POSTGRES_DB: jpvocab
+    secrets:
+      - DB_PASSWORD
     command: |
       -c shared_buffers=32MB
       -c work_mem=2MB
@@ -71,12 +78,14 @@ services:
     volumes:
       - backend_data:/app/data
     environment:
-      - DATABASE_URL=postgresql://jpvocab:${DB_PASSWORD:-jpvocab}@postgres:5432/jpvocab
       - VOICEVOX_BASE_URL=http://voicevox:50021
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - SECRET_KEY=${SECRET_KEY}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
-      - VOLCANO_API_KEY=${VOLCANO_API_KEY}
+    secrets:
+      - SECRET_KEY
+      - DEEPSEEK_API_KEY
+      - VOLCANO_API_KEY
+      - DB_PASSWORD
+      - DATABASE_URL
     depends_on:
       postgres:
         condition: service_healthy
@@ -109,6 +118,18 @@ services:
     restart: "no"
     profiles:
       - certbot
+
+secrets:
+  SECRET_KEY:
+    file: ./secrets/SECRET_KEY
+  DEEPSEEK_API_KEY:
+    file: ./secrets/DEEPSEEK_API_KEY
+  VOLCANO_API_KEY:
+    file: ./secrets/VOLCANO_API_KEY
+  DB_PASSWORD:
+    file: ./secrets/DB_PASSWORD
+  DATABASE_URL:
+    file: ./secrets/DATABASE_URL
 
 volumes:
   pgdata:

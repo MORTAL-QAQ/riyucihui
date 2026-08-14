@@ -12,10 +12,14 @@ from .. import config
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import User
+from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
 from .settings import read_settings
 
 router = APIRouter(prefix="/api", tags=["voice"])
+
+# IP 级限流：voice 端点无鉴权成本低，防脚本刷引擎（用户级每日 50 次之外的第二道防线）
+VOICE_IP_LIMIT = rate_limit(max_requests=30, window_seconds=60)  # 30/min per IP
 
 CACHE_DIR = Path(__file__).parent.parent.parent / "data" / "voice_cache"
 MAX_CACHE_FILES = 500
@@ -71,6 +75,7 @@ async def synthesize(
     req: VoiceRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _ip_rate: None = Depends(VOICE_IP_LIMIT),
 ):
     allowed, msg = check_limit(db, user.id, "voice")
     if not allowed:

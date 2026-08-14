@@ -10,7 +10,7 @@
   默认 25 次/天（管理员不限）
 - 单词生成（generated_words）：独立计数，默认 100 个/天
 - 图片生成（image_generation）：独立计数，默认 3 张/天
-- 语音合成（voice）：独立计数，默认不限
+- 语音合成（voice）：独立计数，默认 50 次/天（管理员不限）
 """
 
 from datetime import datetime, timezone
@@ -69,7 +69,8 @@ def get_user_daily_limit(db: Session, user_id: int, kind: str) -> int | None:
         # 未设置时默认25次/天（管理员除外，管理员 unlimited）
         return user.daily_ai_limit if user.daily_ai_limit is not None else (None if user.is_admin else 25)
     if kind == "voice":
-        return user.daily_voice_limit
+        # 未设置时默认50次/天（管理员除外，管理员 unlimited）
+        return user.daily_voice_limit if user.daily_voice_limit is not None else (None if user.is_admin else 50)
     if kind == "image_generation":
         # 未设置时默认3张/天（管理员除外，管理员 unlimited）
         return user.daily_image_limit if user.daily_image_limit is not None else (None if user.is_admin else 3)

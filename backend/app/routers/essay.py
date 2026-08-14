@@ -27,9 +27,13 @@ from ..schemas import (
 )
 from ..services.achievement_service import check_achievements
 from ..services.ai_service import generate_essay, generate_essay_stream
+from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
 
 router = APIRouter(prefix="/api", tags=["essay"])
+
+# IP 级限流：AI 短文生成（付费调用）
+ESSAY_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
 
 
 def _sse(generator):
@@ -42,6 +46,7 @@ def create_essay(
     req: EssayRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _ip_rate: None = Depends(ESSAY_IP_LIMIT),
 ):
     allowed, msg = check_limit(db, user.id, "essay")
     if not allowed:

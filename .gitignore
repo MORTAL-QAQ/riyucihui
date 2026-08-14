@@ -38,3 +38,9 @@ certbot_webroot/
 
 # 临时文件
 tok.txt
+
+# 密钥文件（Docker secrets 源，含真实密钥，禁止入库）
+secrets/
+
+# pip/构建临时目录
+backend/.tmp/

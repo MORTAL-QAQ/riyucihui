@@ -4,37 +4,50 @@
 所有需要登录的 API 端点通过 `get_current_user` 依赖注入获取当前用户。
 
 安全机制：
-- 密码使用 bcrypt 哈希存储，不可逆
+- 密码使用 bcrypt 哈希存储，不可逆（直接使用 bcrypt 库，替代已停更的 passlib）
+- JWT Token 使用 PyJWT 签发/验证（替代已停更的 python-jose）
 - JWT Token 包含 token_version，支持批量踢出登录（修改版本号使旧 Token 失效）
 - 管理员通过 `get_admin_user` 依赖进行权限校验
 """
 
 from datetime import UTC, datetime, timedelta
 
+import bcrypt
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy import select
 
 from . import config
 from .database import get_db
 from .models import User
 
-# bcrypt 密码哈希上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__truncate_error=True)
+_BCRYPT_MAX_BYTES = 72  # bcrypt 算法只使用密码前 72 字节，超长会被静默截断
+
 # HTTP Bearer Token 安全方案（从 Authorization 请求头提取 Token）
 security = HTTPBearer()
 
 
 def hash_password(password: str) -> str:
-    """对明文密码进行 bcrypt 哈希。"""
-    return pwd_context.hash(password)
+    """对明文密码进行 bcrypt 哈希。
+
+    超过 72 字节（UTF-8）的密码直接抛错，避免 bcrypt 静默截断导致的
+    哈希碰撞与“不同密码验证通过”问题（原 passlib 以 truncate_error 处理）。
+    """
+    if len(password.encode("utf-8")) > _BCRYPT_MAX_BYTES:
+        raise ValueError("密码过长：bcrypt 仅支持 72 字节（UTF-8）以内的密码")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """验证明文密码是否与哈希值匹配。"""
-    return pwd_context.verify(plain, hashed)
+    """验证明文密码是否与哈希值匹配。
+
+    兼容 passlib 历史生成的 ``$2b$`` 前缀哈希（格式与 bcrypt 库一致）。
+    """
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def create_access_token(user_id: int, token_version: int = 0) -> str:
@@ -65,7 +78,7 @@ def get_current_user(
         payload = jwt.decode(token, config.SECRET_KEY, algorithms=[config.ALGORITHM])
         user_id = int(payload["sub"])
         token_ver = payload.get("ver", 0)
-    except (JWTError, KeyError, ValueError):
+    except (jwt.PyJWTError, KeyError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期，请重新登录"
         )

@@ -27,10 +27,15 @@ def _cleanup(now: float, window: float):
 
 
 def get_client_ip(request: Request) -> str:
-    """Resolve the real client IP, respecting proxy headers."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Resolve the real client IP.
+
+    只信任 nginx 反向代理写入的 X-Real-IP（nginx.conf 中
+    ``proxy_set_header X-Real-IP $remote_addr`` 会覆盖客户端伪造的同名头）。
+
+    刻意**不信任** X-Forwarded-For：该头由客户端可控，直接访问应用时可
+    伪造任意值绕过 IP 级限流（攻击者每次请求换一个假 IP 即可打满配额）。
+    生产架构下 backend 仅经 nginx 暴露，X-Real-IP 必然由 nginx 写入。
+    """
     real_ip = request.headers.get("X-Real-IP")
     if real_ip:
         return real_ip.strip()

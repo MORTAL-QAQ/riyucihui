@@ -29,9 +29,13 @@ from ..schemas import (
 )
 from ..services.achievement_service import check_achievements
 from ..services.ai_service import generate_cloze, generate_cloze_stream
+from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
 
 router = APIRouter(prefix="/api", tags=["cloze"])
+
+# IP 级限流：AI 完型填空生成（付费调用）
+CLOZE_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
 
 
 def _sse(generator):
@@ -44,6 +48,7 @@ def create_cloze(
     req: ClozeGenerateRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _ip_rate: None = Depends(CLOZE_IP_LIMIT),
 ):
     allowed, msg = check_limit(db, user.id, "cloze")
     if not allowed:

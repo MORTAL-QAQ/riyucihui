@@ -16,9 +16,13 @@ from ..database import get_db
 from ..models import User
 from ..schemas import GenerateRequest, GenerateResponse
 from ..services.ai_service import generate_words, generate_words_stream
+from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, count_today, get_user_daily_limit, record_usage
 
 router = APIRouter(prefix="/api", tags=["generate"])
+
+# IP 级限流：防未登录/多账号刷 AI 调用（用户级每日配额之外的第二道防线）
+GENERATE_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
 
 
 def _sse(generator):
@@ -45,7 +49,10 @@ def get_generate_quota(
 
 @router.post("/generate")
 def generate(
-    req: GenerateRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    req: GenerateRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _ip_rate: None = Depends(GENERATE_IP_LIMIT),
 ):
     # 检查每日生成单词数量限制（默认100个/天，独立于AI调用次数限制）
     word_allowed, word_msg = check_limit(db, user.id, "generated_words")

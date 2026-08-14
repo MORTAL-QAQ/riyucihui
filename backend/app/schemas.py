@@ -12,15 +12,27 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ── Auth ──
 USERNAME_PATTERN = r"^[a-zA-Z0-9_一-鿿]+$"
 
 
+def _validate_password_bytes(v: str) -> str:
+    """bcrypt 只使用密码前 72 字节（UTF-8），超长在输入层直接拒绝。"""
+    if len(v.encode("utf-8")) > 72:
+        raise ValueError("密码过长（UTF-8 编码超过 72 字节）")
+    return v
+
+
 class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=2, max_length=50, pattern=USERNAME_PATTERN)
     password: str = Field(..., min_length=6, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def _check_password_bytes(cls, v: str) -> str:
+        return _validate_password_bytes(v)
 
 
 class LoginRequest(BaseModel):

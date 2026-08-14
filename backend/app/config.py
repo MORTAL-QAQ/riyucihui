@@ -5,8 +5,6 @@
 """
 
 import os
-import secrets
-import sys
 
 from dotenv import load_dotenv
 
@@ -28,8 +26,9 @@ VOLCANO_IMAGE_MODEL = os.getenv("VOLCANO_IMAGE_MODEL", "doubao-seedream-5-0-2601
 VOLCANO_IMAGE_BASE_URL = os.getenv("VOLCANO_IMAGE_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
 
 # ── 数据库配置 ──
-# SQLite 适用于单用户/轻量使用；生产环境可通过 DATABASE_URL 切换为 PostgreSQL
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/words.db")
+# SQLite 适用于单用户/轻量使用；生产环境可通过 DATABASE_URL 切换为 PostgreSQL。
+# 生产容器中由 Docker secrets 注入（/run/secrets/DATABASE_URL），不落入 environment。
+DATABASE_URL = _resolve_secret("DATABASE_URL") or "sqlite:///./data/words.db"
 
 # ── VOICEVOX 语音合成配置 ──
 # VOICEVOX 是本地运行的日语 TTS 引擎，默认监听 localhost:50021
@@ -47,23 +46,16 @@ VOICEVOX_ENGINE = os.getenv("VOICEVOX_ENGINE", _DEFAULT_ENGINE)
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
 
 # ── JWT 认证配置 ──
-# SECRET_KEY 用于签发和验证 JWT Token
-# 未设置时自动生成随机密钥（每次重启后之前的 Token 会失效）
-_SECRET_KEY = os.getenv("SECRET_KEY")
-if _SECRET_KEY and _SECRET_KEY != "change-me-in-production":
-    SECRET_KEY = _SECRET_KEY
-else:
-    SECRET_KEY = secrets.token_urlsafe(32)
-    print(
-        "\n" + "=" * 64 + "\n"
-        "  WARNING: SECRET_KEY is not set.\n"
-        "  A random key has been generated for this session.\n"
-        "  All previously issued JWT tokens are now invalid.\n"
-        "  Set SECRET_KEY in your .env file for persistence:\n"
-        "    SECRET_KEY=" + SECRET_KEY + "\n"
-        "=" * 64 + "\n",
-        file=sys.stderr,
+# SECRET_KEY 用于签发和验证 JWT Token，经 secrets 服务解析
+# （优先级：环境变量 → Docker secrets → 系统凭据管理器 → .env）。
+# 未配置时启动直接报错，避免多 worker/多实例下各进程随机密钥导致 Token 随机失效。
+_SECRET_KEY = _resolve_secret("SECRET_KEY")
+if not _SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY 未配置：请通过环境变量、Docker secrets 或 .env 设置 SECRET_KEY。"
+        "生成方法: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
     )
+SECRET_KEY = _SECRET_KEY
 
 ALGORITHM = "HS256"                                              # JWT 签名算法
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # Token 有效期（默认24小时）

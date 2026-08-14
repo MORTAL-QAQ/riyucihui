@@ -119,10 +119,13 @@ async def limit_request_size(request: Request, call_next):
     return await call_next(request)
 
 
+# CORS：浏览器规范禁止 "*" 与 allow_credentials=True 组合（会直接拒绝响应）。
+# 配置了具体域名（生产）时才允许携带凭证；通配符场景（开发）自动关闭 credentials。
+_cors_origins = config.CORS_ORIGINS.split(",") if config.CORS_ORIGINS != "*" else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.CORS_ORIGINS.split(",") if config.CORS_ORIGINS != "*" else ["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_origins != ["*"],
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )

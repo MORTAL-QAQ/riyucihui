@@ -13,7 +13,7 @@ def _to_cst(dt: datetime | None) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(CST).strftime("%Y-%m-%d %H:%M:%S")
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
@@ -61,6 +61,14 @@ class SetLimitsRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     password: str = Field(..., min_length=6, max_length=100)
+
+    @field_validator("password")
+    @classmethod
+    def _check_password_bytes(cls, v: str) -> str:
+        # bcrypt 只使用前 72 字节（UTF-8）
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("密码过长（UTF-8 编码超过 72 字节）")
+        return v
 
 
 @router.get("/users", response_model=list[AdminUserOut])

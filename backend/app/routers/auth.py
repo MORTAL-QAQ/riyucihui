@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -36,6 +36,7 @@ def register(
         daily_ai_limit=25,
         daily_image_limit=3,
         daily_word_limit=100,
+        daily_voice_limit=50,
     )
     db.add(user)
     db.commit()
@@ -61,6 +62,14 @@ class AdminCreateUserRequest(BaseModel):
     username: str = Field(..., min_length=2, max_length=50, pattern=USERNAME_PATTERN)
     password: str = Field(..., min_length=6, max_length=72)
 
+    @field_validator("password")
+    @classmethod
+    def _check_password_bytes(cls, v: str) -> str:
+        # bcrypt 只使用前 72 字节（UTF-8）
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("密码过长（UTF-8 编码超过 72 字节）")
+        return v
+
 
 @router.post("/admin/create-user")
 def admin_create_user(
@@ -79,6 +88,7 @@ def admin_create_user(
         daily_ai_limit=25,
         daily_image_limit=3,
         daily_word_limit=100,
+        daily_voice_limit=50,
     )
     db.add(user)
     db.commit()

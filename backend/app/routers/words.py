@@ -20,9 +20,13 @@ from ..schemas import (
 from ..services import word_service
 from ..services.achievement_service import check_achievements
 from ..services.image_service import generate_word_image
+from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
 
 router = APIRouter(prefix="/api", tags=["words"])
+
+# IP 级限流：AI 配图调用火山引擎付费接口，防刷
+IMAGE_IP_LIMIT = rate_limit(max_requests=10, window_seconds=60)  # 10/min per IP
 
 
 @router.post("/words")
@@ -112,6 +116,7 @@ def generate_image(
     word_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _ip_rate: None = Depends(IMAGE_IP_LIMIT),
 ):
     """为词库中的单词调用火山引擎 AI 生成配图。普通用户每天限3张，管理员无限。"""
     # 用量检查（管理员自动通过）
