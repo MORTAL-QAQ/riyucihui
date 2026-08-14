@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 
 from sqlalchemy.orm import Session
-from ..models import Achievement, Essay, GrammarCompare, StudyRecord, UsageRecord, User, Word
+from ..models import Achievement, Essay, GrammarCompare, Post, StudyRecord, UsageRecord, User, Word
 
 # Categories for grouping in the UI
 CATEGORIES = {
@@ -16,6 +16,7 @@ CATEGORIES = {
     "study": "📖 背诵练习",
     "streak": "🔥 连续学习",
     "mastery": "👑 单词掌握",
+    "community": "🎤 社区互动",
     "easter_egg": "🥚 彩蛋",
 }
 
@@ -56,6 +57,8 @@ ACHIEVEMENTS = {
     "master_50": {"category": "mastery", "name": "単語仙人", "description": "掌握50个单词（达到阶段7）", "icon": "👑"},
     "master_100": {"category": "mastery", "name": "単語皇帝", "description": "掌握100个单词（达到阶段7）", "icon": "🏅"},
     "master_200": {"category": "mastery", "name": "語彙の神髄", "description": "掌握200个单词（达到阶段7）", "icon": "🎖️"},
+    # ── 社区互动 ──
+    "first_post": {"category": "community", "name": "社区初投稿", "description": "在社区发布第一篇帖子", "icon": "📣"},
     # ── 彩蛋 ──
     "konami_code": {"category": "easter_egg", "name": "隠し玉", "description": "发现隐藏的彩蛋", "icon": "🥚"},
 }
@@ -243,6 +246,13 @@ def check_achievements(db: Session, user_id: int):
         newly_awarded.append("streak_30")
     if streak >= 100 and _award(db, user_id, "streak_100"):
         newly_awarded.append("streak_100")
+
+    # ── Community: first post ──
+    post_count = db.scalar(
+        select(func.count(Post.id)).where(Post.user_id == user_id, Post.type == "post")
+    ) or 0
+    if post_count >= 1 and _award(db, user_id, "first_post"):
+        newly_awarded.append("first_post")
 
     if newly_awarded:
         db.commit()

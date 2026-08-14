@@ -536,3 +536,10 @@ table, .table-wrap {
 .export-panel-body { padding: 0 18px 14px; }
 .export-panel-footer { padding: 10px 18px 14px; }
 .export-panel-title { font-size: 17px; }
+
+/* ── 社区（移动端：尽量少用 !important）── */
+.community-publish-actions .btn { flex: 1; }
+.community-comment { flex-wrap: wrap; }
+.community-comment-time { width: 100%; }
+.community-comment-form { flex-direction: column; }
+.community-comment-form .btn { width: 100%; }

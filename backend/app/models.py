@@ -223,3 +223,63 @@ class LoginHistory(Base):
     ip_address = Column(String(45), nullable=True)                   # 客户端 IP（IPv4 最多 15 字符，IPv6 最多 45 字符）
     user_agent = Column(String(500), nullable=True)                  # 客户端 User-Agent
     login_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)  # 登录时间
+
+
+class Post(Base):
+    """社区帖子表（含管理员公告）。
+
+    type: post（用户分享）/ announcement（管理员公告）
+    is_pinned: 公告置顶（列表优先展示）
+    """
+    __tablename__ = "posts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    type = Column(String(20), nullable=False, default="post", index=True)  # post / announcement
+    title = Column(String(100), nullable=False)
+    content = Column(String(5000), nullable=False)
+    is_pinned = Column(Boolean, default=False)                    # 置顶（公告常用）
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        # 社区列表：按类型 + 时间倒序
+        Index("ix_posts_type_created", "type", "created_at"),
+    )
+
+
+class PostComment(Base):
+    """帖子评论表。"""
+    __tablename__ = "post_comments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    post_id = Column(
+        Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    content = Column(String(1000), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        # 帖子详情：按时间顺序加载评论
+        Index("ix_post_comments_post_created", "post_id", "created_at"),
+    )
+
+
+class PostLike(Base):
+    """帖子点赞表（每用户每帖最多一次，Unique 约束防重复）。"""
+    __tablename__ = "post_likes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    post_id = Column(
+        Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (UniqueConstraint("post_id", "user_id"),)

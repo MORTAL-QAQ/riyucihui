@@ -353,3 +353,63 @@ class BatchExportRequest(BaseModel):
     clozes: list[int] | None = None       # cloze IDs
     grammar_compares: list[int] | None = None  # grammar compare IDs
     study_report: bool = False
+
+
+# ── Community（社区） ──
+class PostCreate(BaseModel):
+    """发布帖子 / 公告"""
+    title: str = Field(..., min_length=1, max_length=100)
+    content: str = Field(..., min_length=1, max_length=5000)
+
+
+class PostOut(BaseModel):
+    """帖子列表项"""
+    id: int
+    type: str
+    title: str
+    content: str
+    is_pinned: bool
+    username: str
+    like_count: int = 0
+    comment_count: int = 0
+    created_at: datetime
+    new_achievements: list[dict] | None = None   # 发帖触发的新成就（前端自动弹窗）
+
+    class Config:
+        from_attributes = True
+
+
+class PostListResponse(BaseModel):
+    posts: list[PostOut]
+    total: int
+
+
+class CommentCreate(BaseModel):
+    content: str = Field(..., min_length=1, max_length=1000)
+
+
+class CommentOut(BaseModel):
+    id: int
+    post_id: int
+    content: str
+    username: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PostDetailResponse(BaseModel):
+    """帖子详情：内容 + 评论 + 当前用户点赞状态"""
+    post: PostOut
+    liked: bool = False
+    is_owner: bool = False
+    is_admin: bool = False
+    comments: list[CommentOut] = []
+
+
+class AnnouncementCreate(BaseModel):
+    """管理员发布公告"""
+    title: str = Field(..., min_length=1, max_length=100)
+    content: str = Field(..., min_length=1, max_length=5000)
+    pinned: bool = True   # 公告默认置顶

@@ -32,7 +32,7 @@ from sqlalchemy import text
 
 from . import config
 from .database import Base, engine, get_db, run_migrations
-from .routers import achievement, admin_api, auth, cloze, essay, export, generate, grammar, settings, study, voice, words
+from .routers import achievement, admin_api, auth, cloze, community, essay, export, generate, grammar, settings, study, voice, words
 from .services import voicevox_manager
 
 # ── 日志体系（#25）：统一格式，替换散落的 print ──
@@ -146,6 +146,7 @@ app.include_router(settings.router)
 app.include_router(study.router)
 app.include_router(essay.router)
 app.include_router(cloze.router)
+app.include_router(community.router)
 app.include_router(export.router)
 
 

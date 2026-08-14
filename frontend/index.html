@@ -76,6 +76,7 @@
           </div>
           <div class="more-menu-overlay" id="more-menu-overlay"></div>
           <div class="more-menu-popup" id="more-menu-popup">
+            <button data-tab="community"><span class="mb-icon">💬</span>社区</button>
             <button data-tab="cloze"><span class="mb-icon">📝</span>完型填空</button>
             <button data-tab="grammar"><span class="mb-icon">📐</span>语法</button>
             <button data-tab="image"><span class="mb-icon">📷</span>图片词卡</button>
@@ -91,7 +92,10 @@
           </div>
           <div class="sidebar-greeting">日本語の世界へようこそ！(≧∇≦)ﾉ</div>
           <nav class="nav">
-            <button class="nav-btn active" data-tab="generate" id="nav-generate">
+            <button class="nav-btn active" data-tab="community" id="nav-community">
+              <span class="nav-icon">💬</span> 社区
+            </button>
+            <button class="nav-btn" data-tab="generate" id="nav-generate">
               <span class="nav-icon">✦</span> 生成单词
             </button>
             <button class="nav-btn" data-tab="wordbank" id="nav-wordbank">
@@ -766,7 +770,6 @@
               <h1>我的保存</h1>
               <p class="subtitle">已保存的短文、完型填空和语法辨析</p>
             </div>
-
             <div class="saved-search-bar">
               <input type="text" id="saved-search" class="saved-search-input" placeholder="搜索已保存的内容..." autocomplete="off" />
               <button class="btn btn-outline btn-sm" id="btn-saved-batch-delete" style="display:none">删除选中</button>
@@ -802,6 +805,39 @@
               </div>
             </div>
 
+          </section>
+
+          <!-- 社区页面 -->
+          <section class="page" id="page-community">
+            <div class="page-header">
+              <h1>社区</h1>
+              <p class="subtitle">分享学习心得，浏览大家的日语学习内容</p>
+            </div>
+
+            <!-- 公告区（置顶公告） -->
+            <div class="community-announcements" id="community-announcements" style="display:none"></div>
+
+            <!-- 发布区（普通用户发帖；管理员可发公告） -->
+            <div class="community-publish">
+              <input type="text" id="community-title-input" class="topic-input"
+                     placeholder="标题" maxlength="100" autocomplete="off" />
+              <textarea id="community-content-input" class="community-content-input"
+                        placeholder="分享你的学习内容…（5000 字以内）" maxlength="5000"></textarea>
+              <div class="community-publish-actions">
+                <button class="btn btn-primary" id="btn-community-submit">发布</button>
+                <button class="btn btn-outline" id="btn-announcement-submit" style="display:none">📢 发布公告</button>
+              </div>
+            </div>
+
+            <!-- 帖子列表 -->
+            <div class="community-list" id="community-list"></div>
+            <div class="empty-state" id="community-empty" style="display:none">
+              <div class="empty-icon">💬</div>
+              <p>还没有帖子，来发第一帖吧</p>
+            </div>
+            <div class="community-load-more" id="community-load-more" style="display:none">
+              <button class="btn btn-outline" id="btn-community-more">加载更多</button>
+            </div>
           </section>
 
           <!-- 内容查看模态窗 -->
@@ -873,6 +909,23 @@
               <div class="export-panel-footer" id="export-modal-footer">
                 <button class="btn btn-outline btn-sm" id="export-modal-cancel">取消</button>
                 <button class="btn btn-primary" id="export-modal-confirm">📥 导出 PDF</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 社区帖子详情模态框 -->
+          <div class="modal-overlay" id="community-modal" style="display:none">
+            <div class="modal-content saved-modal">
+              <div class="modal-header">
+                <h3 id="community-modal-title"></h3>
+                <button class="modal-close" id="community-modal-close">&times;</button>
+              </div>
+              <div class="modal-body" id="community-modal-body"></div>
+              <div class="modal-footer" id="community-modal-footer">
+                <button class="btn btn-outline btn-sm" id="community-modal-like">👍 0</button>
+                <button class="btn btn-outline btn-sm" id="community-modal-pin" style="display:none">📌 置顶</button>
+                <button class="btn btn-outline btn-sm" id="community-modal-delete" style="display:none">🗑 删除</button>
+                <button class="btn btn-primary btn-sm" id="community-modal-close-btn">关闭</button>
               </div>
             </div>
           </div>

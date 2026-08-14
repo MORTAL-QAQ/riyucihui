@@ -443,4 +443,50 @@ const api = {
   awardAchievement(key) {
     return request("/achievements/award/" + key, { method: "POST", body: "{}" });
   },
+
+  // ── Community（社区） ──
+  communityPosts(offset = 0, limit = 20) {
+    return request(`/community/posts?offset=${offset}&limit=${limit}`);
+  },
+
+  createCommunityPost(title, content) {
+    return request("/community/posts", {
+      method: "POST",
+      body: JSON.stringify({ title, content }),
+    });
+  },
+
+  communityPostDetail(id) {
+    return request(`/community/posts/${id}`);
+  },
+
+  deleteCommunityPost(id) {
+    return request(`/community/posts/${id}`, { method: "DELETE" });
+  },
+
+  toggleCommunityLike(id) {
+    return request(`/community/posts/${id}/like`, { method: "POST", body: "{}" });
+  },
+
+  createCommunityComment(postId, content) {
+    return request(`/community/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  deleteCommunityComment(id) {
+    return request(`/community/comments/${id}`, { method: "DELETE" });
+  },
+
+  createAnnouncement(title, content, pinned = true) {
+    return request("/community/announcements", {
+      method: "POST",
+      body: JSON.stringify({ title, content, pinned }),
+    });
+  },
+
+  pinCommunityPost(id, pinned) {
+    return request(`/community/posts/${id}/pin?pinned=${pinned}`, { method: "PUT" });
+  },
 };
