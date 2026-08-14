@@ -76,6 +76,7 @@
           </div>
           <div class="more-menu-overlay" id="more-menu-overlay"></div>
           <div class="more-menu-popup" id="more-menu-popup">
+            <button data-tab="home"><span class="mb-icon">🏠</span>首页</button>
             <button data-tab="community"><span class="mb-icon">💬</span>社区</button>
             <button data-tab="cloze"><span class="mb-icon">📝</span>完型填空</button>
             <button data-tab="grammar"><span class="mb-icon">📐</span>语法</button>
@@ -92,7 +93,10 @@
           </div>
           <div class="sidebar-greeting">日本語の世界へようこそ！(≧∇≦)ﾉ</div>
           <nav class="nav">
-            <button class="nav-btn active" data-tab="community" id="nav-community">
+            <button class="nav-btn active" data-tab="home" id="nav-home">
+              <span class="nav-icon">🏠</span> 首页
+            </button>
+            <button class="nav-btn" data-tab="community" id="nav-community">
               <span class="nav-icon">💬</span> 社区
             </button>
             <button class="nav-btn" data-tab="generate" id="nav-generate">
@@ -150,8 +154,72 @@
 
         <!-- 主内容区 -->
         <main class="main">
+          <!-- 首页（学习仪表盘） -->
+          <section class="page active" id="page-home">
+            <div class="home-welcome">
+              <div class="home-welcome-emoji">🌸</div>
+              <div>
+                <h1 class="home-welcome-title" id="home-welcome-title">こんにちは</h1>
+                <p class="home-welcome-sub" id="home-welcome-sub">今天也要一起加油学习日语哦</p>
+              </div>
+            </div>
+
+            <!-- 学习统计卡片 -->
+            <div class="home-stats">
+              <div class="home-stat-card">
+                <div class="home-stat-num" id="stat-due">-</div>
+                <div class="home-stat-label">今日待复习</div>
+              </div>
+              <div class="home-stat-card">
+                <div class="home-stat-num" id="stat-new">-</div>
+                <div class="home-stat-label">可学新词</div>
+              </div>
+              <div class="home-stat-card">
+                <div class="home-stat-num" id="stat-streak">-</div>
+                <div class="home-stat-label">连续学习(天)</div>
+              </div>
+              <div class="home-stat-card">
+                <div class="home-stat-num" id="stat-learned">-</div>
+                <div class="home-stat-label">累计已学</div>
+              </div>
+            </div>
+
+            <!-- 快捷入口 -->
+            <div class="home-section-title">🚀 快捷入口</div>
+            <div class="home-quick">
+              <button class="home-quick-btn" data-goto="study"><span class="hqb-icon">📝</span>去背词</button>
+              <button class="home-quick-btn" data-goto="generate"><span class="hqb-icon">✦</span>生成单词</button>
+              <button class="home-quick-btn" data-goto="community"><span class="hqb-icon">💬</span>社区</button>
+              <button class="home-quick-btn" data-goto="wordbank"><span class="hqb-icon">📖</span>我的词库</button>
+              <button class="home-quick-btn" data-goto="image"><span class="hqb-icon">📷</span>图片词卡</button>
+              <button class="home-quick-btn" data-goto="achievement"><span class="hqb-icon">🏆</span>成就</button>
+            </div>
+
+            <!-- 最新公告 -->
+            <div class="home-announcements" id="home-announcements" style="display:none"></div>
+
+            <!-- 每日一言 + 推荐词 -->
+            <div class="home-daily">
+              <div class="home-daily-title">📜 每日一言</div>
+              <div class="home-daily-jp" id="home-daily-jp"></div>
+              <div class="home-daily-cn" id="home-daily-cn"></div>
+              <div class="home-daily-actions">
+                <button class="btn btn-outline btn-sm" id="btn-home-daily-speak">🔊 发音</button>
+              </div>
+              <div class="home-recommend" id="home-recommend" style="display:none">
+                <div class="home-recommend-label">💡 推荐词</div>
+                <div class="home-recommend-body">
+                  <span class="home-recommend-word" id="home-recommend-word"></span>
+                  <span class="home-recommend-kana" id="home-recommend-kana"></span>
+                  <span class="home-recommend-cn" id="home-recommend-cn"></span>
+                  <button class="btn btn-outline btn-sm" id="btn-home-recommend-speak">🔊</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- 生成单词页面 -->
-          <section class="page active" id="page-generate">
+          <section class="page" id="page-generate">
             <div class="page-header">
               <h1>生成单词</h1>
               <p class="subtitle">输入一个主题，AI 自动生成10个相关日语单词</p>

@@ -61,10 +61,12 @@ const navImage = $("#nav-image");
 const pageImage = $("#page-image");
 const navAchievement = $("#nav-achievement");
 const pageAchievement = $("#page-achievement");
+const navHome = $("#nav-home");
+const pageHome = $("#page-home");
 const navCommunity = $("#nav-community");
 const pageCommunity = $("#page-community");
-const navBtns = [navCommunity, navGenerate, navWordbank, navStudy, navEssay, navCloze, navImage, navGrammar, navSaved, navAchievement, navSettings, navAdmin];
-const pages = [pageCommunity, pageGenerate, pageWordbank, pageStudy, pageEssay, pageCloze, pageImage, pageGrammar, pageSaved, pageAchievement, pageSettings, pageAdmin];
+const navBtns = [navHome, navCommunity, navGenerate, navWordbank, navStudy, navEssay, navCloze, navImage, navGrammar, navSaved, navAchievement, navSettings, navAdmin];
+const pages = [pageHome, pageCommunity, pageGenerate, pageWordbank, pageStudy, pageEssay, pageCloze, pageImage, pageGrammar, pageSaved, pageAchievement, pageSettings, pageAdmin];
 
 // 生成页
 const topicInput = $("#topic-input");
@@ -234,13 +236,13 @@ let essayLastConfig = null;
 // URL 路由化（阶段一）：tab 与路径一一对应（/community、/generate …），
 // 支持分享/收藏/刷新保持页面、浏览器前进后退。
 const VALID_TABS = [
-  "community", "generate", "wordbank", "study", "essay", "cloze",
+  "home", "community", "generate", "wordbank", "study", "essay", "cloze",
   "image", "grammar", "saved", "achievement", "settings", "admin",
 ];
 
 function tabFromPath() {
   const p = location.pathname.replace(/^\/+|\/+$/g, "");
-  return p;
+  return p || "home";  // 根路径默认首页
 }
 
 function switchTab(tab, opts = {}) {
@@ -252,7 +254,11 @@ function switchTab(tab, opts = {}) {
   // 同步 URL（popstate/初始加载时 noUrl 不重复入历史）
   if (!opts.noUrl) history.pushState({ tab }, "", "/" + tab);
 
-  if (tab === "community") {
+  if (tab === "home") {
+    navHome.classList.add("active");
+    pageHome.classList.add("active");
+    loadHome();
+  } else if (tab === "community") {
     navCommunity.classList.add("active");
     pageCommunity.classList.add("active");
     withLoader("community", loadCommunity);
@@ -306,6 +312,7 @@ function switchTab(tab, opts = {}) {
 }
 
 navGenerate.addEventListener("click", () => switchTab("generate"));
+navHome.addEventListener("click", () => switchTab("home"));
 navCommunity.addEventListener("click", () => switchTab("community"));
 navWordbank.addEventListener("click", () => switchTab("wordbank"));
 navStudy.addEventListener("click", () => switchTab("study"));
@@ -3273,6 +3280,119 @@ function jlptBadge(level) {
   if (!level) return "";
   return `<span class="jlpt-badge ${esc(level)}">${esc(level)}</span>`;
 }
+
+// ===== 首页（学习仪表盘） =====
+const DAILY_QUOTES = [
+  { jp: "継続は力なり。", cn: "坚持就是力量。" },
+  { jp: "七転び八起き。", cn: "跌倒了七次，第八次站起来（百折不挠）。" },
+  { jp: "努力は裏切らない。", cn: "努力不会背叛你。" },
+  { jp: "千里の道も一歩から。", cn: "千里之行，始于足下。" },
+  { jp: "石の上にも三年。", cn: "功到自然成。" },
+  { jp: "急がば回れ。", cn: "欲速则不达。" },
+  { jp: "失敗は成功の母。", cn: "失败是成功之母。" },
+  { jp: "三人寄れば文殊の知恵。", cn: "三个臭皮匠，顶个诸葛亮。" },
+  { jp: "聞くは一時の恥、聞かぬは一生の恥。", cn: "问是一时之耻，不问是一生之耻。" },
+  { jp: "初心忘るべからず。", cn: "勿忘初心。" },
+  { jp: "雨降って地固まる。", cn: "雨过地更坚（坏事过后更团结）。" },
+  { jp: "案ずるより産むが易し。", cn: "与其焦虑，不如行动（船到桥头自然直）。" },
+];
+
+function dailyQuote() {
+  const now = new Date();
+  const dayNum = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+  return DAILY_QUOTES[dayNum % DAILY_QUOTES.length];
+}
+
+async function loadHome() {
+  // 问候语（按时段）
+  const h = new Date().getHours();
+  const greet = h < 6 ? "夜深了" : h < 12 ? "おはよう" : h < 18 ? "こんにちは" : "こんばんは";
+  $("#home-welcome-title").textContent = `${greet}、${currentUsername}！`;
+  $("#home-welcome-sub").textContent = "今天也要一起加油学习日语哦 (≧∇≦)ﾉ";
+
+  // 统计卡片 + 公告（并行拉取；部分失败不阻塞首页）
+  try {
+    const [due, stats, posts, achs] = await Promise.all([
+      api.studyDue(),
+      api.studyStats(),
+      api.communityPosts(0, 5),
+      api.listAchievements(),
+    ]);
+    $("#stat-due").textContent = (due.due_review ?? 0) + (due.new_today ?? 0);
+    $("#stat-new").textContent = stats.new_available ?? 0;
+    $("#stat-learned").textContent = stats.learned ?? 0;
+    // 连续学习天数：从成就推断（streak_1/3/7/10/30/100 最大已达成档位）
+    const achieved = new Set(
+      (achs.achievements || []).filter((a) => a.achieved).map((a) => a.key)
+    );
+    const streakDays = [100, 30, 10, 7, 3, 1].find((d) => achieved.has(`streak_${d}`)) || 0;
+    $("#stat-streak").textContent = streakDays;
+
+    // 最新公告（置顶公告，最多 3 条）
+    const ann = (posts.posts || []).filter((p) => p.type === "announcement" && p.is_pinned).slice(0, 3);
+    const annEl = $("#home-announcements");
+    if (ann.length) {
+      annEl.style.display = "block";
+      annEl.innerHTML =
+        '<div class="home-announcements-title">📢 最新公告</div>' +
+        ann.map(
+          (p) => `<div class="home-announcement-item" data-id="${p.id}">
+            <span class="home-announcement-item-title">${esc(p.title)}</span>
+            <span class="home-announcement-item-time">${fmtTime(p.created_at)}</span>
+          </div>`
+        ).join("");
+      annEl.querySelectorAll(".home-announcement-item").forEach((el) => {
+        el.addEventListener("click", () => openCommunityDetail(parseInt(el.dataset.id, 10)));
+      });
+    } else {
+      annEl.style.display = "none";
+    }
+  } catch (err) {
+    console.error("首页统计数据加载失败:", err);
+  }
+
+  // 每日一言
+  const q = dailyQuote();
+  $("#home-daily-jp").textContent = q.jp;
+  $("#home-daily-cn").textContent = q.cn;
+  $("#btn-home-daily-speak").onclick = async () => {
+    try {
+      new Audio(await api.voice(q.jp)).play();
+    } catch (e) {
+      handleApiError(e, "发音失败");
+    }
+  };
+
+  // 推荐词（词库最新一条）
+  try {
+    const wl = await api.listWords({ limit: 1 });
+    const w = wl.words && wl.words[0];
+    const rec = $("#home-recommend");
+    if (w) {
+      rec.style.display = "block";
+      $("#home-recommend-word").textContent = w.japanese;
+      $("#home-recommend-kana").textContent = w.kana || "";
+      $("#home-recommend-cn").textContent = w.chinese || "";
+      $("#btn-home-recommend-speak").onclick = async () => {
+        try {
+          new Audio(await api.voice(w.japanese)).play();
+        } catch (e) {
+          handleApiError(e, "发音失败");
+        }
+      };
+    } else {
+      rec.style.display = "none";
+    }
+  } catch (err) {
+    $("#home-recommend").style.display = "none";
+  }
+}
+
+// 快捷入口绑定（事件委托）
+$("#page-home").addEventListener("click", (e) => {
+  const btn = e.target.closest(".home-quick-btn");
+  if (btn) switchTab(btn.dataset.goto);
+});
 
 // ===== 社区 =====
 let communityOffset = 0;
