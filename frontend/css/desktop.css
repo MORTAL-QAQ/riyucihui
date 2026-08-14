@@ -4274,3 +4274,72 @@ body.subpage .main {
   padding-left: 20px;
   padding-right: 20px;
 }
+
+
+/* ═══ 独立子页视觉美化 ═══ */
+body.subpage {
+  background: linear-gradient(180deg, #f6f7fb 0%, var(--bg) 320px);
+}
+.subpage-header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #2d2a4a 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.subpage-nav-btn {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.subpage-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+/* 页面标题区 */
+body.subpage .page-header { margin-bottom: 18px; }
+body.subpage .page-header h1 {
+  font-size: 26px;
+  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+/* 发布区 */
+.community-publish {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  border-radius: 14px;
+}
+.community-publish .topic-input,
+.community-content-input {
+  border-radius: 10px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.community-publish .topic-input:focus,
+.community-content-input:focus {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+/* 帖子卡片 */
+.community-post {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  border-radius: 14px;
+  transition: all var(--transition);
+}
+.community-post:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+.community-post-title { font-size: 16px; }
+.community-post-content { color: #4b5563; }
+/* 公告区 */
+.community-announcements {
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+/* 加载更多按钮居中强化 */
+.community-load-more .btn {
+  min-width: 160px;
+  border-radius: 999px;
+}

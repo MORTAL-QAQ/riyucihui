@@ -557,3 +557,8 @@ table, .table-wrap {
 .subpage-nav-btn { font-size: 13px; padding: 6px 8px; }
 .subpage-header-actions .btn { padding: 4px 10px; font-size: 12px; }
 body.subpage .main { padding: 12px 12px 80px; }
+
+
+/* ── 独立子页美化（移动端） ── */
+body.subpage .page-header h1 { font-size: 22px; }
+.subpage-nav-btn { padding: 6px 10px; }
