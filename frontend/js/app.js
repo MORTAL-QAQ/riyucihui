@@ -22,8 +22,6 @@
  */
 
 // ===== DOM 查询简写 =====
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
 
 // 认证
 const authPage = $("#auth-page");
@@ -93,8 +91,6 @@ function withLoader(key, fn) {
 
 // ===== 认证状态 =====
 let isRegisterMode = false;
-let currentUsername = "";
-let isAdmin = false;
 
 // ===== 认证页面切换 =====
 function showAuthPage() {
@@ -292,87 +288,12 @@ let audioCtx = null;
 let audioSource = null;
 let speakingBtn = null;
 
-function unlockAudio() {
-  if (audioCtx) return;
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-  } catch {}
-}
-
 // AudioContext must be created / resumed during a user gesture.
 // Once running, decodeAudioData + source.start() bypass autoplay policy.
 document.addEventListener("click", unlockAudio, { once: true });
 document.addEventListener("touchstart", unlockAudio, { once: true });
 
-function clearSpeaking() {
-  if (speakingBtn) {
-    speakingBtn.classList.remove("speaking");
-    speakingBtn = null;
-  }
-  if (audioSource) {
-    try { audioSource.stop(); } catch {}
-    audioSource = null;
-  }
-}
-
-function speakWord(japanese, kana, btn) {
-  const text = kana || japanese;
-
-  clearSpeaking();
-
-  speakingBtn = btn || null;
-  if (btn) btn.classList.add("speaking");
-
-  // Ensure AudioContext is running (may have been suspended by the OS)
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-
-  api
-    .voice(text)
-    .then((blob) => blob.arrayBuffer())
-    .then((buf) => {
-      if (!audioCtx) {
-        // Belt-and-suspenders: create AudioCtx now if unlock didn't fire
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      audioCtx.decodeAudioData(
-        buf,
-        (decoded) => {
-          audioSource = audioCtx.createBufferSource();
-          audioSource.buffer = decoded;
-          audioSource.connect(audioCtx.destination);
-          audioSource.onended = () => {
-            if (speakingBtn) speakingBtn.classList.remove("speaking");
-            speakingBtn = null;
-            audioSource = null;
-          };
-          audioSource.start(0);
-        },
-        () => {
-          clearSpeaking();
-          showToast("语音解码失败", "error");
-        },
-      );
-    })
-    .catch((err) => {
-      clearSpeaking();
-      showToast(`发音失败：${err.message}`, "error");
-    });
-}
-
 // ===== Toast =====
-function showToast(msg, type = "success", duration = 2500) {
-  const el = document.createElement("div");
-  el.className = `toast ${type}`;
-  el.textContent = msg;
-  document.body.appendChild(el);
-  if (duration > 0) {
-    setTimeout(() => el.remove(), duration);
-  }
-  return el;  // 返回元素引用，调用方可手动 remove
-}
 
 /**
  * 统一 API/运行时错误处理（#40）：
@@ -380,13 +301,6 @@ function showToast(msg, type = "success", duration = 2500) {
  * - console.error 记录，避免静默吞错
  * 返回可展示的消息文本，便于调用方写入错误区域。
  */
-function handleApiError(err, fallbackMsg = "操作失败，请稍后重试") {
-  const msg = (err && err.message) || fallbackMsg;
-  console.error("[app]", err);
-  showToast(msg, "error", 3500);
-  return msg;
-}
-
 
 async function updateStudyBadge() {
   try {
@@ -413,62 +327,7 @@ async function initApp() {
   updateStudyBadge();
 }
 
-function esc(s) {
-  const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-  return String(s).replace(/[&<>"']/g, (c) => map[c]);
-}
-
-/**
- * 统一 SSE 流式处理（#38）：管理流预览框显示/追加/隐藏，并归一事件分发。
- * 原 7 处 AI 生成端点重复的「显示 preview → 追加 chunk → done/error → 隐藏」模板
- * 收敛为单一函数；调用方只需提供 onDone / onError 业务逻辑。
- *
- * @param {string} url        API 路径（如 "/generate"）
- * @param {object} body       请求体（含 stream: true）
- * @param {string} previewId  流预览元素 id（如 "stream-preview"）
- * @param {object} handlers   { onChunk?, onDone?, onError? }
- */
-async function runStreamToPreview(url, body, previewId, handlers = {}) {
-  // 注意：$ 是 querySelector（选择器语义），previewId 是纯 id，需补 # 前缀
-  const previewEl = $("#" + previewId) || document.getElementById(previewId);
-  if (!previewEl) {
-    const { onError } = handlers;
-    if (onError) onError("页面组件未加载，请刷新页面后重试");
-    else showToast("页面组件未加载，请刷新页面后重试", "error");
-    return;
-  }
-  previewEl.style.display = "block";
-  previewEl.textContent = "";
-  const { onChunk, onDone, onError } = handlers;
-  try {
-    await streamRequest(url, body, (event) => {
-      if (event.chunk) {
-        previewEl.textContent += event.chunk;
-        previewEl.scrollTop = previewEl.scrollHeight;
-        if (onChunk) onChunk(event.chunk);
-      } else if (event.done) {
-        if (onDone) onDone(event.result);
-      } else if (event.error) {
-        if (onError) onError(event.error);
-        else throw new Error(event.error);
-      }
-    });
-  } finally {
-    previewEl.style.display = "none";
-  }
-}
-
 // ===== 首页（学习仪表盘） =====
-function fmtTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (diff < 60) return "刚刚";
-  if (diff < 3600) return Math.floor(diff / 60) + " 分钟前";
-  if (diff < 86400) return Math.floor(diff / 3600) + " 小时前";
-  const dt = new Date(iso);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-}
 
 const DAILY_QUOTES = [
   { jp: "継続は力なり。", cn: "坚持就是力量。" },
