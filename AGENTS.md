@@ -4,7 +4,7 @@
 
 ## 项目概览
 
-日语词汇学习平台，FastAPI + 原生前端 + PostgreSQL 全栈应用，支持 AI 生成单词/短文/语法/完型、VOICEVOX 日语发音、AI 配图、PDF 导出、学习记录与成就系统、管理员后台。
+日语词汇学习平台，FastAPI + 原生前端 + PostgreSQL 全栈应用，支持 AI 生成单词/短文/语法/完型、VOICEVOX 日语发音、AI 配图、PDF 导出、学习记录与成就系统、管理员后台、社区（帖子分享 + 管理员公告 + 点赞评论 + 敏感词过滤）。
 
 ## 技术栈
 
@@ -19,13 +19,13 @@
 ## 后端代码结构（`backend/app/`）
 
 - 入口 `main.py`：注册全部路由、`logging.basicConfig` 日志体系、`/api/health` 探测 DB（503 当 DB 不可用）、`mount("/", StaticFiles)` 托管前端
-- 路由 `routers/`：auth、admin_api、words、study、grammar、essay、cloze、generate、voice、achievement、settings、export
+- 路由 `routers/`：auth、admin_api、words、study、grammar、essay、cloze、generate、voice、achievement、settings、export、community
   - AI/语音/图片付费端点均有 **IP 级限流**（`rate_limiter`，只信任 nginx 的 `X-Real-IP`）+ 用户级每日限额（北京时区零点重置）
   - 错误对外统一笼统信息，细节进日志（logging）
 - 数据模型 `models.py`：User、UsageRecord、Word、StudyRecord、Essay、Cloze、GrammarCompare、Achievement、LoginHistory
   - `Word.image_base64` 为 **deferred 列**（常规查询不加载大字段，需要时显式 `undefer`）
   - 复合索引：study_records `(user_id,next_review_date)`/`(user_id,last_review_date)`、usage_records `(user_id,kind,created_at)`、words 多列 + pg_trgm
-- 服务层 `services/`：ai_service（统一 `_chat()` 调用）、word_service、voicevox_manager、image_service、pdf_service（含 `_esc` 转义、`jlpt_color`、`generate_study_report_pdf`）、achievement_service、usage_service、rate_limiter、secrets、font_manager
+- 服务层 `services/`：ai_service（统一 `_chat()` 调用）、word_service、voicevox_manager、image_service、pdf_service（含 `_esc` 转义、`jlpt_color`、`generate_study_report_pdf`）、achievement_service、usage_service、rate_limiter、secrets、font_manager、sensitive_words（社区敏感词过滤）
 - 配置 `config.py`：全部从环境变量读取；`SECRET_KEY`/`DATABASE_URL`/API Key 经 `services/secrets.py` 解析（env → Docker secrets → keyring → .env）；**未配置 SECRET_KEY 启动直接报错**；默认每日限额集中在 `config.DEFAULT_DAILY_*`
 - CLI `cli.py`：管理命令（`create-admin`、`login-report`、`backfill-orphans` 等），从 backend/ 目录运行 `python -m app.cli ...`
 
@@ -33,10 +33,10 @@
 
 **架构**：MPA 主导。全部业务页面已拆为独立子页（独立 HTML + 独立 JS，URL 路由化无后缀路径），`index.html` SPA 仅保留首页（仪表盘）与登录/注册。所有页面共享 `css/`（desktop/mobile）与 `js/common.js`（共享层）。
 
-**共享层 `js/common.js`**：`$`/`esc`/`escHtml`/`jlptBadge`/`fmtTime`/`showToast`/`handleApiError`/`speakWord`（Web Audio 发音）/`showImageLightbox`/`initPage`（认证守卫，未登录跳 `/`）/`initSidebar`（移动端抽屉）/`currentUsername`/`isAdmin`/`bindLogout`。
+**共享层 `js/common.js`**：`$`/`esc`/`escHtml`/`jlptBadge`/`fmtTime`/`showToast`/`handleApiError`/`speakWord`（Web Audio 发音）/`showImageLightbox`/`runStreamToPreview`（SSE 流式预览）/`initPage`（认证守卫，未登录跳 `/`）/`initSidebar`（移动端抽屉）/`currentUsername`/`isAdmin`/`bindLogout`。
 
 **独立子页模板**（全部子页统一）：
-- 顶栏三区（全部内联样式，不依赖 CSS 缓存）：左品牌 / 中导航居中（返回首页·词库·背词·生成·社区·短文·完型·语法·图片·成就·保存·管理，当前页高亮）/ 右「设置·退出」贴最右
+- 顶栏三区（全部内联样式，不依赖 CSS 缓存）：左品牌 / 中导航居中（返回首页·词库·背词·生成·社区·短文·完型·语法·图片·成就·保存，当前页高亮；仅管理页额外含「🛡 管理」高亮项）/ 右「设置·退出」贴最右
 - `<body class="subpage" style="margin:0;">` + `<div id="app" style="display:block; min-height:100vh;">`（覆盖全局 `#app{display:flex}`，否则内容收缩左偏）
 - `<main class="main" style="margin-left:auto;margin-right:auto;max-width:1200px;width:100%;box-sizing:border-box;padding:24px 20px 60px;">` 内容居中
 - 页面 JS 入口：`initPage().then(ok => ok && 加载函数())`；管理页额外校验 `isAdmin` 否则跳回首页
@@ -45,7 +45,7 @@
 **页面清单**（全部已拆为独立子页）：
 | 页面 | URL | 文件 | 状态 |
 |------|-----|------|------|
-| 首页（仪表盘/登录） | `/` | index.html + js/app.js（SPA 剩余） | ✅ |
+| 首页（仪表盘/登录） | `/` | index.html + js/app.js（SPA 剩余：认证、switchTab 路由跳转、home 仪表盘、侧边栏、移动端底部导航、彩蛋） | ✅ |
 | 社区 | `/community` | community.html + js/community.js | ✅ 已拆 |
 | 词库 | `/wordbank` | wordbank.html + js/wordbank.js | ✅ 已拆 |
 | 背词 | `/study` | study.html + js/study.js | ✅ 已拆 |
@@ -58,6 +58,11 @@
 | 成就 | `/achievement` | achievement.html + js/achievement.js | ✅ 已拆 |
 | 管理（管理员） | `/admin` | admin.html + js/admin.js | ✅ 已拆 |
 | 保存 | `/saved` | saved.html + js/saved.js | ✅ 已拆 |
+
+**开发工具脚本（`backend/dev_tools/`，一次性维护工具，已归档）**：
+- `strip_*.py`：页面拆分时从 app.js/index.html 精确删除已迁移代码（UTF-8 安全，含断言）
+- `unify_topbar.py`：统一全部独立子页顶栏导航（当前页高亮参数化生成）
+- `verify_topbar.py` / `verify_*.sh`：本地/生产页面回归验证（状态码 + js 引用 + 导航按钮数）
 
 **版本号机制**：index.html 与独立子页的 css/js 引用带 `?v={version}` 占位符，deploy.sh 部署时用内容哈希统一注入（所有 `*.html`）。
 
