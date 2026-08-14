@@ -29,11 +29,28 @@
 - 配置 `config.py`：全部从环境变量读取；`SECRET_KEY`/`DATABASE_URL`/API Key 经 `services/secrets.py` 解析（env → Docker secrets → keyring → .env）；**未配置 SECRET_KEY 启动直接报错**；默认每日限额集中在 `config.DEFAULT_DAILY_*`
 - CLI `cli.py`：管理命令（`create-admin`、`login-report`、`backfill-orphans` 等），从 backend/ 目录运行 `python -m app.cli ...`
 
-## 前端结构（`frontend/`）
+## 前端结构（`frontend/`）—— 多页架构（阶段二）
 
-`index.html`（资源引用带 `?v={version}` 占位符，FastAPI 或 deploy.sh 注入内容哈希）+ `css/`（desktop.css / mobile.css）+ `js/`（api.js、app.js）。
-- `api.js`：请求封装（`request`/`streamRequest`）、`setToken`/`getToken`/`clearToken`（外部禁止直接改写 token 状态）
-- `app.js`：全部交互逻辑；SSE 流式统一走 `runStreamToPreview()`；错误统一走 `handleApiError()`
+**架构**：SPA + 独立子页混合。高流量页面已拆为独立子页（独立 HTML + 独立 JS），其余保留在 `index.html` SPA 内。所有页面共享 `css/`（desktop/mobile）与 `js/common.js`（共享层）。
+
+**共享层 `js/common.js`**：`$`/`esc`/`fmtTime`/`showToast`/`handleApiError`/`speakWord`（Web Audio 发音）/`showImageLightbox`/`initPage`（认证守卫，未登录跳 `/`）/`initSidebar`（移动端抽屉）。
+
+**独立子页模板**（community/wordbank/study 已验证）：
+- 顶栏三区（全部内联样式，不依赖 CSS 缓存）：左品牌 / 中导航居中（返回首页·词库·背词·生成·社区，当前页高亮）/ 右「设置·退出」贴最右
+- `<body class="subpage" style="margin:0;">` + `<div id="app" style="display:block;">`（覆盖全局 `#app{display:flex}`，否则内容收缩左偏）
+- `<main class="main" style="margin-left:auto;margin-right:auto;max-width:1200px;...">` 内容居中
+- 页面 JS 入口：`initPage().then(ok => ok && 加载函数())`
+
+**页面清单**：
+| 页面 | URL | 文件 | 状态 |
+|------|-----|------|------|
+| 首页（仪表盘） | `/` | index.html（SPA） | ✅ |
+| 社区 | `/community` | community.html + js/community.js | ✅ 已拆 |
+| 词库 | `/wordbank` | wordbank.html + js/wordbank.js | ✅ 已拆 |
+| 背词 | `/study` | study.html + js/study.js | ✅ 已拆 |
+| 生成/短文/完型/语法/图片/保存/成就/设置/管理 | SPA 内 | index.html + js/app.js | ⏳ 待拆 |
+
+**版本号机制**：index.html 与独立子页的 css/js 引用带 `?v={version}` 占位符，deploy.sh 部署时用内容哈希统一注入（所有 `*.html`）。
 
 ## 改进清单状态
 

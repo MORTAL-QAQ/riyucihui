@@ -223,3 +223,27 @@ function showImageLightbox(src) {
     if (e.key === "Escape") { close(); document.removeEventListener("keydown", onEsc); }
   });
 }
+
+// ===== SSE 流式统一处理（AI 生成页面共用） =====
+async function runStreamToPreview(url, body, previewId, handlers = {}) {
+  const previewEl = $(previewId);
+  previewEl.style.display = "block";
+  previewEl.textContent = "";
+  const { onChunk, onDone, onError } = handlers;
+  try {
+    await streamRequest(url, body, (event) => {
+      if (event.chunk) {
+        previewEl.textContent += event.chunk;
+        previewEl.scrollTop = previewEl.scrollHeight;
+        if (onChunk) onChunk(event.chunk);
+      } else if (event.done) {
+        if (onDone) onDone(event.result);
+      } else if (event.error) {
+        if (onError) onError(event.error);
+        else throw new Error(event.error);
+      }
+    });
+  } finally {
+    previewEl.style.display = "none";
+  }
+}

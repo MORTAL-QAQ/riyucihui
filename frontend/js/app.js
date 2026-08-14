@@ -68,29 +68,12 @@ const navBtns = [navHome, navCommunity, navGenerate, navWordbank, navStudy, navE
 // pageCommunity 已迁移至独立页 /community（阶段二），不在此 SPA 内
 // pageWordbank 已迁移至独立页 /wordbank（阶段二）
 // pageStudy 已迁移至独立页 /study（阶段二）
-const pages = [pageHome, pageGenerate, pageEssay, pageCloze, pageImage, pageGrammar, pageSaved, pageAchievement, pageSettings, pageAdmin];
+// pageGenerate 已迁移至独立页 /generate（阶段二）
+const pages = [pageHome, pageEssay, pageCloze, pageImage, pageGrammar, pageSaved, pageAchievement, pageSettings, pageAdmin];
 
 // 生成页
-const topicInput = $("#topic-input");
-const difficultySelect = $("#difficulty-select");
-const wordCountSelect = $("#word-count-select");
-const extraInput = $("#extra-input");
-const btnGenerate = $("#btn-generate");
-const loadingEl = $("#loading");
-const resultArea = $("#result-area");
-const resultTopic = $("#result-topic");
-const wordCards = $("#word-cards");
-const btnSelectAll = $("#btn-select-all");
-const btnSave = $("#btn-save");
-const btnGenerateMore = $("#btn-generate-more");
-const selectedCount = $("#selected-count");
-const generateError = $("#generate-error");
-const generateWelcome = $("#generate-welcome");
 
 // 词库页
-const quotaBar = $("#quota-bar");
-const quotaText = $("#quota-text");
-const quotaProgressFill = $("#quota-progress-fill");
 const studyBadge = $("#study-badge");
 const apiStatus = $("#api-status");
 const pageLoader = $("#page-loader");
@@ -187,7 +170,6 @@ async function doAuth() {
     }
     showMainApp();
     initApp();
-    loadGenerateQuota();
   } catch (err) {
     setAuthError(err.message);
   } finally {
@@ -211,12 +193,7 @@ btnLogout.addEventListener("click", async () => {
 });
 
 // ===== 状态 =====
-let generatedWords = [];
-let generatedDifficulty = null;  // 当前生成结果的 JLPT 等级
-let selectedSet = new Set();
-let savedWordIndices = new Set();  // 已快速收藏的单词索引
-let currentTab = "generate";
-let currentTopic = "";
+let currentTab = "home";
 // 词库分页
 let essaySelectedTopics = [];
 let essayLastConfig = null;
@@ -251,9 +228,8 @@ function switchTab(tab, opts = {}) {
     // 社区已拆为独立子页（阶段二）
     location.href = "/community";
   } else if (tab === "generate") {
-    navGenerate.classList.add("active");
-    pageGenerate.classList.add("active");
-    loadGenerateQuota();
+    // 生成已拆为独立子页（阶段二）
+    location.href = "/generate";
   } else if (tab === "wordbank") {
     // 词库已拆为独立子页（阶段二）
     location.href = "/wordbank";
@@ -427,271 +403,6 @@ function handleApiError(err, fallbackMsg = "操作失败，请稍后重试") {
   showToast(msg, "error", 3500);
   return msg;
 }
-
-// ===== 生成单词 =====
-btnGenerate.addEventListener("click", () => doGenerate());
-topicInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") doGenerate();
-});
-extraInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") doGenerate();
-});
-
-document.addEventListener("click", (e) => {
-  if (e.target.classList.contains("tag")) {
-    topicInput.value = e.target.dataset.topic;
-    doGenerate();
-  }
-});
-
-async function loadGenerateQuota() {
-  try {
-    const q = await api.generateQuota();
-
-    const remaining = q.remaining;
-    const limit = q.daily_limit;
-    const used = q.today_generated;
-
-    if (q.is_admin || limit === null) {
-      // 管理员或不限
-      quotaText.className = "quota-text unlimited";
-      quotaText.innerHTML = `今日已生成 <span class="quota-highlight">${used}</span> 个单词 · <span class="quota-highlight">不限</span>`;
-      quotaProgressFill.style.width = "0%";
-      quotaProgressFill.className = "quota-progress-fill";
-    } else {
-      const pct = Math.min(100, (used / limit) * 100);
-      quotaProgressFill.style.width = pct + "%";
-
-      if (remaining <= 0) {
-        quotaText.className = "quota-text danger";
-        quotaProgressFill.className = "quota-progress-fill danger";
-      } else if (pct >= 80) {
-        quotaText.className = "quota-text warning";
-        quotaProgressFill.className = "quota-progress-fill warning";
-      } else {
-        quotaText.className = "quota-text";
-        quotaProgressFill.className = "quota-progress-fill";
-      }
-
-      quotaText.innerHTML = `今日已生成 <span class="quota-highlight">${used}</span> / <span class="quota-highlight">${limit}</span> 个单词（剩余 <span class="quota-highlight">${remaining}</span> 个）`;
-    }
-  } catch {
-    // API 不可用时保留默认显示（HTML 初始值："今日可生成 100 个单词"）
-  }
-}
-
-async function doGenerate() {
-  const topic = topicInput.value.trim();
-  if (!topic) {
-    topicInput.focus();
-    return;
-  }
-  currentTopic = topic;  // 记住主题，供快速收藏和批量保存使用
-  savedWordIndices = new Set();  // 重置收藏状态
-
-  const difficulty = difficultySelect.value;
-  generatedDifficulty = difficulty || null;
-  const extra = extraInput.value.trim();
-  const count = parseInt(wordCountSelect.value) || 10;
-
-  btnGenerate.disabled = true;
-  loadingEl.style.display = "block";
-  resultArea.style.display = "none";
-  generateError.style.display = "none";
-
-  try {
-    await runStreamToPreview("/generate", {
-      topic, difficulty: difficulty || undefined, extra: extra || undefined, count, stream: true,
-    }, "stream-preview", {
-      onDone: (result) => {
-        generatedWords = result;
-        // 确保每个单词都有 jlpt_level（服务端流式模式可能未注入时兜底）
-        if (generatedDifficulty) {
-          generatedWords.forEach(w => { if (!w.jlpt_level) w.jlpt_level = generatedDifficulty; });
-        }
-        selectedSet = new Set(generatedWords.map((_, i) => i));
-        renderResultCards(topic);
-        loadingEl.style.display = "none";
-        resultArea.style.display = "block";
-        generateWelcome.style.display = "none";
-        resultArea.scrollIntoView({ behavior: "smooth" });
-        loadGenerateQuota();
-      },
-      onError: (msg) => { throw new Error(msg); },
-    });
-  } catch (err) {
-    loadingEl.style.display = "none";
-    generateError.style.display = "block";
-    generateError.textContent = `生成失败：${err.message}`;
-    showToast("生成失败，请重试", "error");
-  } finally {
-    btnGenerate.disabled = false;
-  }
-}
-
-function renderResultCards(topic) {
-  resultTopic.textContent = topic;
-  wordCards.innerHTML = "";
-
-  generatedWords.forEach((w, i) => {
-    const card = document.createElement("div");
-    card.className = `word-card ${selectedSet.has(i) ? "selected" : ""}`;
-    const saved = savedWordIndices.has(i);
-    card.innerHTML = `
-      <div class="checkbox">✓</div>
-      <div class="card-body">
-        <div class="card-main">
-          <button class="speak-btn" data-speak="${esc(w.japanese)}" data-kana="${esc(w.kana)}" title="发音">▶</button>
-          <span class="card-jp">${esc(w.japanese)}</span>
-          <span class="card-kana">${esc(w.kana)}</span>
-          <span class="card-chinese">${esc(w.chinese)}</span>
-          ${jlptBadge(w.jlpt_level)}
-          <button class="star-btn ${saved ? 'saved' : ''}" data-index="${i}" title="${saved ? '已收藏' : '收藏到词库'}">${saved ? '★' : '☆'}</button>
-        </div>
-        <div class="card-example">
-          <span>${esc(w.example_ja)}</span>
-          <span class="example-cn">${esc(w.example_cn)}</span>
-        </div>
-      </div>`;
-    card.addEventListener("click", (e) => {
-      if (e.target.closest(".speak-btn") || e.target.closest(".star-btn")) return;
-      toggleCard(i, card);
-    });
-    wordCards.appendChild(card);
-  });
-
-  updateSaveButton();
-}
-
-wordCards.addEventListener("click", (e) => {
-  const speakBtn = e.target.closest(".speak-btn");
-  if (speakBtn) {
-    speakWord(speakBtn.dataset.speak, speakBtn.dataset.kana, speakBtn);
-    return;
-  }
-  const starBtn = e.target.closest(".star-btn");
-  if (starBtn) {
-    e.stopPropagation();
-    const idx = parseInt(starBtn.dataset.index);
-    quickSaveWord(idx, starBtn);
-  }
-});
-
-async function quickSaveWord(index, btn) {
-  const w = generatedWords[index];
-  if (!w) return;
-  btn.disabled = true;
-  try {
-    await api.saveWords(currentTopic || w.japanese, [w], generatedDifficulty);
-    savedWordIndices.add(index);
-    btn.classList.add("saved");
-    btn.textContent = "★";
-    btn.title = "已收藏";
-    showToast("已收藏到词库");
-  } catch (err) {
-    showToast(`收藏失败：${err.message}`, "error");
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function toggleCard(index, card) {
-  if (selectedSet.has(index)) {
-    selectedSet.delete(index);
-    card.classList.remove("selected");
-  } else {
-    selectedSet.add(index);
-    card.classList.add("selected");
-  }
-  updateSaveButton();
-}
-
-function updateSaveButton() {
-  const count = selectedSet.size;
-  selectedCount.textContent = count;
-  btnSave.disabled = count === 0;
-}
-
-btnSelectAll.addEventListener("click", () => {
-  const all = generatedWords.length;
-  if (selectedSet.size === all) {
-    selectedSet.clear();
-    wordCards.querySelectorAll(".word-card").forEach((c) => c.classList.remove("selected"));
-  } else {
-    selectedSet = new Set(generatedWords.map((_, i) => i));
-    wordCards.querySelectorAll(".word-card").forEach((c) => c.classList.add("selected"));
-  }
-  updateSaveButton();
-});
-
-btnSave.addEventListener("click", async () => {
-  if (selectedSet.size === 0) return;
-
-  const topic = topicInput.value.trim();
-  const sortedIndices = [...selectedSet].sort((a, b) => b - a); // descending for splice
-  const words = sortedIndices.slice().reverse().map((i) => generatedWords[i]);
-
-  btnSave.disabled = true;
-  try {
-    await api.saveWords(topic, words, generatedDifficulty);
-    showToast(`成功保存 ${words.length} 个单词到词库`);
-    // 从列表中移除已保存的单词
-    for (const i of sortedIndices) {
-      generatedWords.splice(i, 1);
-    }
-    selectedSet.clear();
-    if (generatedWords.length > 0) {
-      renderResultCards(topic);
-    } else {
-      wordCards.innerHTML = "";
-      resultArea.style.display = "none";
-      generateWelcome.style.display = "";
-      updateSaveButton();
-      showToast("所有单词已保存", "success");
-    }
-  } catch (err) {
-    showToast(`保存失败：${err.message}`, "error");
-  } finally {
-    btnSave.disabled = false;
-  }
-});
-
-btnGenerateMore.addEventListener("click", async () => {
-  const topic = topicInput.value.trim();
-  if (!topic) return;
-
-  const existingWords = generatedWords.map((w) => w.japanese);
-  const difficulty = difficultySelect.value;
-  generatedDifficulty = difficulty || null;
-  const extra = extraInput.value.trim();
-  const count = parseInt(wordCountSelect.value) || 10;
-
-  btnGenerateMore.disabled = true;
-  try {
-    await runStreamToPreview("/generate", {
-      topic, difficulty: difficulty || undefined, extra: extra || undefined, count, exclude_words: existingWords, stream: true,
-    }, "stream-preview", {
-      onDone: (result) => {
-        const oldLen = generatedWords.length;
-        if (generatedDifficulty) {
-          result.forEach(w => { if (!w.jlpt_level) w.jlpt_level = generatedDifficulty; });
-        }
-        generatedWords.push(...result);
-        for (let i = oldLen; i < generatedWords.length; i++) {
-          selectedSet.add(i);
-        }
-        renderResultCards(topic);
-        showToast(`新增 ${result.length} 个单词`);
-        loadGenerateQuota();
-      },
-      onError: (msg) => { throw new Error(msg); },
-    });
-  } catch (err) {
-    showToast(`生成失败：${err.message}`, "error");
-  } finally {
-    btnGenerateMore.disabled = false;
-  }
-});
 
 // ===== 设置页 =====
 const settingSpeaker = $("#setting-speaker");
@@ -2226,8 +1937,7 @@ $("#page-home").addEventListener("click", (e) => {
         authPage.style.display = "none";
         mainApp.style.display = "flex";
         initApp();
-        loadGenerateQuota();
-        // 新成就提醒
+            // 新成就提醒
         if (data.new_achievements && data.new_achievements.length > 0) {
           data.new_achievements.forEach((a, i) => {
             setTimeout(() => {
