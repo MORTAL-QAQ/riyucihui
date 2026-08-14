@@ -12,7 +12,9 @@
     <link rel="stylesheet" href="/css/mobile.css?v={mobile_version}" media="(max-width: 768px)" />
   </head>
   <body class="subpage" style="margin:0;">
-    <div id="app">
+    <!-- #app 覆盖为 block：全局 #app{display:flex} 会让 #main-app 宽度收缩并左对齐，
+         导致整个页面(顶栏+内容)只占左侧。block 下 #main-app 占满宽度，main 的 margin:auto 才能居中 -->
+    <div id="app" style="display:block; min-height:100vh;">
       <div id="main-app">
         <!-- 独立子页顶栏（三区：左品牌 / 中导航居中 / 右贴右，内联样式） -->
         <header class="subpage-header"
