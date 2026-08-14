@@ -569,12 +569,6 @@ async function loadHome() {
   }
 }
 
-// 快捷入口绑定（事件委托）
-$("#page-home").addEventListener("click", (e) => {
-  const btn = e.target.closest(".home-quick-btn");
-  if (btn) switchTab(btn.dataset.goto);
-});
-
 // ===== 启动 =====
 (function init() {
   // 为所有带 placeholder 的输入框添加 title 属性，hover 时显示完整提示

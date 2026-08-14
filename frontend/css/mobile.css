@@ -545,11 +545,16 @@ table, .table-wrap {
 .community-comment-form .btn { width: 100%; }
 
 /* --- */
-.home-welcome { padding: 16px; }
-.home-welcome-emoji { font-size: 30px; }
-.home-stats { grid-template-columns: repeat(2, 1fr); }
-.home-quick { grid-template-columns: repeat(3, 1fr); }
+.home-welcome { padding: 18px 16px; gap: 12px; }
+.home-welcome-emoji { font-size: 32px; }
+.home-welcome-title { font-size: 20px; }
+.home-welcome-cta { padding: 8px 14px; font-size: 13px; }
+.home-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.home-stat-card { padding: 14px 10px; }
+.home-stat-num { font-size: 24px; }
 .home-announcement-item { flex-direction: column; align-items: flex-start; gap: 2px; }
+.home-daily { padding: 18px 16px 18px 20px; }
+.home-daily-jp { font-size: 19px; }
 
 
 /* ── 独立子页顶栏（移动端） ── */
