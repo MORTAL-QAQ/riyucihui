@@ -1,0 +1,164 @@
+<!doctype html>
+<!--
+  多模态日语词汇学习 — 语法独立子页（阶段二多页架构）
+  页面逻辑在 js/grammar.js
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>语法 - 多模态日语词汇学习</title>
+    <link rel="stylesheet" href="/css/desktop.css?v={desktop_version}" />
+    <link rel="stylesheet" href="/css/mobile.css?v={mobile_version}" media="(max-width: 768px)" />
+  </head>
+  <body class="subpage" style="margin:0;">
+    <div id="app" style="display:block; min-height:100vh;">
+      <div id="main-app">
+        <!-- 独立子页顶栏（三区：左品牌 / 中导航居中 / 右贴右，内联样式） -->
+        <header class="subpage-header"
+                style="position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
+          <div style="flex:1; display:flex; align-items:center; min-width:0;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+              <span style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">あ</span>
+              <span style="color:#fff; font-weight:700; font-size:15px; white-space:nowrap;">日语学习</span>
+            </a>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
+            <a href="/"
+               style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
+              <span>🏠</span> 返回首页
+            </a>
+            <a href="/wordbank"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📖 词库
+            </a>
+            <a href="/study"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📝 背词
+            </a>
+            <a href="/generate"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              ✦ 生成
+            </a>
+            <a href="/community"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              💬 社区
+            </a>
+            <a href="/essay"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📄 短文
+            </a>
+            <a href="/cloze"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📝 完型
+            </a>
+            <a href="/grammar"
+               style="display:inline-flex; align-items:center; gap:4px; color:#fff; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(99,102,241,0.35); border:1px solid rgba(129,140,248,0.4);">
+              📐 语法
+            </a>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0;">
+            <a href="/settings"
+               style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent; white-space:nowrap;">
+              ⚙ 设置
+            </a>
+            <button id="btn-logout" type="button"
+                    style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; background:transparent; cursor:pointer; white-space:nowrap;">
+              退出
+            </button>
+          </div>
+        </header>
+
+        <main class="main" style="margin-left:auto; margin-right:auto; max-width:1200px; width:100%; box-sizing:border-box; padding:24px 20px 60px;">
+          <section class="page active" id="page-grammar">
+            <div class="page-header">
+              <h1>语法分析</h1>
+              <p class="subtitle">分析句子语法 · 纠错 · 语法辨析</p>
+            </div>
+
+            <!-- 语法子标签 -->
+            <div class="study-tabs">
+              <button class="study-subtab active" id="grammar-subtab-analyze">语法分析</button>
+              <button class="study-subtab" id="grammar-subtab-correct">语法纠错</button>
+              <button class="study-subtab" id="grammar-subtab-compare">语法辨析</button>
+            </div>
+
+            <!-- 语法分析 & 纠错 -->
+            <div class="grammar-panel" id="grammar-panel-analyze">
+              <div class="input-row">
+                <input type="text" id="grammar-analyze-input" class="topic-input"
+                       placeholder="输入日语句子，例如：昨日雨が降ったから、出かけませんでした" autocomplete="off" />
+                <button class="btn btn-primary" id="btn-grammar-analyze">分析语法</button>
+              </div>
+              <div class="loading" id="grammar-analyze-loading" style="display: none">
+                <div class="spinner"></div>
+                <p>AI 正在分析语法...</p>
+                <pre class="stream-preview" id="grammar-analyze-stream-preview"></pre>
+              </div>
+              <p class="grammar-hint">输入一个日语句子，AI 将逐项解析其中的语法点，涵盖助词用法、活用形、句型结构等，并标注 JLPT 等级。</p>
+              <div class="result-area" id="grammar-analyze-result" style="display: none">
+                <div class="grammar-points" id="grammar-points-list"></div>
+              </div>
+              <div class="generate-error" id="grammar-analyze-error" style="display: none"></div>
+            </div>
+
+            <div class="grammar-panel" id="grammar-panel-correct" style="display: none">
+              <div class="input-row">
+                <input type="text" id="grammar-correct-input" class="topic-input"
+                       placeholder="输入日语句子，例如：私は日本語を話することができます" autocomplete="off" />
+                <button class="btn btn-primary" id="btn-grammar-correct">检查纠错</button>
+              </div>
+              <div class="loading" id="grammar-correct-loading" style="display: none">
+                <div class="spinner"></div>
+                <p>AI 正在检查语法...</p>
+                <pre class="stream-preview" id="grammar-correct-stream-preview"></pre>
+              </div>
+              <p class="grammar-hint">输入一个日语句子，AI 将检查其中的语法错误，指出错误类型和位置，并给出修改后的正确句子。</p>
+              <div class="result-area" id="grammar-correct-result" style="display: none">
+                <div class="grammar-correct-card" id="grammar-correct-card"></div>
+              </div>
+              <div class="generate-error" id="grammar-correct-error" style="display: none"></div>
+            </div>
+
+            <div class="grammar-panel" id="grammar-panel-compare" style="display: none">
+              <div class="input-row">
+                <input type="text" id="grammar-compare-input" class="topic-input"
+                       placeholder="输入语法主题，例如：ところ相关的语法、授受动词、条件表达..." autocomplete="off" />
+                <button class="btn btn-primary" id="btn-grammar-compare">对比分析</button>
+              </div>
+              <div class="loading" id="grammar-compare-loading" style="display: none">
+                <div class="spinner"></div>
+                <p>AI 正在对比分析...</p>
+                <pre class="stream-preview" id="grammar-compare-stream-preview"></pre>
+              </div>
+              <p class="grammar-hint">输入一个语法主题，AI 将对比分析2-6个相似或易混淆的语法点，以表格形式展示接续、含义和例句，并给出核心区别总结。</p>
+              <div class="result-area" id="grammar-compare-result" style="display: none">
+                <div class="result-header">
+                  <h2 id="grammar-compare-topic-label"></h2>
+                  <button class="btn btn-primary" id="btn-grammar-save-compare">保存结果</button>
+                </div>
+                <div class="grammar-compare-summary" id="grammar-compare-summary"></div>
+                <div class="grammar-compare-table-wrap">
+                  <table class="grammar-compare-table" id="grammar-compare-table"></table>
+                </div>
+              </div>
+              <div class="generate-error" id="grammar-compare-error" style="display: none"></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=42280202423028" target="_blank" rel="noopener">
+        <img src="/img/beian.png" style="vertical-align:middle;margin-right:4px;width:16px;height:16px" alt="">鄂公网安备42280202423028号
+      </a>
+      <span style="margin:0 8px;color:var(--border)">|</span>
+      <a href="http://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2026038430号</a>
+    </footer>
+
+    <script src="/js/api.js?v={api_version}"></script>
+    <script src="/js/common.js?v={app_version}"></script>
+    <script src="/js/grammar.js?v={app_version}"></script>
+  </body>
+</html>
