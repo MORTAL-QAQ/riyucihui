@@ -28,11 +28,12 @@ echo -e "${YELLOW}========================================${NC}"
 # ── 1. 同步文件到服务器 ──
 echo -e "${GREEN}[1/4] 同步代码到服务器...${NC}"
 
-# 后端代码（用 backend/* 避免在服务器上嵌套成 backend/backend/）
+# 后端代码（tar 流传输，排除本地临时/缓存目录；用 backend/* 避免嵌套 backend/backend/）
 echo "  → backend/"
 ssh "${SERVER_USER}@${SERVER_IP}" "rm -rf ${SERVER_PROJECT_DIR}/backend.bak"
 ssh "${SERVER_USER}@${SERVER_IP}" "cp -a ${SERVER_PROJECT_DIR}/backend ${SERVER_PROJECT_DIR}/backend.bak"
-scp -r backend/* "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/backend/"
+tar --exclude='.tmp' --exclude='.venv' --exclude='__pycache__' --exclude='*.pyc' \
+    -C backend -cf - . | ssh "${SERVER_USER}@${SERVER_IP}" "tar -C ${SERVER_PROJECT_DIR}/backend -xf -"
 
 # 前端静态文件（用 frontend/* 避免在服务器上嵌套成 frontend/frontend/）
 echo "  → frontend/"
