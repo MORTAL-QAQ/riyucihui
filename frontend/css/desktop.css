@@ -4223,9 +4223,8 @@ input::placeholder {
 .home-recommend-kana { font-size: 14px; color: var(--text-muted); }
 .home-recommend-cn { font-size: 13px; color: var(--text); }
 
-/* <a>  .nav-btn */
+/* 独立子页导航: a 链接复用 .nav-btn 样式, 不覆盖 color(继承浅色, 适配深色侧边栏) */
 .nav a.nav-btn {
   text-decoration: none;
-  color: var(--text);
   cursor: pointer;
 }
