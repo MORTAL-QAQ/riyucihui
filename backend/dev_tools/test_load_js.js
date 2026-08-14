@@ -58,7 +58,7 @@ const prompt = () => null;
 const sandbox = { window, document, location, sessionStorage, fetch, URL, confirm, prompt, console };
 vm.createContext(sandbox);
 
-const base = path.join(__dirname, "..", "frontend", "js");
+const base = path.join(__dirname, "..", "..", "frontend", "js");
 const code = ["api.js", "common.js", "app.js"]
   .map((f) => fs.readFileSync(path.join(base, f), "utf8"))
   .join("\n;\n");

@@ -36,8 +36,7 @@ def nav_block(current):
             style = NORMAL_STYLE
             a = f'<a href="{href}" style="{style}">{label}</a>'
         lines.append("            " + a)
-    if current == "admin":
-        lines.append("            " + f'<a href="/admin" style="{ACTIVE_STYLE}">🛡 管理</a>')
+    # 「管理」按钮由 common.js 按 isAdmin 动态注入（普通用户不可见），此处不静态输出
     return "\n".join(lines) + "\n"
 
 def read(p):

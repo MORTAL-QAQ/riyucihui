@@ -152,7 +152,28 @@ async function loadCurrentUser() {
   if (el) el.textContent = me.username;
   const navAdmin = $("#nav-admin");
   if (navAdmin) navAdmin.style.display = isAdmin ? "" : "none";
+  injectAdminNav();
   return me;
+}
+
+// ── 顶栏「管理」按钮：仅管理员可见（动态注入，普通用户顶栏不出现） ──
+const ADMIN_NAV_STYLE =
+  "display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;";
+const ADMIN_NAV_ACTIVE_STYLE =
+  "display:inline-flex; align-items:center; gap:4px; color:#fff; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(99,102,241,0.35); border:1px solid rgba(129,140,248,0.4);";
+
+function injectAdminNav() {
+  if (!isAdmin) return;
+  // 独立子页顶栏导航容器（SPA 首页无此结构，自动跳过）
+  const navWrap = document.querySelector('.subpage-header div[style*="flex-wrap:wrap"]');
+  if (!navWrap) return;
+  if (navWrap.querySelector('a[href="/admin"]')) return; // 防重复注入
+  const a = document.createElement("a");
+  a.href = "/admin";
+  a.textContent = "🛡 管理";
+  const current = location.pathname.replace(/^\/+|\/+$/g, "");
+  a.style.cssText = current === "admin" ? ADMIN_NAV_ACTIVE_STYLE : ADMIN_NAV_STYLE;
+  navWrap.appendChild(a);
 }
 
 function bindLogout() {
