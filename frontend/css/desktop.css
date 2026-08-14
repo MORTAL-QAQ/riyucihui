@@ -53,6 +53,13 @@ input::placeholder {
   display: flex;
   min-height: 100vh;
 }
+/* #main-app 占满 #app（sidebar 为 fixed 脱离文档流）：无此规则时 flex 项目按内容收缩宽度，
+   导致 main 的 margin 居中基于收缩宽度计算而失效（内容偏左） */
+#main-app {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
 
 /* ===== 侧边栏导航 ===== */
 .sidebar {
