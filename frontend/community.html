@@ -14,14 +14,32 @@
   <body class="subpage">
     <div id="app">
       <div id="main-app">
-        <!-- 独立子页顶栏（内联样式兜底：不依赖外部 CSS 加载/缓存，保证完整可见） -->
+        <!-- 独立子页顶栏（内联样式：不依赖 CSS 缓存；左侧导航，右侧贴最右） -->
         <header class="subpage-header"
                 style="position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
-          <a class="subpage-nav-btn" href="/"
-             style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
-            <span>🏠</span> 返回首页
-          </a>
-          <div class="subpage-header-actions" style="display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0;">
+            <a href="/"
+               style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
+              <span>🏠</span> 返回首页
+            </a>
+            <a href="/wordbank"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📖 词库
+            </a>
+            <a href="/study"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              📝 背词
+            </a>
+            <a href="/generate"
+               style="display:inline-flex; align-items:center; gap:4px; color:#d5d8e6; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid transparent;">
+              ✦ 生成
+            </a>
+            <a href="/community"
+               style="display:inline-flex; align-items:center; gap:4px; color:#fff; text-decoration:none; font-size:13px; padding:7px 12px; border-radius:999px; background:rgba(99,102,241,0.35); border:1px solid rgba(129,140,248,0.4);">
+              💬 社区
+            </a>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
             <a href="/settings"
                style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent;">
               ⚙ 设置
