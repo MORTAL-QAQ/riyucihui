@@ -14,12 +14,22 @@
   <body class="subpage">
     <div id="app">
       <div id="main-app">
-        <!-- 独立子页顶栏：返回首页 + 设置 + 退出（无侧边栏，阶段二） -->
-        <header class="subpage-header">
-          <a class="subpage-nav-btn" href="/"><span>🏠</span> 返回首页</a>
-          <div class="subpage-header-actions">
-            <a class="btn btn-outline btn-sm subpage-btn" href="/settings">⚙ 设置</a>
-            <button class="btn btn-outline btn-sm subpage-btn" id="btn-logout">退出</button>
+        <!-- 独立子页顶栏（内联样式兜底：不依赖外部 CSS 加载/缓存，保证完整可见） -->
+        <header class="subpage-header"
+                style="position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 20px; background:linear-gradient(135deg,#1a1a2e,#2d2a4a);">
+          <a class="subpage-nav-btn" href="/"
+             style="display:inline-flex; align-items:center; gap:6px; color:#e5e7eb; text-decoration:none; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);">
+            <span>🏠</span> 返回首页
+          </a>
+          <div class="subpage-header-actions" style="display:flex; align-items:center; gap:8px;">
+            <a href="/settings"
+               style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; text-decoration:none; background:transparent;">
+              ⚙ 设置
+            </a>
+            <button id="btn-logout" type="button"
+                    style="display:inline-flex; align-items:center; gap:4px; color:#e5e7eb; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:6px 12px; font-size:13px; background:transparent; cursor:pointer;">
+              退出
+            </button>
           </div>
         </header>
 
