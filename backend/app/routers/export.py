@@ -25,6 +25,7 @@ from ..services.pdf_service import (
     _encode_filename,
     _header_footer,
     _jp_font_name,
+    jlpt_color as _jlpt_color,
 )
 from ..services import word_service
 
@@ -113,10 +114,8 @@ def batch_export_pdf(
             elements.append(Spacer(1, 8))
             # Inline essay rendering using same logic as generate_essay_pdf
             if essay.jlpt_level:
-                jlpt_color = {"N1": "#ef4444", "N2": "#f97316", "N3": "#6366f1",
-                              "N4": "#22c55e", "N5": "#9ca3af"}.get(essay.jlpt_level, "#9ca3af")
                 elements.append(Paragraph(
-                    f'<font color="{jlpt_color}"><b>{_esc(essay.jlpt_level)}</b></font>',
+                    f'<font color="{_jlpt_color(essay.jlpt_level)}"><b>{_esc(essay.jlpt_level)}</b></font>',
                     styles["small"],
                 ))
                 elements.append(Spacer(1, 4))
@@ -141,10 +140,8 @@ def batch_export_pdf(
 
             elements.append(Paragraph(f"完型填空 — {_esc(cloze.title)}", styles["title"]))
             if cloze.jlpt_level:
-                jlpt_color = {"N1": "#ef4444", "N2": "#f97316", "N3": "#6366f1",
-                              "N4": "#22c55e", "N5": "#9ca3af"}.get(cloze.jlpt_level, "#9ca3af")
                 elements.append(Paragraph(
-                    f'<font color="{jlpt_color}"><b>{_esc(cloze.jlpt_level)}</b></font>',
+                    f'<font color="{_jlpt_color(cloze.jlpt_level)}"><b>{_esc(cloze.jlpt_level)}</b></font>',
                     styles["small"],
                 ))
                 elements.append(Spacer(1, 4))

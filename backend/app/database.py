@@ -159,6 +159,25 @@ def _run_migrations_inner():
         ))
         conn.commit()
 
+        # usage_records 复合索引：每日限额统计（#33）
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_usage_user_kind_created "
+            "ON usage_records (user_id, kind, created_at)"
+        ))
+        conn.commit()
+
+        # words 全文/相似度搜索（#34）：仅 PostgreSQL 启用 pg_trgm + GIN 索引；
+        # SQLite 开发环境跳过（LIKE 前导通配符在 SQLite 下无法利用索引）
+        if dialect == "postgresql":
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+            conn.commit()
+            for col in ("japanese", "kana", "chinese"):
+                conn.execute(text(
+                    f"CREATE INDEX IF NOT EXISTS ix_words_{col}_trgm "
+                    f"ON words USING gin ({col} gin_trgm_ops)"
+                ))
+                conn.commit()
+
         # words — image_base64 column (added for AI image generation feature)
         existing_w_img = {c["name"] for c in inspector.get_columns("words")}
         if "image_base64" not in existing_w_img:

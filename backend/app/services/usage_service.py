@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .. import config
 from ..database import engine
 from ..models import UsageRecord
 
@@ -77,17 +78,17 @@ def get_user_daily_limit(db: Session, user_id: int, kind: str) -> int | None:
     if user is None:
         return 0
     if _is_ai_kind(kind):
-        # 未设置时默认25次/天（管理员除外，管理员 unlimited）
-        return user.daily_ai_limit if user.daily_ai_limit is not None else (None if user.is_admin else 25)
+        # 未设置时默认 25 次/天（管理员除外，管理员 unlimited）
+        return user.daily_ai_limit if user.daily_ai_limit is not None else (None if user.is_admin else config.DEFAULT_DAILY_AI_LIMIT)
     if kind == "voice":
-        # 未设置时默认50次/天（管理员除外，管理员 unlimited）
-        return user.daily_voice_limit if user.daily_voice_limit is not None else (None if user.is_admin else 50)
+        # 未设置时默认 50 次/天（管理员除外，管理员 unlimited）
+        return user.daily_voice_limit if user.daily_voice_limit is not None else (None if user.is_admin else config.DEFAULT_DAILY_VOICE_LIMIT)
     if kind == "image_generation":
-        # 未设置时默认3张/天（管理员除外，管理员 unlimited）
-        return user.daily_image_limit if user.daily_image_limit is not None else (None if user.is_admin else 3)
+        # 未设置时默认 3 张/天（管理员除外，管理员 unlimited）
+        return user.daily_image_limit if user.daily_image_limit is not None else (None if user.is_admin else config.DEFAULT_DAILY_IMAGE_LIMIT)
     if kind == "generated_words":
-        # 未设置时默认100个/天（管理员除外，管理员 unlimited）
-        return user.daily_word_limit if user.daily_word_limit is not None else (None if user.is_admin else 100)
+        # 未设置时默认 100 个/天（管理员除外，管理员 unlimited）
+        return user.daily_word_limit if user.daily_word_limit is not None else (None if user.is_admin else config.DEFAULT_DAILY_WORD_LIMIT)
     return None
 
 

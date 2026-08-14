@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth import create_access_token, get_admin_user, get_current_user, hash_password, verify_password
+from .. import config
 from ..database import get_db
 from ..models import LoginHistory, User
 from ..schemas import USERNAME_PATTERN, LoginRequest, RegisterRequest, TokenResponse, UserOut
@@ -34,10 +35,10 @@ def register(
     user = User(
         username=req.username,
         password_hash=hash_password(req.password),
-        daily_ai_limit=25,
-        daily_image_limit=3,
-        daily_word_limit=100,
-        daily_voice_limit=50,
+        daily_ai_limit=config.DEFAULT_DAILY_AI_LIMIT,
+        daily_image_limit=config.DEFAULT_DAILY_IMAGE_LIMIT,
+        daily_word_limit=config.DEFAULT_DAILY_WORD_LIMIT,
+        daily_voice_limit=config.DEFAULT_DAILY_VOICE_LIMIT,
     )
     db.add(user)
     try:
@@ -90,10 +91,10 @@ def admin_create_user(
     user = User(
         username=req.username,
         password_hash=hash_password(req.password),
-        daily_ai_limit=25,
-        daily_image_limit=3,
-        daily_word_limit=100,
-        daily_voice_limit=50,
+        daily_ai_limit=config.DEFAULT_DAILY_AI_LIMIT,
+        daily_image_limit=config.DEFAULT_DAILY_IMAGE_LIMIT,
+        daily_word_limit=config.DEFAULT_DAILY_WORD_LIMIT,
+        daily_voice_limit=config.DEFAULT_DAILY_VOICE_LIMIT,
     )
     db.add(user)
     try:

@@ -71,6 +71,11 @@ class UsageRecord(Base):
     tokens_used = Column(Integer, default=0)                # 消耗的 Token 数量（流式调用为估算值）
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    __table_args__ = (
+        # 每日限额统计热路径：WHERE user_id=? AND kind=? AND created_at>=?（#33）
+        Index("ix_usage_user_kind_created", "user_id", "kind", "created_at"),
+    )
+
 
 class Word(Base):
     """日语单词表。

@@ -62,6 +62,30 @@ def _build_client() -> OpenAI:
     return _ai_client
 
 
+def _chat(system_prompt: str, user_prompt: str, temperature: float = 0.8,
+          max_tokens: int = 4096, stream: bool = False):
+    """统一的 DeepSeek 对话调用（#44：替代 8 处重复的 create 调用）。"""
+    client = _build_client()
+    return client.chat.completions.create(
+        model=config.DEEPSEEK_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=temperature,
+        max_tokens=max_tokens,
+        stream=stream,
+    )
+
+
+def _response_content(response) -> str:
+    """从非流式响应提取文本内容。"""
+    content = response.choices[0].message.content
+    if not content:
+        raise RuntimeError("DeepSeek API返回了空响应")
+    return content
+
+
 def _parse_response(text: str) -> list[dict]:
     """Robust JSON extraction from LLM response."""
     # Strip markdown fences if present
@@ -107,23 +131,11 @@ def generate_words(
 ) -> tuple[list[dict], int]:
     """Call DeepSeek API to generate Japanese words for the given topic.
     Returns (words, total_tokens_used)."""
-    client = _build_client()
     system_prompt = SYSTEM_PROMPT.replace("{count}", str(count))
     user_prompt = _build_user_prompt(topic, difficulty, extra, count, exclude_words)
 
-    response = client.chat.completions.create(
-        model=config.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.8,
-        max_tokens=4096,
-    )
-
-    content = response.choices[0].message.content
-    if not content:
-        raise RuntimeError("DeepSeek API返回了空响应")
+    response = _chat(system_prompt, user_prompt, temperature=0.8, max_tokens=4096)
+    content = _response_content(response)
 
     tokens = response.usage.total_tokens if response.usage else 0
     return _parse_response(content), tokens
@@ -137,20 +149,10 @@ def generate_words_stream(
     exclude_words: list[str] | None = None,
 ):
     """Stream word generation from DeepSeek API. Yields dicts: {"chunk": str} or {"done": True, "result": list, "tokens": int}."""
-    client = _build_client()
     system_prompt = SYSTEM_PROMPT.replace("{count}", str(count))
     user_prompt = _build_user_prompt(topic, difficulty, extra, count, exclude_words)
 
-    response = client.chat.completions.create(
-        model=config.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.8,
-        max_tokens=4096,
-        stream=True,
-    )
+    response = _chat(system_prompt, user_prompt, temperature=0.8, max_tokens=4096, stream=True)
 
     full = ""
     for chunk in response:
@@ -234,22 +236,10 @@ def generate_essay(
 ) -> tuple[dict, int]:
     """Call DeepSeek API to generate a Japanese essay incorporating given vocabulary.
     Returns (essay_data, total_tokens_used)."""
-    client = _build_client()
     user_prompt = _build_essay_prompt(topics, word_list, word_count, jlpt_level, genre, title)
 
-    response = client.chat.completions.create(
-        model=config.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": ESSAY_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.8,
-        max_tokens=8192,
-    )
-
-    content = response.choices[0].message.content
-    if not content:
-        raise RuntimeError("DeepSeek API返回了空响应")
+    response = _chat(ESSAY_SYSTEM_PROMPT, user_prompt, temperature=0.8, max_tokens=8192)
+    content = _response_content(response)
 
     tokens = response.usage.total_tokens if response.usage else 0
     return _parse_dict_response(content), tokens
@@ -260,19 +250,9 @@ def generate_essay_stream(
     genre: str | None = None, title: str | None = None,
 ):
     """Stream essay generation. Yields {"chunk": str} or {"done": True, "result": dict}."""
-    client = _build_client()
     user_prompt = _build_essay_prompt(topics, word_list, word_count, jlpt_level, genre, title)
 
-    response = client.chat.completions.create(
-        model=config.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": ESSAY_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.8,
-        max_tokens=8192,
-        stream=True,
-    )
+    response = _chat(ESSAY_SYSTEM_PROMPT, user_prompt, temperature=0.8, max_tokens=8192, stream=True)
 
     full = ""
     for chunk in response:
@@ -360,36 +340,15 @@ GRAMMAR_COMPARE_PROMPT = """你是一位专业的日语教师。用户提供一�
 
 def _grammar_call(system_prompt: str, user_prompt: str) -> tuple[dict, int]:
     """Call DeepSeek API for grammar tasks. Returns (data, tokens)."""
-    client = _build_client()
-    response = client.chat.completions.create(
-        model=config.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.5,
-        max_tokens=2048,
-    )
-    content = response.choices[0].message.content
-    if not content:
-        raise RuntimeError("DeepSeek API返回了空响应")
+    response = _chat(system_prompt, user_prompt, temperature=0.5, max_tokens=2048)
+    content = _response_content(response)
     tokens = response.usage.total_tokens if response.usage else 0
     return _parse_dict_response(content), tokens
 
 
 def _grammar_call_stream(system_prompt: str, user_prompt: str):
     """Stream grammar analysis. Yields {"chunk": str} or {"done": True, "result": dict}."""
-    client = _build_client()
-    response = client.chat.completions.create(
-        model=config.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.5,
-        max_tokens=2048,
-        stream=True,
-    )
+    response = _chat(system_prompt, user_prompt, temperature=0.5, max_tokens=2048, stream=True)
 
     full = ""
     for chunk in response:
@@ -500,24 +459,12 @@ def generate_cloze(
 ) -> tuple[dict, int]:
     """Call DeepSeek API to generate a cloze exercise passage.
     Returns (cloze_data, total_tokens_used)."""
-    client = _build_client()
     user_prompt = _build_cloze_prompt(topics, word_list, length, jlpt_level)
     blank_count = max(3, min(15, length // 80))
     system_prompt = CLOZE_SYSTEM_PROMPT.replace("{length}", str(length)).replace("{blank_count}", str(blank_count))
 
-    response = client.chat.completions.create(
-        model=config.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.8,
-        max_tokens=4096,
-    )
-
-    content = response.choices[0].message.content
-    if not content:
-        raise RuntimeError("DeepSeek API返回了空响应")
+    response = _chat(system_prompt, user_prompt, temperature=0.8, max_tokens=4096)
+    content = _response_content(response)
 
     tokens = response.usage.total_tokens if response.usage else 0
     return _parse_dict_response(content), tokens
@@ -527,21 +474,11 @@ def generate_cloze_stream(
     topics: list[str], word_list: list[str], length: int, jlpt_level: str,
 ):
     """Stream cloze generation. Yields {"chunk": str} or {"done": True, "result": dict}."""
-    client = _build_client()
     user_prompt = _build_cloze_prompt(topics, word_list, length, jlpt_level)
     blank_count = max(3, min(15, length // 80))
     system_prompt = CLOZE_SYSTEM_PROMPT.replace("{length}", str(length)).replace("{blank_count}", str(blank_count))
 
-    response = client.chat.completions.create(
-        model=config.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.8,
-        max_tokens=4096,
-        stream=True,
-    )
+    response = _chat(system_prompt, user_prompt, temperature=0.8, max_tokens=4096, stream=True)
 
     full = ""
     for chunk in response:

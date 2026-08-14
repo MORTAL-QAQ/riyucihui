@@ -43,9 +43,13 @@ def get_words(
     if topic:
         stmt = stmt.where(Word.topic == topic)
     if search:
-        pattern = f"%{search}%"
+        # 转义 LIKE 通配符 %/_（#11），否则用户搜索 "%" 会匹配全部记录
+        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
         stmt = stmt.where(
-            Word.japanese.like(pattern) | Word.kana.like(pattern) | Word.chinese.like(pattern)
+            Word.japanese.like(pattern, escape="\\")
+            | Word.kana.like(pattern, escape="\\")
+            | Word.chinese.like(pattern, escape="\\")
         )
     # count
     count_stmt = select(func.count()).select_from(stmt.subquery())

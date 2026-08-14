@@ -62,3 +62,9 @@ SECRET_KEY = _SECRET_KEY
 
 ALGORITHM = "HS256"                                              # JWT 签名算法
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # Token 有效期（默认24小时）
+
+# ── 默认每日限额（#45：集中管理，auth 注册与 usage_service 共用，可通过环境变量覆盖） ──
+DEFAULT_DAILY_AI_LIMIT = int(os.getenv("DEFAULT_DAILY_AI_LIMIT", "25"))
+DEFAULT_DAILY_IMAGE_LIMIT = int(os.getenv("DEFAULT_DAILY_IMAGE_LIMIT", "3"))
+DEFAULT_DAILY_WORD_LIMIT = int(os.getenv("DEFAULT_DAILY_WORD_LIMIT", "100"))
+DEFAULT_DAILY_VOICE_LIMIT = int(os.getenv("DEFAULT_DAILY_VOICE_LIMIT", "50"))

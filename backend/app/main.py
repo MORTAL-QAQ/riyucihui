@@ -75,14 +75,10 @@ async def lifespan(app: FastAPI):
     run_migrations()
 
     # 后台定期 gc：每 300 次请求或 30 秒执行一次
-    gc_counter = [0]
     async def periodic_gc():
         while True:
             await asyncio.sleep(30)
             gc.collect()
-            # 释放 Python 内存归还 OS（需要 glibc 2.31+）
-            if hasattr(os, 'sched_yield'):
-                pass
     gc_task = asyncio.create_task(periodic_gc())
 
     if voicevox_manager.check_engine():

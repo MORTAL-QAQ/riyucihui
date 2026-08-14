@@ -11,7 +11,7 @@ Design:
 
 import base64
 import html
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
 from urllib.parse import quote
 
@@ -47,6 +47,173 @@ _JLPT_COLORS: dict[str, str] = {
     "N4": "#22c55e",
     "N5": "#9ca3af",
 }
+
+
+def jlpt_color(level: str | None) -> str:
+    """返回 JLPT 等级对应的徽章颜色（#42：集中定义，避免多处内联字典重复）。"""
+    return _JLPT_COLORS.get(level or "", "#9ca3af")
+
+
+def generate_study_report_pdf(db, user_id: int) -> BytesIO:
+    """生成学习进度报告 PDF（#43：从 routers/study.py 下沉，集中 PDF 渲染逻辑）。
+
+    包含：学习统计概览、SM-2 阶段分布、待复习单词列表。
+    """
+    from sqlalchemy import func
+
+    from ..models import StudyRecord, Word
+
+    font_name = _jp_font_name()
+    styles = _build_styles(font_name)
+    buf = BytesIO()
+
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        rightMargin=_MARGIN,
+        leftMargin=_MARGIN,
+        topMargin=_MARGIN + 8,
+        bottomMargin=_MARGIN + 16,
+        title="学习报告",
+        author="多模态日语词汇学习",
+        creator="多模态日语词汇学习 PDF Export",
+    )
+
+    today = date.today()
+    elements: list = []
+
+    # ── Title ──
+    elements.append(Paragraph("多模态日语词汇学习 — 学习报告", styles["title"]))
+    elements.append(Spacer(1, 12))
+
+    # ── Stats ──
+    total_learned = db.query(func.count(StudyRecord.id)).filter(
+        StudyRecord.user_id == user_id
+    ).scalar() or 0
+
+    total_words = db.query(func.count(Word.id)).filter(
+        Word.user_id == user_id
+    ).scalar() or 0
+
+    mastered = db.query(func.count(StudyRecord.id)).filter(
+        StudyRecord.user_id == user_id,
+        StudyRecord.stage >= 5,
+    ).scalar() or 0
+
+    due_review = db.query(func.count(StudyRecord.id)).filter(
+        StudyRecord.user_id == user_id,
+        StudyRecord.next_review_date <= today,
+        StudyRecord.stage < 7,
+    ).scalar() or 0
+
+    today_reviewed = db.query(func.count(StudyRecord.id)).filter(
+        StudyRecord.user_id == user_id,
+        StudyRecord.last_review_date == today,
+    ).scalar() or 0
+
+    stats_data = [
+        ["总词库", "已学习", "掌握中", "待复习", "今日已复习"],
+        [str(total_words), str(total_learned), str(mastered), str(due_review), str(today_reviewed)],
+    ]
+    stats_tbl = Table(stats_data, colWidths=[90, 90, 90, 90, 100])
+    stats_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_name),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), _BRAND),
+        ("BACKGROUND", (0, 1), (-1, 1), _STRIPE),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(stats_tbl)
+    elements.append(Spacer(1, 20))
+
+    # ── SM-2 Stage distribution ──
+    elements.append(Paragraph("SM-2 阶段分布", styles["heading"]))
+    stage_counts = db.execute(
+        db.query(StudyRecord.stage, func.count(StudyRecord.id))
+        .filter(StudyRecord.user_id == user_id)
+        .group_by(StudyRecord.stage)
+        .order_by(StudyRecord.stage)
+    ).all()
+    stage_map = {s: c for s, c in stage_counts}
+
+    stage_labels = ["阶段0\n(新卡)", "阶段1\n(1天)", "阶段2\n(2-3天)", "阶段3\n(4-7天)",
+                    "阶段4\n(8-21天)", "阶段5\n(22-60天)", "阶段6\n(61-180天)", "阶段7\n(已掌握)"]
+    stage_data = [["阶段", "数量", "进度"]]
+    max_count = max(stage_map.values()) if stage_map else 1
+    for s in range(8):
+        cnt = stage_map.get(s, 0)
+        bar = "█" * max(1, int(cnt / max(max_count, 1) * 20))
+        stage_data.append([stage_labels[s], str(cnt), bar])
+
+    stage_tbl = Table(stage_data, colWidths=[120, 60, 280])
+    stage_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_name),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), _BRAND),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, _STRIPE]),
+        ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    elements.append(stage_tbl)
+    elements.append(Spacer(1, 20))
+
+    # ── Due review word list ──
+    if due_review > 0:
+        elements.append(Paragraph(f"待复习单词（共 {due_review} 个）", styles["heading"]))
+        due_words = (
+            db.query(Word, StudyRecord)
+            .join(StudyRecord, Word.id == StudyRecord.word_id)
+            .filter(
+                StudyRecord.user_id == user_id,
+                StudyRecord.next_review_date <= today,
+                StudyRecord.stage < 7,
+            )
+            .order_by(StudyRecord.stage, StudyRecord.next_review_date)
+            .limit(50)
+            .all()
+        )
+        dw_header = ["序号", "日语", "假名", "中文", "阶段", "间隔(天)"]
+        dw_data = [dw_header]
+        for i, (w, sr) in enumerate(due_words):
+            dw_data.append([
+                str(i + 1), _esc(w.japanese), _esc(w.kana), _esc(w.chinese),
+                str(sr.stage), str(sr.interval or 0),
+            ])
+        dw_tbl = Table(dw_data, colWidths=[30, 72, 72, 72, 36, 48])
+        dw_tbl.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), font_name),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("BACKGROUND", (0, 0), (-1, 0), _BRAND),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, _STRIPE]),
+            ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        elements.append(dw_tbl)
+
+    elements.append(Spacer(1, 20))
+    now_dt = datetime.now()
+    elements.append(Paragraph(
+        f"报告生成时间: {now_dt.strftime('%Y-%m-%d %H:%M')}",
+        styles["footer"],
+    ))
+
+    doc.build(elements, onFirstPage=lambda c, d: _header_footer(c, d, "学习报告"),
+               onLaterPages=lambda c, d: _header_footer(c, d, "学习报告"))
+    buf.seek(0)
+    return buf
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -351,9 +518,8 @@ def _word_card(w, font_name: str, styles: dict) -> list:
 
     # JLPT badge
     if w.jlpt_level:
-        jlpt_color = _JLPT_COLORS.get(w.jlpt_level, "#9ca3af")
         parts.append(Paragraph(
-            f'<font color="{jlpt_color}" size="8"><b>{_esc(w.jlpt_level)}</b></font>',
+            f'<font color="{jlpt_color(w.jlpt_level)}" size="8"><b>{_esc(w.jlpt_level)}</b></font>',
             styles["small"],
         ))
 
@@ -400,9 +566,8 @@ def generate_essay_pdf(essay) -> BytesIO:
     elements: list = []
     elements.append(Paragraph(_esc(essay.title), styles["title"]))
     if essay.jlpt_level:
-        jlpt_color = _JLPT_COLORS.get(essay.jlpt_level, "#9ca3af")
         elements.append(Paragraph(
-            f'<font color="{jlpt_color}"><b>{_esc(essay.jlpt_level)}</b></font>',
+            f'<font color="{jlpt_color(essay.jlpt_level)}"><b>{_esc(essay.jlpt_level)}</b></font>',
             styles["small"],
         ))
         elements.append(Spacer(1, 8))
@@ -454,9 +619,8 @@ def generate_cloze_pdf(cloze) -> BytesIO:
     elements: list = []
     elements.append(Paragraph(f"完型填空 — {_esc(cloze.title)}", styles["title"]))
     if cloze.jlpt_level:
-        jlpt_color = _JLPT_COLORS.get(cloze.jlpt_level, "#9ca3af")
         elements.append(Paragraph(
-            f'<font color="{jlpt_color}"><b>{_esc(cloze.jlpt_level)}</b></font>',
+            f'<font color="{jlpt_color(cloze.jlpt_level)}"><b>{_esc(cloze.jlpt_level)}</b></font>',
             styles["small"],
         ))
         elements.append(Spacer(1, 8))

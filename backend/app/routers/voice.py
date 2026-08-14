@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -90,17 +91,18 @@ async def synthesize(
     db: Session = Depends(get_db),
     _ip_rate: None = Depends(VOICE_IP_LIMIT),
 ):
-    allowed, msg = check_limit(db, user.id, "voice")
+    # #35：async 端点中同步 DB 调用经线程池执行，避免阻塞事件循环
+    allowed, msg = await run_in_threadpool(check_limit, db, user.id, "voice")
     if not allowed:
         raise HTTPException(status_code=429, detail=msg)
 
-    settings = read_settings()
+    settings = await run_in_threadpool(read_settings)
     speaker = settings["speaker"]
     key = _cache_key(req.text, settings, user.id)
 
     cached = _get_cached(key)
     if cached is not None:
-        record_usage(db, user.id, "voice", len(req.text))
+        await run_in_threadpool(record_usage, db, user.id, "voice", len(req.text))
         return Response(content=cached, media_type="audio/wav")
 
     async with httpx.AsyncClient(timeout=30) as client:
@@ -134,5 +136,5 @@ async def synthesize(
 
         audio = synth_resp.content
         _set_cache(key, audio)
-        record_usage(db, user.id, "voice", len(req.text))
+        await run_in_threadpool(record_usage, db, user.id, "voice", len(req.text))
         return Response(content=audio, media_type="audio/wav")
