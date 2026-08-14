@@ -231,10 +231,26 @@ let essaySelectedTopics = [];
 let essayLastConfig = null;
 
 // ===== 导航切换 =====
-function switchTab(tab) {
+// URL 路由化（阶段一）：tab 与路径一一对应（/community、/generate …），
+// 支持分享/收藏/刷新保持页面、浏览器前进后退。
+const VALID_TABS = [
+  "community", "generate", "wordbank", "study", "essay", "cloze",
+  "image", "grammar", "saved", "achievement", "settings", "admin",
+];
+
+function tabFromPath() {
+  const p = location.pathname.replace(/^\/+|\/+$/g, "");
+  return p;
+}
+
+function switchTab(tab, opts = {}) {
+  if (!VALID_TABS.includes(tab)) return;
   currentTab = tab;
   navBtns.forEach((b) => b.classList.remove("active"));
   pages.forEach((p) => p.classList.remove("active"));
+
+  // 同步 URL（popstate/初始加载时 noUrl 不重复入历史）
+  if (!opts.noUrl) history.pushState({ tab }, "", "/" + tab);
 
   if (tab === "community") {
     navCommunity.classList.add("active");
@@ -302,6 +318,18 @@ navAchievement.addEventListener("click", () => switchTab("achievement"));
 navSettings.addEventListener("click", () => switchTab("settings"));
 navAdmin.addEventListener("click", () => switchTab("admin"));
 btnGoGenerate.addEventListener("click", () => switchTab("generate"));
+
+// URL 路由：直达路径（/community 等）与浏览器前进/后退
+(function initRouter() {
+  const initTab = tabFromPath();
+  if (VALID_TABS.includes(initTab)) {
+    switchTab(initTab, { noUrl: true });
+  }
+  window.addEventListener("popstate", () => {
+    const t = tabFromPath();
+    if (VALID_TABS.includes(t)) switchTab(t, { noUrl: true });
+  });
+})();
 
 // ===== 发音 =====
 let audioCtx = null;

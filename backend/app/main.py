@@ -24,9 +24,9 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
@@ -177,6 +177,24 @@ def index():
     html = html.replace("{api_version}", _file_hash("js/api.js"))
     html = html.replace("{app_version}", _file_hash("js/app.js"))
     return html
+
+
+@app.get("/{full_path:path}")
+def spa_fallback(full_path: str):
+    """SPA 路由回退（URL 化）：支持 /community 等无后缀路径直达 index.html。
+
+    - API 路径：不归前端管，返回 404（API 路由已先注册优先匹配）
+    - 真实静态文件（css/js/img/...）：返回文件本身
+    - 其余路径：回退 index.html（前端 history 路由接管）
+    生产环境由 nginx `try_files $uri $uri/ /index.html` 承担相同职责。
+    """
+    if full_path.startswith("api/") or full_path == "api":
+        raise HTTPException(status_code=404, detail="Not Found")
+    if full_path:
+        candidate = FRONTEND_DIR / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+    return index()
 
 
 # 前端静态文件 — 必须在所有 API 路由之后挂载，否则会拦截所有请求
