@@ -13,7 +13,7 @@
 - 语音合成（voice）：独立计数，默认 50 次/天（管理员不限）
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -22,6 +22,17 @@ from ..database import engine
 from ..models import UsageRecord
 
 _AI_KINDS = {"essay", "cloze", "grammar_analyze", "grammar_correct", "grammar_compare"}
+
+# 北京时间（Asia/Shanghai，无夏令时）。每日限额按北京时间零点重置，
+# 而非 UTC 零点（后者导致北京早上 8 点才刷新）。
+CST = timezone(timedelta(hours=8))
+
+
+def _today_start_utc() -> datetime:
+    """北京时间今日 0 点对应的 UTC 时间。"""
+    now_cst = datetime.now(CST)
+    today_start_cst = now_cst.replace(hour=0, minute=0, second=0, microsecond=0)
+    return today_start_cst.astimezone(timezone.utc)
 
 
 def _is_ai_kind(kind: str) -> bool:
@@ -48,8 +59,8 @@ def record_usage(_caller_db, user_id: int, kind: str, tokens_used: int = 0):
 
 
 def count_today(db: Session, user_id: int, kind: str) -> int:
-    """Count today's usage for a given user and kind."""
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    """Count today's usage for a given user and kind（按北京时间零点重置）。"""
+    today = _today_start_utc()
     stmt = select(func.count(UsageRecord.id)).where(
         UsageRecord.user_id == user_id,
         UsageRecord.kind == kind,
@@ -130,7 +141,7 @@ def get_usage_summary(db: Session) -> dict:
 
 def get_user_usage(db: Session, user_id: int) -> dict:
     """Get today's and total usage for a single user."""
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today = _today_start_utc()
 
     def _count(kind, since=None):
         stmt = select(func.count(UsageRecord.id)).where(

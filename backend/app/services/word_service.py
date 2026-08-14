@@ -57,7 +57,7 @@ def get_topics(db: Session, user_id: int) -> list[dict]:
         select(
             Word.topic,
             func.count(Word.id),
-            func.max(Word.jlpt_level),  # 取词单中最高的 JLPT 等级作为代表
+            func.min(Word.jlpt_level),  # 取词单中最高难度等级作为代表：字符串序 N1<N2<...<N5，min 即 N1
         )
         .where(Word.user_id == user_id)
         .group_by(Word.topic)

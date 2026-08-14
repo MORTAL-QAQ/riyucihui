@@ -43,6 +43,11 @@ scp -r frontend/css frontend/js frontend/index.html "${SERVER_USER}@${SERVER_IP}
 echo "  → 配置文件"
 scp docker-compose.yml Dockerfile nginx.conf .dockerignore "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/"
 
+# 运维脚本（备份 / 证书 / secrets 初始化）
+echo "  → scripts/ 运维脚本"
+ssh "${SERVER_USER}@${SERVER_IP}" "mkdir -p ${SERVER_PROJECT_DIR}/scripts"
+scp -r scripts/*.sh "${SERVER_USER}@${SERVER_IP}:${SERVER_PROJECT_DIR}/scripts/"
+
 # ── secrets/ 密钥目录（不自动覆盖，避免本地占位符覆盖服务器真实密钥）──
 # Docker secrets 源文件（SECRET_KEY / API Key / DB 密码）。服务器上已存在时跳过；
 # 首次部署或需要轮换密钥时，请在服务器上手动维护：
@@ -74,6 +79,10 @@ ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && docker compose re
 echo -e "${GREEN}[4/4] 等待服务健康检查...${NC}"
 sleep 5
 ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && docker compose ps"
+
+# ── 5. 注册数据库备份 cron（幂等：先移除旧条目再追加） ──
+echo -e "${GREEN}[5/5] 配置每日数据库备份（cron 03:00）...${NC}"
+ssh "${SERVER_USER}@${SERVER_IP}" "cd ${SERVER_PROJECT_DIR} && mkdir -p backups && (crontab -l 2>/dev/null | grep -v 'scripts/backup_db.sh' ; echo '0 3 * * * cd ${SERVER_PROJECT_DIR} && bash scripts/backup_db.sh >> backups/backup.log 2>&1') | crontab - && echo '  crontab 已注册:' && crontab -l | grep backup_db"
 
 echo ""
 echo -e "${GREEN}✅ 部署完成！${NC}"

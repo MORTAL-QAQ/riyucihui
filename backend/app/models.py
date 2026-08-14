@@ -16,7 +16,18 @@
 
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 
 from .database import Base
 
@@ -104,6 +115,13 @@ class StudyRecord(Base):
     easiness_factor = Column(Float, default=2.5)   # SM-2 简易度因子 EF，范围 [1.3, ∞)
     interval = Column(Integer, default=0)          # SM-2 当前复习间隔（天）
     repetition = Column(Integer, default=0)        # SM-2 连续正确次数
+
+    __table_args__ = (
+        # 待复习查询（study/due）：WHERE user_id=? AND next_review_date<=? ORDER BY next_review_date
+        Index("ix_study_user_next", "user_id", "next_review_date"),
+        # 成就连续学习天数（streak）：WHERE user_id=? AND last_review_date IS NOT NULL ORDER BY last_review_date
+        Index("ix_study_user_lastreview", "user_id", "last_review_date"),
+    )
 
 
 class Essay(Base):

@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth import create_access_token, get_admin_user, get_current_user, hash_password, verify_password
 from ..database import get_db
 from ..models import LoginHistory, User
 from ..schemas import USERNAME_PATTERN, LoginRequest, RegisterRequest, TokenResponse, UserOut
-from ..services.achievement_service import check_achievements
 from ..services.rate_limiter import check_username_rate, rate_limit
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -26,6 +26,7 @@ def register(
     _rate: None = Depends(REGISTER_RATE_LIMIT),
 ):
     """公开注册。"""
+    # 预检查（快速路径）；check-then-insert 存在竞态，最终以唯一约束兜底（见下方 IntegrityError）
     existing = db.execute(select(User).where(User.username == req.username)).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名已被注册")
@@ -39,7 +40,12 @@ def register(
         daily_voice_limit=50,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # 并发注册同一用户名 → 撞唯一约束，返回 409 而非 500
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名已被注册")
     db.refresh(user)
 
     token = create_access_token(user.id, user.token_version)
@@ -54,7 +60,6 @@ def register(
     db.add(login_record)
     db.commit()
 
-    check_achievements(db, user.id)
     return TokenResponse(access_token=token, username=user.username, is_admin=user.is_admin)
 
 
@@ -91,7 +96,11 @@ def admin_create_user(
         daily_voice_limit=50,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名已被注册")
     db.refresh(user)
     return {"message": f"用户 {user.username} 创建成功", "user_id": user.id, "username": user.username}
 
@@ -124,7 +133,6 @@ def login(
     db.add(login_record)
     db.commit()
 
-    check_achievements(db, user.id)
     return TokenResponse(access_token=token, username=user.username, is_admin=user.is_admin)
 
 
@@ -140,10 +148,9 @@ def logout(current_user: User = Depends(get_current_user), db: Session = Depends
 
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    new_achievements = check_achievements(db, current_user.id)
-    result = UserOut.model_validate(current_user)
-    if new_achievements:
-        result.new_achievements = [
-            {"name": a["name"], "icon": a["icon"]} for a in new_achievements
-        ]
-    return result
+    """当前用户信息。
+
+    成就检查只在触发成就的操作（保存单词/学习/写作等）后执行，不放在
+    /me 与 login 等高频路径上（每次 10+ 次聚合查询，见 #26）。
+    """
+    return UserOut.model_validate(current_user)

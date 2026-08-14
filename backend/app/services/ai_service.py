@@ -55,6 +55,9 @@ def _build_client() -> OpenAI:
         _ai_client = OpenAI(
             api_key=config.DEEPSEEK_API_KEY,
             base_url=config.DEEPSEEK_BASE_URL,
+            # 显式超时与重试：openai 库默认 10 分钟超时会长期占住 worker（#28）
+            timeout=60.0,
+            max_retries=2,
         )
     return _ai_client
 

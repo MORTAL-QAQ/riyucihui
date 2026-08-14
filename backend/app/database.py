@@ -100,6 +100,16 @@ def run_migrations():
         ))
         conn.commit()
 
+        # study_records 复合索引：待复习查询 + 成就 streak 计算（#27/#26）
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_study_user_next ON study_records (user_id, next_review_date)"
+        ))
+        conn.commit()
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_study_user_lastreview ON study_records (user_id, last_review_date)"
+        ))
+        conn.commit()
+
         # words — image_base64 column (added for AI image generation feature)
         existing_w_img = {c["name"] for c in inspector.get_columns("words")}
         if "image_base64" not in existing_w_img:
