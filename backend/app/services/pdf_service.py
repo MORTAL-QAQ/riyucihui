@@ -473,7 +473,7 @@ def _build_word_table(words, font_name: str) -> list:
             example,
         ])
 
-    col_widths = [30, 72, 72, 64, 24, 238]
+    col_widths = [28, 68, 68, 60, 22, 222]  # 合计 468pt < 可用宽度 481pt（A4 - 2×56.7mm 边距）
     tbl = Table(data, colWidths=col_widths, repeatRows=1)
     tbl.setStyle(_default_table_style(font_name))
     return [tbl]
@@ -485,12 +485,11 @@ def _build_word_cards(words, font_name: str, styles: dict) -> list:
     # Build rows of 2 cards each
     row_data: list[list] = []
     for i in range(0, len(words), 2):
-        left = _word_card(words[i], font_name, styles) if i < len(words) else []
-        right = _word_card(words[i + 1], font_name, styles) if i + 1 < len(words) else []
+        left = _word_card(words[i], font_name, styles) if i < len(words) else _empty_card()
+        right = _word_card(words[i + 1], font_name, styles) if i + 1 < len(words) else _empty_card()
         row_data.append([left, right])
 
-    card_width = (A4[0] - _MARGIN * 2) / 2 - 4
-    tbl = Table(row_data, colWidths=[card_width, card_width])
+    tbl = Table(row_data, colWidths=[card_width(), card_width()])
     tbl.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 4),
@@ -503,43 +502,74 @@ def _build_word_cards(words, font_name: str, styles: dict) -> list:
     return elements
 
 
-def _word_card(w, font_name: str, styles: dict) -> list:
-    """Build a single word card as a list of flowables."""
-    parts: list = []
+def _empty_card() -> Table:
+    """占位卡片：外层表格单元格需要单一 flowable，空卡片用单行空表格填充。"""
+    empty = Table([[""]], colWidths=[10])
+    empty.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 1),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return empty
+
+
+def _word_card(w, font_name: str, styles: dict) -> Table:
+    """Build a single word card as a nested single-column table.
+
+    用嵌套表格而非 flowable 列表：ReportLab 表格单元格直接放多个 flowable，
+    在跨页分页时是已知的重叠 bug 来源（内容堆叠）。嵌套表格保证单元格内
+    是单一 flowable，行高与分页计算正确。
+    """
+    rows: list[list] = []
 
     # Japanese + kana
     jp_text = f"<b>{_esc(w.japanese)}</b>"
     if w.kana:
         jp_text += f'  <font size="8" color="#6b7280">{_esc(w.kana)}</font>'
-    parts.append(Paragraph(jp_text, styles["card_jp"]))
+    rows.append([Paragraph(jp_text, styles["card_jp"])])
 
     # Chinese meaning
-    parts.append(Paragraph(_esc(w.chinese), styles["card_cn"]))
+    rows.append([Paragraph(_esc(w.chinese), styles["card_cn"])])
 
     # JLPT badge
     if w.jlpt_level:
-        parts.append(Paragraph(
+        rows.append([Paragraph(
             f'<font color="{jlpt_color(w.jlpt_level)}" size="8"><b>{_esc(w.jlpt_level)}</b></font>',
             styles["small"],
-        ))
+        )])
 
     # Example
     if w.example_ja:
         ex_text = _esc(w.example_ja[:80])
         if len(w.example_ja or "") > 80:
             ex_text += "..."
-        parts.append(Paragraph(
+        rows.append([Paragraph(
             f'<font size="7">{ex_text}</font>',
             styles["small"],
-        ))
+        )])
 
     # Image (if available)
     img = _decode_image(w.image_base64, max_width=100, max_height=100)
     if img:
-        parts.append(Spacer(1, 4))
-        parts.append(img)
+        rows.append([Spacer(1, 4)])
+        rows.append([img])
 
-    return parts
+    card = Table(rows, colWidths=[card_width()])
+    card.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return card
+
+
+def card_width() -> float:
+    """外层两列卡片宽度（供嵌套卡片使用，保持一致的可用宽度）。"""
+    return (A4[0] - _MARGIN * 2) / 2 - 4
 
 
 # ── Essay / Cloze / Grammar PDF export (Phase 3 placeholders) ────────────────
