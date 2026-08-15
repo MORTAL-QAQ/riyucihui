@@ -105,10 +105,10 @@ function request(url, opts = {}) {
 // 按功能分组：认证 → 单词 → 短文 → 语法 → 学习 → 设置 → 管理 → 成就 → 完型填空
 const api = {
   // ── Auth ──
-  register(username, password) {
+  register(username, password, name) {
     return request("/register", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, name: name || "" }),
     });
   },
 

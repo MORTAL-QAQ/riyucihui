@@ -27,6 +27,7 @@
 const authPage = $("#auth-page");
 const mainApp = $("#main-app");
 const authTitle = $("#auth-title");
+const authName = $("#auth-name");
 const authUsername = $("#auth-username");
 const authPassword = $("#auth-password");
 const authError = $("#auth-error");
@@ -120,11 +121,13 @@ btnAuthSwitch.addEventListener("click", () => {
     btnAuthSubmit.textContent = "注册";
     authSwitchText.textContent = "已有账号？";
     btnAuthSwitch.textContent = "登录";
+    authName.style.display = "";   // 注册模式显示「用户名（昵称）」输入
   } else {
     authTitle.textContent = "登录";
     btnAuthSubmit.textContent = "登录";
     authSwitchText.textContent = "没有账号？";
     btnAuthSwitch.textContent = "注册";
+    authName.style.display = "none";
   }
   clearAuthError();
 });
@@ -136,13 +139,22 @@ authPassword.addEventListener("keydown", (e) => {
 authUsername.addEventListener("keydown", (e) => {
   if (e.key === "Enter") authPassword.focus();
 });
+authName.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") authUsername.focus();
+});
 
 async function doAuth() {
   const username = authUsername.value.trim();
   const password = authPassword.value;
+  const regName = isRegisterMode ? authName.value.trim() : "";
 
   if (!username || !password) {
     setAuthError("请填写账号和密码");
+    return;
+  }
+
+  if (isRegisterMode && !regName) {
+    setAuthError("请填写用户名（昵称）");
     return;
   }
 
@@ -156,7 +168,7 @@ async function doAuth() {
 
   try {
     const fn = isRegisterMode ? api.register : api.login;
-    const data = await fn(username, password);
+    const data = await fn(username, password, regName);
     setToken(data.access_token);
     currentUsername = data.username;
     isAdmin = data.is_admin || false;
