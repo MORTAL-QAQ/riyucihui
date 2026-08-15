@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 class AdminUserOut(BaseModel):
     id: int
     username: str
+    name: str | None = None          # 显示名（昵称）
     is_admin: bool
     daily_ai_limit: int | None = None
     daily_voice_limit: int | None = None
@@ -189,6 +190,7 @@ def list_users(
             AdminUserOut(
                 id=uid,
                 username=u.username,
+                name=u.name or u.username,
                 is_admin=u.is_admin,
                 daily_ai_limit=u.daily_ai_limit,
                 daily_voice_limit=u.daily_voice_limit,

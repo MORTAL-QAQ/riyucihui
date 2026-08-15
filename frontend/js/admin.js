@@ -234,7 +234,8 @@ function renderAdminCards() {
   grid.innerHTML = users.map((u) => {
     const usage = u.usage || {};
     const aid = u.id;
-    const unm = esc(u.username);
+    const unm = esc(u.name || u.username);   // 主显示：昵称
+    const acc = esc(u.username);             // 次要：账号
 
     return `
     <div class="admin-user-card">
@@ -246,13 +247,14 @@ function renderAdminCards() {
         </div>
         <div class="admin-card-meta">
           <span>ID:${aid}</span>
+          <span>@${acc}</span>
           <span>单词:${u.word_count}</span>
           <span>学习:${u.study_count}</span>
         </div>
       </div>
       <div class="admin-card-remark" data-userid="${aid}">
         <span class="admin-card-remark-text">${u.remark ? esc(u.remark) : '<span class="dim">无备注</span>'}</span>
-        <button class="admin-card-remark-edit" data-action="edit-remark" data-id="${aid}" data-username="${unm}" data-remark="${u.remark ? esc(u.remark) : ''}">✎</button>
+        <button class="admin-card-remark-edit" data-action="edit-remark" data-id="${aid}" data-username="${acc}" data-remark="${u.remark ? esc(u.remark) : ''}">✎</button>
       </div>
       <div class="admin-card-body">
         ${renderLimitRow({
@@ -281,11 +283,11 @@ function renderAdminCards() {
         })}
       </div>
       <div class="admin-card-actions">
-        <button class="btn btn-outline btn-sm" data-action="toggle-admin" data-id="${aid}" data-username="${unm}" data-current="${u.is_admin}">
+        <button class="btn btn-outline btn-sm" data-action="toggle-admin" data-id="${aid}" data-username="${acc}" data-current="${u.is_admin}">
           ${u.is_admin ? "取消管理" : "设为管理"}
         </button>
-        <button class="btn btn-outline btn-sm" data-action="reset-password" data-id="${aid}" data-username="${unm}">重置密码</button>
-        <button class="btn-sm-danger" data-action="delete-user" data-id="${aid}" data-username="${unm}">删除</button>
+        <button class="btn btn-outline btn-sm" data-action="reset-password" data-id="${aid}" data-username="${acc}">重置密码</button>
+        <button class="btn-sm-danger" data-action="delete-user" data-id="${aid}" data-username="${acc}">删除</button>
       </div>
     </div>`;
   }).join("");
