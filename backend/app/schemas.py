@@ -357,9 +357,9 @@ class BatchExportRequest(BaseModel):
 
 # ── Community（社区） ──
 class PostCreate(BaseModel):
-    """发布帖子 / 公告"""
+    """发布帖子 / 公告（内容选填，可只发标题）"""
     title: str = Field(..., min_length=1, max_length=100)
-    content: str = Field(..., min_length=1, max_length=5000)
+    content: str = Field("", max_length=5000)
 
 
 class PostOut(BaseModel):
@@ -409,7 +409,7 @@ class PostDetailResponse(BaseModel):
 
 
 class AnnouncementCreate(BaseModel):
-    """管理员发布公告"""
+    """管理员发布公告（内容选填，可只发标题）"""
     title: str = Field(..., min_length=1, max_length=100)
-    content: str = Field(..., min_length=1, max_length=5000)
+    content: str = Field("", max_length=5000)
     pinned: bool = True   # 公告默认置顶

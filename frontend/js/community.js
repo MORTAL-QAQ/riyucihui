@@ -14,23 +14,44 @@ function communityEl(id) {
   return document.getElementById(id);
 }
 
+// 头像文字：用户名首字符（大写化），空名兜底
+function communityAvatarText(name) {
+  const s = (name || "?").trim();
+  return esc((s.charAt(0) || "?").toUpperCase());
+}
+
+// 头像渐变盘：按 id 稳定取色
+function communityGrad(id) {
+  return "grad-" + ((id % 6) + 1);
+}
+
 function communityCardHtml(p) {
   const isAnnouncement = p.type === "announcement";
-  const preview = p.content.length > 200 ? p.content.slice(0, 200) + "…" : p.content;
+  const preview = p.content.length > 160 ? p.content.slice(0, 160) + "…" : p.content;
   return `
     <div class="community-post ${isAnnouncement ? "announcement" : ""}" data-id="${p.id}">
       <div class="community-post-head">
-        ${isAnnouncement ? '<span class="community-tag">📢 公告</span>' : ""}
-        ${p.is_pinned ? '<span class="community-tag pin">📌 置顶</span>' : ""}
-        <span class="community-post-title">${esc(p.title)}</span>
+        <span class="community-avatar ${communityGrad(p.id)}">${communityAvatarText(p.username)}</span>
+        <div class="community-post-main">
+          <div class="community-post-title-line">
+            <span class="community-post-title">${esc(p.title)}</span>
+            ${isAnnouncement ? '<span class="community-tag">📢 公告</span>' : ""}
+            ${p.is_pinned ? '<span class="community-tag pin">📌 置顶</span>' : ""}
+          </div>
+          <div class="community-post-meta">
+            <span>👤 ${esc(p.username)}</span>
+            <span class="dot">·</span>
+            <span>🕐 ${fmtTime(p.created_at)}</span>
+          </div>
+        </div>
+        <div class="community-post-stats">
+          <span class="community-stat">👍 <b>${p.like_count}</b></span>
+          <span class="community-stat">💬 <b>${p.comment_count}</b></span>
+        </div>
       </div>
-      <div class="community-post-meta">
-        <span>👤 ${esc(p.username)}</span>
-        <span>🕐 ${fmtTime(p.created_at)}</span>
-        <span>👍 ${p.like_count}</span>
-        <span>💬 ${p.comment_count}</span>
-      </div>
-      <div class="community-post-content">${esc(preview)}</div>
+      ${p.content.trim()
+        ? `<div class="community-post-content">${esc(preview)}</div>`
+        : '<div class="community-post-content empty">（暂无内容）</div>'}
     </div>`;
 }
 
@@ -58,6 +79,11 @@ async function loadCommunity(reset = true) {
       annEl.innerHTML = "";
     }
 
+    // 横幅统计
+    communityEl("community-total").textContent = data.total;
+    communityEl("community-pinned-count").textContent = pinned.length;
+    communityEl("community-announcement-chip").style.display = pinned.length ? "" : "none";
+
     if (reset) listEl.innerHTML = "";
     listEl.innerHTML += data.posts.map(communityCardHtml).join("");
 
@@ -73,8 +99,8 @@ async function loadCommunity(reset = true) {
 async function submitCommunityPost(isAnnouncement) {
   const title = communityEl("community-title-input").value.trim();
   const content = communityEl("community-content-input").value.trim();
-  if (!title || !content) {
-    showToast("请填写标题和内容", "error");
+  if (!title) {
+    showToast("请填写标题", "error");
     return;
   }
   const btn = communityEl(isAnnouncement ? "btn-announcement-submit" : "btn-community-submit");
@@ -89,6 +115,7 @@ async function submitCommunityPost(isAnnouncement) {
     }
     communityEl("community-title-input").value = "";
     communityEl("community-content-input").value = "";
+    communityEl("community-char-count").textContent = "0";
     await loadCommunity(true);
   } catch (err) {
     handleApiError(err, isAnnouncement ? "公告发布失败" : "发布失败");
@@ -103,12 +130,18 @@ async function openCommunityDetail(postId) {
     currentCommunityDetail = data;
     communityEl("community-modal-title").textContent = data.post.title;
     communityEl("community-modal-body").innerHTML = `
-      <div class="community-detail-meta">
-        <span>👤 ${esc(data.post.username)}</span>
-        <span>🕐 ${fmtTime(data.post.created_at)}</span>
-        ${data.post.type === "announcement" ? '<span class="community-tag">📢 公告</span>' : ""}
+      <div class="community-detail-head">
+        <span class="community-avatar sm ${communityGrad(data.post.id)}">${communityAvatarText(data.post.username)}</span>
+        <div class="community-detail-meta">
+          <span class="community-detail-user">${esc(data.post.username)}</span>
+          <span class="community-detail-time">🕐 ${fmtTime(data.post.created_at)}</span>
+          ${data.post.type === "announcement" ? '<span class="community-tag">📢 公告</span>' : ""}
+          ${data.post.is_pinned ? '<span class="community-tag pin">📌 置顶</span>' : ""}
+        </div>
       </div>
-      <div class="community-detail-content">${esc(data.post.content)}</div>
+      <div class="community-detail-content${data.post.content.trim() ? "" : " empty"}">${data.post.content.trim()
+        ? esc(data.post.content)
+        : "（该帖暂无内容）"}</div>
       <div class="community-detail-like-bar">👍 ${data.post.like_count} · 💬 ${data.post.comment_count}</div>
       <div class="community-comments-title">评论（${data.comments.length}）</div>
       <div class="community-comments" id="community-comments">
@@ -117,15 +150,20 @@ async function openCommunityDetail(postId) {
               .map(
                 (c) => `
           <div class="community-comment">
-            <span class="community-comment-user">${esc(c.username)}</span>
-            <span class="community-comment-text">${esc(c.content)}</span>
-            <span class="community-comment-time">${fmtTime(c.created_at)}</span>
-            ${c.username === currentUsername || data.is_admin
-              ? `<button class="community-comment-del" data-del="${c.id}">×</button>` : ""}
+            <span class="community-avatar xs ${communityGrad(c.id)}">${communityAvatarText(c.username)}</span>
+            <div class="community-comment-main">
+              <div class="community-comment-head">
+                <span class="community-comment-user">${esc(c.username)}</span>
+                <span class="community-comment-time">${fmtTime(c.created_at)}</span>
+                ${c.username === currentUsername || data.is_admin
+                  ? `<button class="community-comment-del" data-del="${c.id}">×</button>` : ""}
+              </div>
+              <div class="community-comment-text">${esc(c.content)}</div>
+            </div>
           </div>`
               )
               .join("")
-          : '<div class="community-no-comments">还没有评论</div>'}
+          : '<div class="community-no-comments">还没有评论，快来抢沙发 🛋️</div>'}
       </div>
       <div class="community-comment-form">
         <input type="text" id="community-comment-input" class="topic-input"
@@ -236,6 +274,11 @@ communityEl("community-list").addEventListener("click", (e) => {
   if (card) openCommunityDetail(parseInt(card.dataset.id, 10));
 });
 communityEl("btn-community-more").addEventListener("click", () => loadCommunity(false));
+
+// 发布内容字数统计
+communityEl("community-content-input").addEventListener("input", (e) => {
+  communityEl("community-char-count").textContent = e.target.value.length;
+});
 
 // ── 入口：认证 → 初始化 → 加载列表 ──
 initSidebar();

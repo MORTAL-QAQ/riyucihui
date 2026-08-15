@@ -538,9 +538,23 @@ table, .table-wrap {
 .export-panel-title { font-size: 17px; }
 
 /* ── 社区（移动端：尽量少用 !important）── */
+.community-hero { padding: 20px 18px; border-radius: 14px; gap: 12px; }
+.community-hero h1 { font-size: 22px; }
+.community-hero-sub { font-size: 12px; }
+.community-hero-chips { gap: 8px; }
+.community-hero-chip { font-size: 12px; padding: 6px 12px; }
+.community-hero-chip b { font-size: 14px; }
+.community-publish { padding: 14px; }
+.community-publish-head { flex-wrap: wrap; }
+.community-publish-hint { width: 100%; }
+.community-publish-foot { flex-direction: column; align-items: stretch; }
 .community-publish-actions .btn { flex: 1; }
-.community-comment { flex-wrap: wrap; }
-.community-comment-time { width: 100%; }
+.community-post { padding: 13px 14px; }
+.community-post-head { flex-wrap: wrap; }
+.community-post-stats { margin-left: auto; }
+.community-avatar { width: 34px; height: 34px; font-size: 14px; }
+.community-comment { align-items: flex-start; }
+.community-comment-time { width: auto; margin-left: auto; }
 .community-comment-form { flex-direction: column; }
 .community-comment-form .btn { width: 100%; }
 

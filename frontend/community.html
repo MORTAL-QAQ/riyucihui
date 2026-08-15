@@ -56,9 +56,16 @@
         <!-- 内联样式强制左右居中：不依赖外部 CSS 是否加载/缓存（兼容旧版缓存场景） -->
         <main class="main" style="margin-left:auto; margin-right:auto; max-width:1200px; width:100%; box-sizing:border-box; padding:24px 20px 60px;">
           <section class="page active" id="page-community">
-            <div class="page-header">
-              <h1>社区</h1>
-              <p class="subtitle">分享学习心得，浏览大家的日语学习内容</p>
+            <!-- 社区横幅 Hero -->
+            <div class="community-hero">
+              <div class="community-hero-text">
+                <h1>💬 日语学习社区</h1>
+                <p class="community-hero-sub">分享学习心得 · 交流日语知识 · 一起进步</p>
+              </div>
+              <div class="community-hero-chips">
+                <span class="community-hero-chip">共 <b id="community-total">0</b> 篇帖子</span>
+                <span class="community-hero-chip" id="community-announcement-chip" style="display:none">📢 置顶公告 <b id="community-pinned-count">0</b></span>
+              </div>
             </div>
 
             <!-- 公告区（置顶公告） -->
@@ -66,13 +73,21 @@
 
             <!-- 发布区（普通用户发帖；管理员可发公告） -->
             <div class="community-publish">
+              <div class="community-publish-head">
+                <span class="community-publish-icon">✏️</span>
+                <span class="community-publish-title">发布新帖</span>
+                <span class="community-publish-hint">分享你的学习心得、笔记或问题（内容选填）</span>
+              </div>
               <input type="text" id="community-title-input" class="topic-input"
-                     placeholder="标题" maxlength="100" autocomplete="off" />
+                     placeholder="标题（必填）" maxlength="100" autocomplete="off" />
               <textarea id="community-content-input" class="community-content-input"
-                        placeholder="分享你的学习内容…（5000 字以内）" maxlength="5000"></textarea>
-              <div class="community-publish-actions">
-                <button class="btn btn-primary" id="btn-community-submit">发布</button>
-                <button class="btn btn-outline" id="btn-announcement-submit" style="display:none">📢 发布公告</button>
+                        placeholder="内容（选填）… 分享你的学习心得" maxlength="5000"></textarea>
+              <div class="community-publish-foot">
+                <span class="community-char-count"><b id="community-char-count">0</b>/5000</span>
+                <div class="community-publish-actions">
+                  <button class="btn btn-primary" id="btn-community-submit">✈️ 发布</button>
+                  <button class="btn btn-outline" id="btn-announcement-submit" style="display:none">📢 发布公告</button>
+                </div>
               </div>
             </div>
 
