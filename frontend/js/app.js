@@ -160,7 +160,7 @@ async function doAuth() {
     setToken(data.access_token);
     currentUsername = data.username;
     isAdmin = data.is_admin || false;
-    sidebarUsername.textContent = data.username;
+    sidebarUsername.textContent = data.name || data.username;
     if (isAdmin) {
       navAdmin.style.display = "";
     }
@@ -440,7 +440,7 @@ async function loadHome() {
       .then((data) => {
         currentUsername = data.username;
         isAdmin = data.is_admin || false;
-        sidebarUsername.textContent = data.username;
+        sidebarUsername.textContent = data.name || data.username;
         if (isAdmin) navAdmin.style.display = "";
         // 验证通过，进入主界面
         authPage.style.display = "none";

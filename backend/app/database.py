@@ -195,11 +195,16 @@ def _run_migrations_inner():
             ("daily_image_limit", "INTEGER", "INTEGER"),
             ("daily_word_limit", "INTEGER", "INTEGER"),
             ("remark", "VARCHAR(200)", "VARCHAR(200)"),
+            ("name", "VARCHAR(50)", "VARCHAR(50)"),
         ]:
             if col not in existing_u:
                 col_type = col_type_pg if dialect == "postgresql" else col_type_sqlite
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
                 conn.commit()
+
+        # name 回填：已有用户显示名默认取用户名
+        conn.execute(text("UPDATE users SET name = username WHERE name IS NULL OR name = ''"))
+        conn.commit()
 
         # usage_records table
         if "usage_records" not in inspector.get_table_names():

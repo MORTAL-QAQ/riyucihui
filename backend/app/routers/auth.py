@@ -34,6 +34,7 @@ def register(
 
     user = User(
         username=req.username,
+        name=(req.name or "").strip() or req.username,   # 显示名默认取用户名
         password_hash=hash_password(req.password),
         daily_ai_limit=config.DEFAULT_DAILY_AI_LIMIT,
         daily_image_limit=config.DEFAULT_DAILY_IMAGE_LIMIT,
@@ -61,7 +62,7 @@ def register(
     db.add(login_record)
     db.commit()
 
-    return TokenResponse(access_token=token, username=user.username, is_admin=user.is_admin)
+    return TokenResponse(access_token=token, username=user.username, name=user.name or "", is_admin=user.is_admin)
 
 
 class AdminCreateUserRequest(BaseModel):
@@ -90,6 +91,7 @@ def admin_create_user(
 
     user = User(
         username=req.username,
+        name=req.username,   # 管理员创建用户：显示名默认取用户名
         password_hash=hash_password(req.password),
         daily_ai_limit=config.DEFAULT_DAILY_AI_LIMIT,
         daily_image_limit=config.DEFAULT_DAILY_IMAGE_LIMIT,
@@ -134,7 +136,7 @@ def login(
     db.add(login_record)
     db.commit()
 
-    return TokenResponse(access_token=token, username=user.username, is_admin=user.is_admin)
+    return TokenResponse(access_token=token, username=user.username, name=user.name or "", is_admin=user.is_admin)
 
 
 @router.post("/logout")

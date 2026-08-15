@@ -28,6 +28,7 @@ def _validate_password_bytes(v: str) -> str:
 class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=2, max_length=50, pattern=USERNAME_PATTERN)
     password: str = Field(..., min_length=6, max_length=72)
+    name: str = Field("", max_length=50)   # 显示名（选填），默认取 username
 
     @field_validator("password")
     @classmethod
@@ -44,18 +45,34 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     username: str
+    name: str = ""
     is_admin: bool = False
 
 
 class UserOut(BaseModel):
     id: int
     username: str
+    name: str | None = None
     is_admin: bool = False
     created_at: datetime
     new_achievements: list[dict] | None = None
 
     class Config:
         from_attributes = True
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., min_length=1, max_length=72)
+    new_password: str = Field(..., min_length=6, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def _check_new_password_bytes(cls, v: str) -> str:
+        return _validate_password_bytes(v)
+
+
+class UpdateNameRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
 
 
 # ── Words ──

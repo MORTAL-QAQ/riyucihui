@@ -1617,6 +1617,26 @@ input::placeholder {
   border-color: var(--primary);
 }
 
+.setting-input {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: all var(--transition);
+  box-sizing: border-box;
+}
+.setting-input:focus {
+  border-color: var(--primary);
+}
+.setting-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .setting-range {
   width: 100%;
   -webkit-appearance: none;

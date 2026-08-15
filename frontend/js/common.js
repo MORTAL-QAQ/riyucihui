@@ -148,8 +148,9 @@ async function loadCurrentUser() {
   const me = await api.me();
   currentUsername = me.username;
   isAdmin = !!me.is_admin;
+  const displayName = me.name || me.username;
   const el = $("#sidebar-username");
-  if (el) el.textContent = me.username;
+  if (el) el.textContent = displayName;
   const navAdmin = $("#nav-admin");
   if (navAdmin) navAdmin.style.display = isAdmin ? "" : "none";
   injectAdminNav();

@@ -11,6 +11,13 @@ const settingIntonation = $("#setting-intonation");
 const settingVolume = $("#setting-volume");
 const btnPreview = $("#btn-preview");
 const btnSaveSettings = $("#btn-save-settings");
+const settingUsername = $("#setting-username");
+const settingName = $("#setting-name");
+const btnSaveName = $("#btn-save-name");
+const pwOld = $("#pw-old");
+const pwNew = $("#pw-new");
+const pwConfirm = $("#pw-confirm");
+const btnChangePassword = $("#btn-change-password");
 
 const valSpeed = $("#val-speed");
 const valPitch = $("#val-pitch");
@@ -83,7 +90,55 @@ btnPreview.addEventListener("click", () => {
   setTimeout(() => speakWord("こんにちは", "", null), 300);
 });
 
-// ── 入口：认证 → 加载设置 ──
+// ── 账号信息：用户名 + 昵称 ──
+async function loadAccountInfo() {
+  try {
+    const me = await api.me();
+    settingUsername.value = me.username || "";
+    settingName.value = me.name || me.username || "";
+  } catch (err) {
+    showToast(`加载账号信息失败：${err.message}`, "error");
+  }
+}
+
+btnSaveName.addEventListener("click", async () => {
+  const name = settingName.value.trim();
+  if (!name) { showToast("昵称不能为空", "error"); return; }
+  try {
+    const res = await api.updateName(name);
+    showToast(res.message || "昵称已更新");
+    if (typeof currentUsername !== "undefined") {
+      // 同步侧边栏/顶栏显示名（独立页无侧边栏，此步仅首页 SPA 生效）
+      const el = $("#sidebar-username");
+      if (el) el.textContent = name;
+    }
+  } catch (err) {
+    showToast(`昵称保存失败：${err.message}`, "error");
+  }
+});
+
+// ── 修改密码 ──
+btnChangePassword.addEventListener("click", async () => {
+  const oldPw = pwOld.value;
+  const newPw = pwNew.value;
+  const confirmPw = pwConfirm.value;
+  if (!oldPw) { showToast("请输入当前密码", "error"); return; }
+  if (newPw.length < 6) { showToast("新密码至少 6 位", "error"); return; }
+  if (newPw !== confirmPw) { showToast("两次输入的新密码不一致", "error"); return; }
+  try {
+    const res = await api.changePassword(oldPw, newPw);
+    showToast(res.message || "密码已修改");
+    pwOld.value = pwNew.value = pwConfirm.value = "";
+    // 改密码后旧 Token 已失效，跳回首页重新登录
+    setTimeout(() => { clearToken(); location.href = "/"; }, 1200);
+  } catch (err) {
+    showToast(`修改失败：${err.message}`, "error");
+  }
+});
+
+// ── 入口：认证 → 加载账号与设置 ──
 initPage().then((ok) => {
-  if (ok) loadSettings();
+  if (!ok) return;
+  loadAccountInfo();
+  loadSettings();
 });

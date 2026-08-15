@@ -45,6 +45,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), nullable=False, unique=True, index=True)
+    name = Column(String(50), nullable=True)              # 显示名（昵称），默认取 username
     password_hash = Column(String(60), nullable=False)
     is_admin = Column(Boolean, default=False)
     token_version = Column(Integer, default=0)            # Token 版本号，递增后旧 Token 全部失效

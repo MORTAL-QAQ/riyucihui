@@ -320,6 +320,20 @@ const api = {
     return request("/speakers");
   },
 
+  changePassword(oldPassword, newPassword) {
+    return request("/settings/password", {
+      method: "PUT",
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    });
+  },
+
+  updateName(name) {
+    return request("/settings/name", {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    });
+  },
+
   // ── Health ──
   health() {
     return request("/health");

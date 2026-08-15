@@ -4,10 +4,13 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from .. import config
-from ..auth import get_current_user
+from ..auth import get_current_user, hash_password, verify_password
+from ..database import get_db
 from ..models import User
+from ..schemas import ChangePasswordRequest, UpdateNameRequest
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -75,3 +78,34 @@ def update_settings(body: SettingsUpdate, user: User = Depends(get_current_user)
     data = body.model_dump()
     _write_settings(data)
     return SettingsOut(**data)
+
+
+@router.put("/settings/password")
+def change_password(
+    body: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """修改密码：验证旧密码 → 更新哈希 → 递增 token_version 使旧 Token 全部失效。"""
+    if not verify_password(body.old_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="旧密码不正确")
+
+    user.password_hash = hash_password(body.new_password)
+    user.token_version = (user.token_version or 0) + 1
+    db.commit()
+    return {"message": "密码已修改，请重新登录"}
+
+
+@router.put("/settings/name")
+def update_name(
+    body: UpdateNameRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """修改显示名（昵称）。"""
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="昵称不能为空")
+    user.name = name[:50]
+    db.commit()
+    return {"message": "昵称已更新", "name": user.name}
