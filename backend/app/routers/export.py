@@ -47,7 +47,7 @@ def batch_export_pdf(
 
     请求体示例:
     {
-      "words": {"topic": "食物", "layout": "table", "include_images": true},
+      "words": {"topic": "食物", "layout": "table"},
       "essays": [1, 2],
       "clozes": [3],
       "grammar_compares": [4],
@@ -77,7 +77,6 @@ def batch_export_pdf(
     if req.words:
         topic = req.words.get("topic")
         layout = req.words.get("layout", "table")
-        include_images = req.words.get("include_images", True)
         ids = req.words.get("ids")
 
         if ids:

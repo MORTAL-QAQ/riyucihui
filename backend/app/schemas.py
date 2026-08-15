@@ -357,7 +357,6 @@ class PdfExportOptions(BaseModel):
     """PDF 导出选项（用于 POST /api/export/* 端点）"""
 
     layout: str = Field(default="table", pattern=r"^(table|card)$")
-    include_images: bool = True
     include_examples: bool = True
     sort_by: str = Field(default="created_at", pattern=r"^(created_at|japanese|jlpt_level)$")
 
@@ -365,7 +364,7 @@ class PdfExportOptions(BaseModel):
 class BatchExportRequest(BaseModel):
     """批量导出请求 — 一次请求导出多种内容到一个 PDF"""
 
-    words: dict | None = None   # {topic: str, layout: str, include_images: bool, ids: list[int]}
+    words: dict | None = None   # {topic: str, layout: str, ids: list[int]}
     essays: list[int] | None = None       # essay IDs
     clozes: list[int] | None = None       # cloze IDs
     grammar_compares: list[int] | None = None  # grammar compare IDs

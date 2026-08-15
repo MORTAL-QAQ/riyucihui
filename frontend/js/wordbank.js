@@ -495,7 +495,6 @@ exportConfirmBtn.addEventListener("click", function () {
 
   var layout = document.querySelector("input[name='export-layout']:checked");
   layout = layout ? layout.value : "table";
-  var includeImages = $("#export-include-images").checked;
   var includeExamples = $("#export-include-examples").checked;
 
   exportPanelBody.style.display = "none";
@@ -508,7 +507,6 @@ exportConfirmBtn.addEventListener("click", function () {
   var params = {};
   if (_exportTopic) params.topic = _exportTopic;
   params.layout = layout;
-  params.include_images = includeImages;
 
   api.exportPdf("/words/export/pdf", params).then(function (result) {
     finishProgress();

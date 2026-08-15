@@ -224,11 +224,10 @@ def merge_duplicates(
 def export_words_pdf(
     topic: str | None = None,
     layout: str = Query("table", pattern=r"^(table|card)$"),
-    include_images: bool = True,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """导出词单为 PDF 文件。支持 table/card 两种布局。"""
+    """导出词单为 PDF 文件。支持 table/card 两种布局（不含配图）。"""
     from ..services.pdf_service import generate_words_pdf, _encode_filename
 
     words, total = word_service.get_words(db, user.id, topic, None, 0, 10000)
@@ -236,7 +235,7 @@ def export_words_pdf(
         raise HTTPException(status_code=404, detail="没有可导出的单词")
 
     topic_name = topic or "全部词单"
-    buf = generate_words_pdf(words, topic_name, total, layout=layout, include_images=include_images)
+    buf = generate_words_pdf(words, topic_name, total, layout=layout)
 
     now = datetime.now()
     filename = f"词单_{topic_name}_{now.strftime('%Y%m%d')}.pdf"

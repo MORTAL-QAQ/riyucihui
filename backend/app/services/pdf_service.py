@@ -9,7 +9,6 @@ Design:
 - Each generate_*_pdf function is self-contained and returns a BytesIO.
 """
 
-import base64
 import html
 from datetime import date, datetime
 from io import BytesIO
@@ -367,33 +366,6 @@ def _header_footer(canvas, doc, title: str):
     canvas.restoreState()
 
 
-# ── Image helpers (Phase 2) ──────────────────────────────────────────────────
-
-
-def _decode_image(image_base64: str, max_width: float = 80, max_height: float = 80):
-    """Decode a base64 image string into a ReportLab Image, scaled to fit.
-
-    Returns None if the image is empty or decoding fails.
-    """
-    if not image_base64:
-        return None
-    try:
-        from reportlab.lib.utils import ImageReader
-        from reportlab.platypus import Image as RLImage
-
-        data = image_base64
-        if "," in data:
-            data = data.split(",", 1)[1]
-        img_bytes = base64.b64decode(data)
-        img_io = BytesIO(img_bytes)
-        reader = ImageReader(img_io)
-        iw, ih = reader.getSize()
-        ratio = min(max_width / iw, max_height / ih, 1.0)
-        return RLImage(reader, width=iw * ratio, height=ih * ratio)
-    except Exception:
-        return None
-
-
 # ── Word PDF export ──────────────────────────────────────────────────────────
 
 
@@ -403,7 +375,6 @@ def generate_words_pdf(
     total: int,
     *,
     layout: str = "table",
-    include_images: bool = True,
 ) -> BytesIO:
     """Generate a PDF of vocabulary words.
 
@@ -412,7 +383,6 @@ def generate_words_pdf(
         topic_name: Display name for the topic (e.g. "食物").
         total: Total word count (for footer).
         layout: "table" for a compact data table, "card" for 2-column cards.
-        include_images: Whether to embed AI-generated word images (card mode only).
 
     Returns:
         BytesIO buffer containing the completed PDF.
@@ -437,7 +407,7 @@ def generate_words_pdf(
     elements.append(Paragraph(f"多模态日语词汇学习 — {_esc(topic_name)}", styles["title"]))
     elements.append(Spacer(1, 10))
 
-    if layout == "card" and include_images:
+    if layout == "card":
         elements.extend(_build_word_cards(words, font_name, styles))
     else:
         elements.extend(_build_word_table(words, font_name))
@@ -549,12 +519,6 @@ def _word_card(w, font_name: str, styles: dict) -> Table:
             f'<font size="7">{ex_text}</font>',
             styles["small"],
         )])
-
-    # Image (if available)
-    img = _decode_image(w.image_base64, max_width=100, max_height=100)
-    if img:
-        rows.append([Spacer(1, 4)])
-        rows.append([img])
 
     card = Table(rows, colWidths=[card_width()])
     card.setStyle(TableStyle([
