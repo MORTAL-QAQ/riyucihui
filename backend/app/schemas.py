@@ -410,6 +410,7 @@ class CommentOut(BaseModel):
     content: str
     username: str
     created_at: datetime
+    new_achievements: list[dict] | None = None   # 评论触发的新成就（前端自动弹窗）
 
     class Config:
         from_attributes = True

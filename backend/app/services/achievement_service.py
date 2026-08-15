@@ -5,7 +5,18 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 
 from sqlalchemy.orm import Session
-from ..models import Achievement, Essay, GrammarCompare, Post, StudyRecord, UsageRecord, User, Word
+from ..models import (
+    Achievement,
+    Essay,
+    GrammarCompare,
+    Post,
+    PostComment,
+    PostLike,
+    StudyRecord,
+    UsageRecord,
+    User,
+    Word,
+)
 
 # Categories for grouping in the UI
 CATEGORIES = {
@@ -59,6 +70,9 @@ ACHIEVEMENTS = {
     "master_200": {"category": "mastery", "name": "語彙の神髄", "description": "掌握200个单词（达到阶段7）", "icon": "🎖️"},
     # ── 社区互动 ──
     "first_post": {"category": "community", "name": "社区初投稿", "description": "在社区发布第一篇帖子", "icon": "📣"},
+    "first_like": {"category": "community", "name": "最初のいいね", "description": "在社区送出第一个赞", "icon": "👍"},
+    "first_comment": {"category": "community", "name": "最初のコメント", "description": "在社区发表第一条评论", "icon": "💬"},
+    "posts_10": {"category": "community", "name": "投稿常連", "description": "在社区累计发布10篇帖子", "icon": "📢"},
     # ── 彩蛋 ──
     "konami_code": {"category": "easter_egg", "name": "隠し玉", "description": "发现隐藏的彩蛋", "icon": "🥚"},
 }
@@ -247,12 +261,28 @@ def check_achievements(db: Session, user_id: int):
     if streak >= 100 and _award(db, user_id, "streak_100"):
         newly_awarded.append("streak_100")
 
-    # ── Community: first post ──
+    # ── Community: first post / 10 posts ──
     post_count = db.scalar(
         select(func.count(Post.id)).where(Post.user_id == user_id, Post.type == "post")
     ) or 0
     if post_count >= 1 and _award(db, user_id, "first_post"):
         newly_awarded.append("first_post")
+    if post_count >= 10 and _award(db, user_id, "posts_10"):
+        newly_awarded.append("posts_10")
+
+    # ── Community: first like ──
+    like_count = db.scalar(
+        select(func.count(PostLike.id)).where(PostLike.user_id == user_id)
+    ) or 0
+    if like_count >= 1 and _award(db, user_id, "first_like"):
+        newly_awarded.append("first_like")
+
+    # ── Community: first comment ──
+    comment_count = db.scalar(
+        select(func.count(PostComment.id)).where(PostComment.user_id == user_id)
+    ) or 0
+    if comment_count >= 1 and _award(db, user_id, "first_comment"):
+        newly_awarded.append("first_comment")
 
     if newly_awarded:
         db.commit()

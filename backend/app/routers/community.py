@@ -218,7 +218,7 @@ def toggle_like(
     db: Session = Depends(get_db),
     _rate: None = Depends(LIKE_IP_LIMIT),
 ):
-    """点赞 / 取消点赞。"""
+    """点赞 / 取消点赞（首次点赞触发「送出第一个赞」成就）。"""
     post = db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
@@ -226,6 +226,7 @@ def toggle_like(
     existing = db.scalar(
         select(PostLike).where(PostLike.post_id == post_id, PostLike.user_id == user.id)
     )
+    new_achs = []
     if existing:
         db.delete(existing)
         db.commit()
@@ -238,11 +239,16 @@ def toggle_like(
             db.rollback()
             raise HTTPException(status_code=409, detail="操作冲突，请重试")
         liked = True
+        new_achs = check_achievements(db, user.id)
 
     like_count = db.scalar(
         select(func.count(PostLike.id)).where(PostLike.post_id == post_id)
     ) or 0
-    return {"liked": liked, "like_count": like_count}
+    return {
+        "liked": liked,
+        "like_count": like_count,
+        "new_achievements": [{"name": a["name"], "icon": a["icon"]} for a in new_achs] or None,
+    }
 
 
 @router.post("/posts/{post_id}/comments", response_model=CommentOut,
@@ -254,7 +260,7 @@ def create_comment(
     db: Session = Depends(get_db),
     _rate: None = Depends(COMMENT_IP_LIMIT),
 ):
-    """发表评论（敏感词过滤）。"""
+    """发表评论（敏感词过滤 + 触发「第一条评论」成就）。"""
     post = db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
@@ -264,9 +270,12 @@ def create_comment(
     db.add(comment)
     db.commit()
     db.refresh(comment)
+
+    new_achs = check_achievements(db, user.id)
     return CommentOut(
         id=comment.id, post_id=comment.post_id, content=comment.content,
         username=user.username, created_at=comment.created_at,
+        new_achievements=[{"name": a["name"], "icon": a["icon"]} for a in new_achs] or None,
     )
 
 
