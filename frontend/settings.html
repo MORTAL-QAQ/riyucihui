@@ -45,18 +45,21 @@
           <section class="page active" id="page-settings">
             <div class="page-header">
               <h1>设置</h1>
-              <p class="subtitle">账号信息 · 发音参数 · 修改密码</p>
+              <p class="subtitle">管理你的账号、密码与发音偏好</p>
             </div>
 
             <!-- 账号信息 -->
             <div class="settings-box">
+              <div class="settings-box-title">👤 账号信息</div>
               <div class="setting-group">
                 <label class="setting-label">账号</label>
                 <input type="text" class="setting-input" id="setting-username" disabled />
+                <p class="setting-hint">登录账号，不可修改</p>
               </div>
               <div class="setting-group">
                 <label class="setting-label">昵称（显示名）</label>
-                <input type="text" class="setting-input" id="setting-name" maxlength="50" placeholder="输入昵称" />
+                <input type="text" class="setting-input" id="setting-name" maxlength="50" placeholder="输入你的昵称" />
+                <p class="setting-hint">昵称会显示在首页侧边栏与社区中</p>
               </div>
               <div class="setting-actions">
                 <button class="btn btn-primary" id="btn-save-name">保存昵称</button>
@@ -64,18 +67,28 @@
             </div>
 
             <!-- 修改密码 -->
-            <div class="settings-box" style="margin-top:16px">
+            <div class="settings-box">
+              <div class="settings-box-title">🔒 修改密码</div>
               <div class="setting-group">
                 <label class="setting-label">当前密码</label>
-                <input type="password" class="setting-input" id="pw-old" autocomplete="current-password" />
+                <div class="setting-pw-row">
+                  <input type="password" class="setting-input" id="pw-old" autocomplete="current-password" placeholder="输入当前密码" />
+                  <button type="button" class="setting-pw-toggle" data-for="pw-old" aria-label="显示/隐藏密码">👁</button>
+                </div>
               </div>
               <div class="setting-group">
-                <label class="setting-label">新密码（至少 6 位）</label>
-                <input type="password" class="setting-input" id="pw-new" autocomplete="new-password" />
+                <label class="setting-label">新密码</label>
+                <div class="setting-pw-row">
+                  <input type="password" class="setting-input" id="pw-new" autocomplete="new-password" placeholder="至少 6 位" />
+                  <button type="button" class="setting-pw-toggle" data-for="pw-new" aria-label="显示/隐藏密码">👁</button>
+                </div>
               </div>
               <div class="setting-group">
                 <label class="setting-label">确认新密码</label>
-                <input type="password" class="setting-input" id="pw-confirm" autocomplete="new-password" />
+                <div class="setting-pw-row">
+                  <input type="password" class="setting-input" id="pw-confirm" autocomplete="new-password" placeholder="再次输入新密码" />
+                  <button type="button" class="setting-pw-toggle" data-for="pw-confirm" aria-label="显示/隐藏密码">👁</button>
+                </div>
               </div>
               <div class="setting-actions">
                 <button class="btn btn-primary" id="btn-change-password">修改密码</button>
@@ -83,7 +96,8 @@
             </div>
 
             <!-- 发音参数 -->
-            <div class="settings-box" style="margin-top:16px">
+            <div class="settings-box">
+              <div class="settings-box-title">🎤 发音参数</div>
               <div class="setting-group">
                 <label class="setting-label">音色</label>
                 <select id="setting-speaker" class="setting-select"></select>

@@ -104,6 +104,9 @@ async function loadAccountInfo() {
 btnSaveName.addEventListener("click", async () => {
   const name = settingName.value.trim();
   if (!name) { showToast("昵称不能为空", "error"); return; }
+  btnSaveName.disabled = true;
+  const original = btnSaveName.textContent;
+  btnSaveName.textContent = "保存中...";
   try {
     const res = await api.updateName(name);
     showToast(res.message || "昵称已更新");
@@ -114,7 +117,21 @@ btnSaveName.addEventListener("click", async () => {
     }
   } catch (err) {
     showToast(`昵称保存失败：${err.message}`, "error");
+  } finally {
+    btnSaveName.disabled = false;
+    btnSaveName.textContent = original;
   }
+});
+
+// ── 密码显示/隐藏切换 ──
+document.querySelectorAll(".setting-pw-toggle").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const input = document.getElementById(btn.dataset.for);
+    if (!input) return;
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    btn.textContent = show ? "🙈" : "👁";
+  });
 });
 
 // ── 修改密码 ──
@@ -125,6 +142,9 @@ btnChangePassword.addEventListener("click", async () => {
   if (!oldPw) { showToast("请输入当前密码", "error"); return; }
   if (newPw.length < 6) { showToast("新密码至少 6 位", "error"); return; }
   if (newPw !== confirmPw) { showToast("两次输入的新密码不一致", "error"); return; }
+  btnChangePassword.disabled = true;
+  const original = btnChangePassword.textContent;
+  btnChangePassword.textContent = "修改中...";
   try {
     const res = await api.changePassword(oldPw, newPw);
     showToast(res.message || "密码已修改");
@@ -133,6 +153,9 @@ btnChangePassword.addEventListener("click", async () => {
     setTimeout(() => { clearToken(); location.href = "/"; }, 1200);
   } catch (err) {
     showToast(`修改失败：${err.message}`, "error");
+  } finally {
+    btnChangePassword.disabled = false;
+    btnChangePassword.textContent = original;
   }
 });
 
