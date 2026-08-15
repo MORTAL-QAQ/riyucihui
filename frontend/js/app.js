@@ -474,7 +474,8 @@ async function loadHome() {
         mainApp.style.display = "none";
       });
   } else {
-    // 无 token，确保显示登录页（auth-page 默认已可见）
+    // 无 token：显示登录页（auth-page 初始隐藏，避免已登录用户从子页返回首页时闪现登录页）
+    authPage.style.display = "flex";
     mainApp.style.display = "none";
   }
 })();
