@@ -142,7 +142,7 @@ async function doAuth() {
   const password = authPassword.value;
 
   if (!username || !password) {
-    setAuthError("请填写用户名和密码");
+    setAuthError("请填写账号和密码");
     return;
   }
 

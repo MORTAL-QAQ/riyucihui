@@ -18,9 +18,9 @@ adminTabLogins.addEventListener("click", () => switchAdminTab("logins"));
 
 // 管理员创建用户
 $("#btn-admin-create-user").addEventListener("click", async () => {
-  const uname = prompt("请输入新用户名（2-50个字符）：");
+  const uname = prompt("请输入新账号（2-50个字符）：");
   if (!uname) return;
-  if (uname.length < 2 || uname.length > 50) { showToast("用户名需2-50个字符", "error"); return; }
+  if (uname.length < 2 || uname.length > 50) { showToast("账号需2-50个字符", "error"); return; }
   const pw1 = prompt("请输入密码（至少6位）：");
   if (!pw1) return;
   if (pw1.length < 6) { showToast("密码至少6位", "error"); return; }
