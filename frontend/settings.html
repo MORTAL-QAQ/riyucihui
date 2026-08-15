@@ -45,12 +45,14 @@
           <section class="page active" id="page-settings">
             <div class="page-header">
               <h1>设置</h1>
-              <p class="subtitle">管理你的账号、密码与发音偏好</p>
+              <p class="subtitle">管理你的账号与发音偏好</p>
             </div>
 
-            <!-- 账号信息 -->
+            <!-- 账号设置 -->
             <div class="settings-box">
-              <div class="settings-box-title">👤 账号信息</div>
+              <div class="settings-box-title">👤 账号设置</div>
+
+              <div class="settings-sub-title">账号信息</div>
               <div class="setting-group">
                 <label class="setting-label">账号</label>
                 <input type="text" class="setting-input" id="setting-username" disabled />
@@ -64,11 +66,8 @@
               <div class="setting-actions">
                 <button class="btn btn-primary" id="btn-save-name">保存昵称</button>
               </div>
-            </div>
 
-            <!-- 修改密码 -->
-            <div class="settings-box">
-              <div class="settings-box-title">🔒 修改密码</div>
+              <div class="settings-sub-title">修改密码</div>
               <div class="setting-group">
                 <label class="setting-label">当前密码</label>
                 <div class="setting-pw-row">
@@ -95,9 +94,11 @@
               </div>
             </div>
 
-            <!-- 发音参数 -->
+            <!-- 发声设置 -->
             <div class="settings-box">
-              <div class="settings-box-title">🎤 发音参数</div>
+              <div class="settings-box-title">🔊 发声设置</div>
+
+              <div class="settings-sub-title">发音参数</div>
               <div class="setting-group">
                 <label class="setting-label">音色</label>
                 <select id="setting-speaker" class="setting-select"></select>
