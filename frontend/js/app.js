@@ -380,7 +380,7 @@ async function loadHome() {
     const achieved = new Set(
       (achs.achievements || []).filter((a) => a.achieved).map((a) => a.key)
     );
-    const streakDays = [100, 30, 10, 7, 3, 1].find((d) => achieved.has(`streak_${d}`)) || 0;
+    const streakDays = [40, 30, 10, 7, 3, 1].find((d) => achieved.has(`streak_${d}`)) || 0;
     $("#stat-streak").textContent = streakDays;
 
     // 最新公告（置顶公告，最多 3 条）

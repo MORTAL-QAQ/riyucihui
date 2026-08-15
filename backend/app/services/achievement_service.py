@@ -62,7 +62,7 @@ ACHIEVEMENTS = {
     "streak_7": {"category": "streak", "name": "週間皆勤", "description": "连续学习7天", "icon": "✨"},
     "streak_10": {"category": "streak", "name": "十日皆勤", "description": "连续学习10天", "icon": "💎"},
     "streak_30": {"category": "streak", "name": "月間皆勤", "description": "连续学习30天", "icon": "🏅"},
-    "streak_100": {"category": "streak", "name": "百折不撓", "description": "连续学习100天", "icon": "🏆"},
+    "streak_40": {"category": "streak", "name": "四十日皆勤", "description": "连续学习40天", "icon": "🏆"},
     # ── 单词掌握 ──
     "master_20": {"category": "mastery", "name": "完璧主義者", "description": "掌握20个单词（达到阶段7）", "icon": "⭐"},
     "master_50": {"category": "mastery", "name": "単語仙人", "description": "掌握50个单词（达到阶段7）", "icon": "👑"},
@@ -258,8 +258,8 @@ def check_achievements(db: Session, user_id: int):
         newly_awarded.append("streak_10")
     if streak >= 30 and _award(db, user_id, "streak_30"):
         newly_awarded.append("streak_30")
-    if streak >= 100 and _award(db, user_id, "streak_100"):
-        newly_awarded.append("streak_100")
+    if streak >= 40 and _award(db, user_id, "streak_40"):
+        newly_awarded.append("streak_40")
 
     # ── Community: first post / 10 posts ──
     post_count = db.scalar(
