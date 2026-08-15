@@ -35,11 +35,20 @@ def get_words(
     offset: int = 0,
     limit: int = 50,
     include_images: bool = False,
+    exclude_locked: bool = False,
 ) -> tuple[list[Word], int]:
-    """查询单词列表。image_base64 为 deferred 大字段，默认不加载（#31）。"""
+    """查询单词列表。image_base64 为 deferred 大字段，默认不加载（#31）。
+
+    exclude_locked=True 时隐藏实验词单（topic 以「实验:」开头）——
+    供非实验组用户调用（见 services/experiment.py）。
+    """
+    from .experiment import LOCKED_TOPIC_PREFIX
+
     stmt = select(Word).where(Word.user_id == user_id)
     if include_images:
         stmt = stmt.options(undefer(Word.image_base64))
+    if exclude_locked:
+        stmt = stmt.where(~Word.topic.like(f"{LOCKED_TOPIC_PREFIX}%"))
     if topic:
         stmt = stmt.where(Word.topic == topic)
     if search:

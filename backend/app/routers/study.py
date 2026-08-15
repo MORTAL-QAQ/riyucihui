@@ -10,6 +10,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import StudyRecord, User, Word
 from ..services.achievement_service import check_achievements
+from ..services.experiment import LOCKED_TOPIC_PREFIX, can_access_locked, is_locked_topic
 
 router = APIRouter(prefix="/api/study", tags=["study"])
 
@@ -184,6 +185,7 @@ def list_study_topics(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    hide_locked = not can_access_locked(user)
     if mode == "review":
         today = date.today()
         rows = (
@@ -216,7 +218,11 @@ def list_study_topics(
             .group_by(Word.topic)
             .all()
         )
-    return [{"topic": t, "count": c, "jlpt_level": lv} for t, c, lv in rows]
+    result = [{"topic": t, "count": c, "jlpt_level": lv} for t, c, lv in rows]
+    if hide_locked:
+        # 非实验组用户隐藏实验词单
+        result = [r for r in result if not is_locked_topic(r["topic"])]
+    return result
 
 
 @router.get("/due")
@@ -225,13 +231,16 @@ def get_due(
     db: Session = Depends(get_db),
 ):
     today = date.today()
+    hide_locked = not can_access_locked(user)
 
     new_available = (
         db.query(Word)
         .outerjoin(StudyRecord, Word.id == StudyRecord.word_id)
         .filter(Word.user_id == user.id, StudyRecord.id.is_(None))
-        .count()
     )
+    if hide_locked:
+        new_available = new_available.filter(~Word.topic.like(f"{LOCKED_TOPIC_PREFIX}%"))
+    new_available = new_available.count()
 
     due_review = (
         db.query(StudyRecord)
@@ -272,8 +281,10 @@ def get_stats(
         db.query(Word)
         .outerjoin(StudyRecord, Word.id == StudyRecord.word_id)
         .filter(Word.user_id == user.id, StudyRecord.id.is_(None))
-        .count()
     )
+    if not can_access_locked(user):
+        new_available = new_available.filter(~Word.topic.like(f"{LOCKED_TOPIC_PREFIX}%"))
+    new_available = new_available.count()
 
     learned = db.query(StudyRecord).filter(StudyRecord.user_id == user.id).count()
     mastering = (
@@ -324,8 +335,10 @@ def get_calendar(
         db.query(func.count(Word.id))
         .outerjoin(StudyRecord, Word.id == StudyRecord.word_id)
         .filter(Word.user_id == user.id, StudyRecord.id.is_(None))
-        .scalar()
     )
+    if not can_access_locked(user):
+        new_available = new_available.filter(~Word.topic.like(f"{LOCKED_TOPIC_PREFIX}%"))
+    new_available = new_available.scalar()
 
     return CalendarOut(days=day_list, new_available=new_available)
 
@@ -374,6 +387,17 @@ def start_session(
     today = date.today()
     results: list[WordOut] = []
 
+    if req.topics:
+        # 实验词单门控：非实验组用户不得以实验词单开学习会话
+        locked_requested = [t for t in req.topics if is_locked_topic(t)]
+        if locked_requested and not can_access_locked(user):
+            raise HTTPException(status_code=403, detail="实验词单仅对实验组开放")
+    hide_locked = not can_access_locked(user)
+
+    def _locked_clause():
+        # 非实验组用户从学习队列中排除实验词单（防御：词单可能被间接命中）
+        return ~Word.topic.like(f"{LOCKED_TOPIC_PREFIX}%") if hide_locked else None
+
     def _due_query():
         q = (
             db.query(Word, StudyRecord)
@@ -387,6 +411,10 @@ def start_session(
         )
         if req.topics:
             q = q.filter(Word.topic.in_(req.topics))
+        else:
+            clause = _locked_clause()
+            if clause is not None:
+                q = q.filter(clause)
         # 优先复习逾期最久 + stage 最低的
         return q.order_by(StudyRecord.stage, StudyRecord.next_review_date)
 
@@ -399,6 +427,10 @@ def start_session(
         )
         if req.topics:
             q = q.filter(Word.topic.in_(req.topics))
+        else:
+            clause = _locked_clause()
+            if clause is not None:
+                q = q.filter(clause)
         return q
 
     if req.mode in ("mixed", "review"):

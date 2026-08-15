@@ -20,6 +20,7 @@ from ..schemas import (
 )
 from ..services import word_service
 from ..services.achievement_service import check_achievements
+from ..services.experiment import can_access_locked, is_locked_topic
 from ..services.image_service import generate_word_image
 from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
@@ -40,6 +41,8 @@ def save_words(
 ):
     if not req.words:
         raise HTTPException(status_code=400, detail="至少需要保存一个单词")
+    if is_locked_topic(req.topic) and not can_access_locked(user):
+        raise HTTPException(status_code=403, detail="实验词单仅对实验组开放")
     records = word_service.save_words(db, user.id, req.topic, req.words, req.jlpt_level)
     new_achs = check_achievements(db, user.id)
     resp = {"message": f"成功保存 {len(records)} 个单词", "count": len(records)}
@@ -63,7 +66,11 @@ def list_words(
         raise HTTPException(status_code=400, detail="搜索关键词不能超过100个字符")
     if limit > 200:
         limit = 200
-    words, total = word_service.get_words(db, user.id, topic, search, offset, limit, include_images=include_images)
+    if is_locked_topic(topic) and not can_access_locked(user):
+        raise HTTPException(status_code=403, detail="实验词单仅对实验组开放")
+    words, total = word_service.get_words(db, user.id, topic, search, offset, limit,
+                                          include_images=include_images,
+                                          exclude_locked=not can_access_locked(user))
     out = [WordOut.model_validate(w) for w in words]
     # Strip heavy image_base64 by default for performance
     if not include_images:
@@ -77,7 +84,11 @@ def list_topics(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return word_service.get_topics(db, user.id)
+    topics = word_service.get_topics(db, user.id)
+    if not can_access_locked(user):
+        # 非实验组用户隐藏实验词单
+        topics = [t for t in topics if not is_locked_topic(t["topic"])]
+    return topics
 
 
 @router.delete("/topics/{topic}")
@@ -86,6 +97,8 @@ def delete_topic(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if is_locked_topic(topic) and not can_access_locked(user):
+        raise HTTPException(status_code=403, detail="实验词单仅对实验组开放")
     count = word_service.delete_topic(db, user.id, topic)
     if count == 0:
         raise HTTPException(status_code=404, detail="词单不存在或已为空")
@@ -99,6 +112,8 @@ def add_word_to_topic(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if is_locked_topic(topic) and not can_access_locked(user):
+        raise HTTPException(status_code=403, detail="实验词单仅对实验组开放")
     return WordOut.model_validate(word_service.add_word_to_topic(db, user.id, topic, item))
 
 
@@ -230,7 +245,10 @@ def export_words_pdf(
     """导出词单为 PDF 文件。支持 table/card 两种布局（不含配图）。"""
     from ..services.pdf_service import generate_words_pdf, _encode_filename
 
-    words, total = word_service.get_words(db, user.id, topic, None, 0, 10000)
+    if is_locked_topic(topic) and not can_access_locked(user):
+        raise HTTPException(status_code=403, detail="实验词单仅对实验组开放")
+    words, total = word_service.get_words(db, user.id, topic, None, 0, 10000,
+                                          exclude_locked=not can_access_locked(user))
     if not words:
         raise HTTPException(status_code=404, detail="没有可导出的单词")
 

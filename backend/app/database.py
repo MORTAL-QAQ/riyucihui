@@ -134,6 +134,16 @@ def _run_migrations_inner():
                 conn.execute(text(f"ALTER TABLE words ADD COLUMN {col} {col_type}"))
                 conn.commit()
 
+        # users columns
+        existing_u = {c["name"] for c in inspector.get_columns("users")}
+        for col, col_type_sqlite, col_type_pg in [
+            ("experiment_group", "VARCHAR(20)", "VARCHAR(20)"),
+        ]:
+            if col not in existing_u:
+                col_type = col_type_pg if dialect == "postgresql" else col_type_sqlite
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+                conn.commit()
+
         # words indexes — create if they don't exist (for pre-existing databases)
         for col in ("japanese", "kana", "chinese"):
             conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_words_{col} ON words ({col})"))

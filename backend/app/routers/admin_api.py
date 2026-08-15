@@ -35,6 +35,7 @@ class AdminUserOut(BaseModel):
     daily_word_limit: int | None = None
     daily_image_limit: int | None = None
     remark: str | None = None
+    experiment_group: str | None = None   # experiment / control / None
     created_at: str
     word_count: int
     study_count: int
@@ -197,6 +198,7 @@ def list_users(
                 daily_word_limit=u.daily_word_limit,
                 daily_image_limit=u.daily_image_limit,
                 remark=u.remark,
+                experiment_group=u.experiment_group,
                 created_at=_to_cst(u.created_at),
                 word_count=row.word_count,
                 study_count=row.study_count,
@@ -302,6 +304,28 @@ def set_user_remark(
     user.remark = body.remark
     db.commit()
     return {"message": "备注已更新", "remark": user.remark}
+
+
+class SetGroupRequest(BaseModel):
+    """实验分组设置：experiment（实验组）/ control（对照组）/ None 或 ""（清除分组）。"""
+    experiment_group: str | None = Field(default=None, pattern="^(experiment|control)?$")
+
+
+@router.put("/users/{user_id}/group")
+def set_user_group(
+    user_id: int,
+    body: SetGroupRequest,
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """设置或清除用户的实验分组（大创实验用）。"""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    user.experiment_group = (body.experiment_group or None)  # 空串/None 均视为清除
+    db.commit()
+    label = {"experiment": "实验组", "control": "对照组"}.get(user.experiment_group or "", "未分组")
+    return {"message": f"用户 {user.username} 已设为{label}", "experiment_group": user.experiment_group}
 
 
 @router.put("/users/{user_id}/password")

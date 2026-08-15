@@ -386,6 +386,14 @@ const api = {
     });
   },
 
+  setUserGroup(userId, group) {
+    // group: "experiment" | "control" | ""（清除）
+    return request(`/admin/users/${userId}/group`, {
+      method: "PUT",
+      body: JSON.stringify({ experiment_group: group || null }),
+    });
+  },
+
   resetUserPassword(userId, password) {
     return request(`/admin/users/${userId}/password`, {
       method: "PUT",

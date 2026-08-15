@@ -54,6 +54,7 @@ class User(Base):
     daily_image_limit = Column(Integer, nullable=True)    # NULL=无限, N=每天N张图片生成（默认普通用户3张）
     daily_word_limit = Column(Integer, nullable=True)     # NULL=无限, N=每天N个单词生成（默认普通用户100个）
     remark = Column(String(200), nullable=True)            # 管理员备注
+    experiment_group = Column(String(20), nullable=True)   # 实验分组：experiment（实验组）/ control（对照组），NULL=未分组（大创实验用）
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

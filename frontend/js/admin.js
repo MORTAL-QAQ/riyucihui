@@ -256,6 +256,14 @@ function renderAdminCards() {
         <span class="admin-card-remark-text">${u.remark ? esc(u.remark) : '<span class="dim">无备注</span>'}</span>
         <button class="admin-card-remark-edit" data-action="edit-remark" data-id="${aid}" data-username="${acc}" data-remark="${u.remark ? esc(u.remark) : ''}">✎</button>
       </div>
+      <div class="admin-card-group">
+        <span class="admin-card-group-label">实验分组</span>
+        <select class="admin-group-select" data-action="set-group" data-id="${aid}" data-username="${acc}">
+          <option value="">未分组</option>
+          <option value="experiment" ${u.experiment_group === "experiment" ? "selected" : ""}>实验组</option>
+          <option value="control" ${u.experiment_group === "control" ? "selected" : ""}>对照组</option>
+        </select>
+      </div>
       <div class="admin-card-body">
         ${renderLimitRow({
           icon: "🤖", label: "AI调用", kind: "ai",
@@ -361,6 +369,24 @@ function renderAdminCards() {
         showToast(`备注保存失败：${err.message}`, "error");
       }
     });
+  });
+
+  // Set experiment group — per-card select
+  grid.querySelectorAll('[data-action="set-group"]').forEach((sel) => {
+    sel.addEventListener("change", async () => {
+      const id = parseInt(sel.dataset.id);
+      const username = sel.dataset.username;
+      const group = sel.value; // "" / "experiment" / "control"
+      try {
+        const res = await api.setUserGroup(id, group);
+        showToast(res.message);
+        loadAdmin();  // 刷新以同步徽标与选中态
+      } catch (err) {
+        showToast(`分组设置失败：${err.message}`, "error");
+        sel.value = sel.dataset.prev || "";
+      }
+    });
+    sel.addEventListener("focus", () => { sel.dataset.prev = sel.value; });
   });
 
   // Set limits — per-row select
