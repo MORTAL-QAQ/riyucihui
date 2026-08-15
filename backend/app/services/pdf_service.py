@@ -428,8 +428,8 @@ def generate_words_pdf(
 
 
 def _build_word_table(words, font_name: str) -> list:
-    """Build table-mode elements for word export."""
-    header = ["序号", "日语", "假名", "中文", "N", "例句"]
+    """Build table-mode elements for word export（无 JLPT 列，避免中文/N 列重叠）。"""
+    header = ["序号", "日语", "假名", "中文", "例句"]
     data = [header]
     for i, w in enumerate(words):
         example = (w.example_ja or "")[:60]
@@ -439,11 +439,10 @@ def _build_word_table(words, font_name: str) -> list:
             w.japanese or "",
             w.kana or "",
             w.chinese or "",
-            w.jlpt_level or "",
             example,
         ])
 
-    col_widths = [28, 68, 68, 60, 22, 222]  # 合计 468pt < 可用宽度 481pt（A4 - 2×56.7mm 边距）
+    col_widths = [28, 72, 72, 96, 200]  # 合计 468pt < 可用宽度 481pt；中文列加宽防换行重叠
     tbl = Table(data, colWidths=col_widths, repeatRows=1)
     tbl.setStyle(_default_table_style(font_name))
     return [tbl]
