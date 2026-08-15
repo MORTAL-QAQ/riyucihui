@@ -11,7 +11,6 @@ const settingIntonation = $("#setting-intonation");
 const settingVolume = $("#setting-volume");
 const btnPreview = $("#btn-preview");
 const btnSaveSettings = $("#btn-save-settings");
-const settingUsername = $("#setting-username");
 const settingName = $("#setting-name");
 const btnSaveName = $("#btn-save-name");
 const pwOld = $("#pw-old");
@@ -90,11 +89,10 @@ btnPreview.addEventListener("click", () => {
   setTimeout(() => speakWord("こんにちは", "", null), 300);
 });
 
-// ── 账号信息：用户名 + 昵称 ──
+// ── 账号信息：昵称 ──
 async function loadAccountInfo() {
   try {
     const me = await api.me();
-    settingUsername.value = me.username || "";
     settingName.value = me.name || me.username || "";
   } catch (err) {
     showToast(`加载账号信息失败：${err.message}`, "error");
