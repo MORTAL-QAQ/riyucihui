@@ -439,6 +439,10 @@ button { min-height: 48px; }
   max-width: 100%;
   padding: 20px 16px;
 }
+.settings-columns {
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    Toast 通知 — 顶部居中，2秒消失

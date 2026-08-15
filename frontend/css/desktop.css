@@ -1575,6 +1575,17 @@ input::placeholder {
 .settings-box + .settings-box {
   margin-top: 16px;
 }
+.settings-box-wide {
+  max-width: 720px;
+}
+.settings-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+.settings-column {
+  min-width: 0;
+}
 .settings-box-title {
   display: flex;
   align-items: center;
