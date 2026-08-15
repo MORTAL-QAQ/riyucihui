@@ -42,5 +42,8 @@ tok.txt
 # 密钥文件（Docker secrets 源，含真实密钥，禁止入库）
 secrets/
 
+# 论文设计与实验文档（仅本地，不同步 GitHub）
+docs/
+
 # pip/构建临时目录
 backend/.tmp/
