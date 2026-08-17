@@ -71,11 +71,30 @@ def list_words(
     words, total = word_service.get_words(db, user.id, topic, search, offset, limit,
                                           include_images=include_images,
                                           exclude_locked=not can_access_locked(user))
-    out = [WordOut.model_validate(w) for w in words]
-    # Strip heavy image_base64 by default for performance
-    if not include_images:
-        for w in out:
-            w.image_base64 = None
+    # 轻量查询本页单词的配图状态（SQL 层面判断，不加载 base64 大字段，避免 N+1）
+    img_ids: set[int] = set()
+    if words:
+        img_ids = set(
+            db.execute(
+                select(Word.id).where(
+                    Word.id.in_([w.id for w in words]),
+                    Word.image_base64.isnot(None),
+                    Word.image_base64 != "",
+                )
+            ).scalars()
+        )
+    out = [
+        WordOut(
+            id=w.id, topic=w.topic, japanese=w.japanese, kana=w.kana, chinese=w.chinese,
+            example_ja=w.example_ja, example_cn=w.example_cn,
+            # 列表默认不传 base64 图片数据（大幅减小响应体积）；需要时用 include_images=true
+            image_base64=w.image_base64 if include_images else None,
+            jlpt_level=w.jlpt_level,
+            created_at=w.created_at,
+            has_image=w.id in img_ids,
+        )
+        for w in words
+    ]
     return WordListResponse(words=out, total=total)
 
 
@@ -163,7 +182,9 @@ def generate_image(
     db.commit()
     db.refresh(word)
     record_usage(db, user.id, "image_generation", 1)
-    return WordOut.model_validate(word)
+    out = WordOut.model_validate(word)
+    out.has_image = True
+    return out
 
 
 @router.get("/words/{word_id}/image-data")

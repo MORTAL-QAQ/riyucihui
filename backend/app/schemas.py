@@ -114,6 +114,7 @@ class WordOut(WordFields):
     id: int
     topic: str
     created_at: datetime
+    has_image: bool = False   # 是否已有配图（列表接口轻量返回，避免携带 base64 大字段）
 
     class Config:
         from_attributes = True

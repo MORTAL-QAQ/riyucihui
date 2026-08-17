@@ -147,7 +147,7 @@ function renderWordbankCards(data) {
           <span class="card-kana">${esc(w.kana)}</span>
           <span class="card-chinese">${esc(w.chinese)}</span>
           ${jlptBadge(w.jlpt_level)}
-          ${w.image_base64
+          ${w.has_image
             ? `<button class="img-gen-btn has-image" data-id="${w.id}">展示图片</button>`
             : `<button class="img-gen-btn" data-id="${w.id}">生成图片</button>`
           }
