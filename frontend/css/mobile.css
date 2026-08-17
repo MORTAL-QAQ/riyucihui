@@ -50,17 +50,17 @@ body {
 }
 .sidebar.open { left: 0; }
 .sidebar-footer { display: none; }
-.sidebar .logo { padding: 16px 14px; }
-.sidebar .logo-icon { width: 32px; height: 32px; font-size: 15px; }
+.sidebar .logo { padding: 12px 14px; }
+.sidebar .logo-icon { width: 30px; height: 30px; font-size: 14px; }
 .sidebar .logo-text { font-size: 12px; }
-.sidebar .sidebar-greeting { font-size: 9px; padding: 0 12px 8px; }
-.sidebar .nav { padding: 10px 8px; gap: 1px; }
+.sidebar .sidebar-greeting { font-size: 10px; padding: 6px 12px; margin: 6px 12px 4px; }
+.sidebar .nav { padding: 6px 8px 10px; gap: 0; }
 .sidebar .nav-btn {
-  padding: 12px 14px; font-size: 14px; border-radius: 10px;
-  min-height: 48px;
+  padding: 9px 14px; font-size: 13.5px; border-radius: 10px;
+  min-height: 42px;
   gap: 10px;
 }
-.sidebar .nav-icon { font-size: 18px; width: 22px; }
+.sidebar .nav-icon { font-size: 17px; width: 22px; }
 
 /* ── App 布局重置 ── */
 #app { display: block !important; }
@@ -69,7 +69,7 @@ body {
   display: block !important;
   flex: none !important;
   margin-left: 0 !important;
-  padding: 52px 16px 90px 16px !important;
+  padding: 52px 16px 24px 16px !important;
   max-width: 100% !important;
   width: 100% !important;
 }
@@ -80,15 +80,11 @@ body {
 .page-header h1 { font-size: 22px; }
 .subtitle { font-size: 13px; }
 
-/* ── 底部导航栏 ── */
-.mobile-bottom-nav {
-  display: flex !important;
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001;
-  background: #fff;
-  border-top: 1px solid var(--border);
-  justify-content: space-around;
-  padding: 6px 0 calc(8px + env(safe-area-inset-bottom));
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+/* ── 底部导航栏（v2：已移除，导航统一走左上角 ☰ 抽屉） ── */
+.mobile-bottom-nav,
+.more-menu-overlay,
+.more-menu-popup {
+  display: none !important;
 }
 .mobile-bottom-nav button {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -144,6 +140,9 @@ body {
 .auth-overlay {
   background: linear-gradient(160deg, #312e81 0%, #4338ca 50%, #6366f1 100%) !important;
   padding: 0 !important;
+  align-items: flex-start !important;   /* 顶部对齐，内容超高时可滚动，避免居中裁切 */
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 .auth-container {
   display: flex !important;
@@ -158,23 +157,23 @@ body {
 .auth-brand {
   flex: 0 0 auto !important;
   width: 100% !important;
-  padding: 60px 24px 32px 24px !important;
-  background: transparent !important;
+  padding: 44px 24px 28px 24px !important;
+  background: linear-gradient(160deg, #312e81 0%, #4f46e5 55%, #6366f1 100%) !important;
   color: #fff !important;
   text-align: center !important;
 }
 .auth-brand::before, .auth-brand::after { display: none !important; }
-.auth-brand-icon { font-size: 52px !important; font-weight: 300 !important; display: block !important; margin-bottom: 10px !important; }
-.auth-brand-title { font-size: 12px !important; letter-spacing: 3px !important; opacity: 0.7 !important; margin-bottom: 8px !important; }
-.auth-brand-sub { font-size: 19px !important; font-weight: 800 !important; letter-spacing: 1px !important; color: #fff !important; line-height: 1.4 !important; text-shadow: 0 2px 6px rgba(0,0,0,0.2) !important; }
-.auth-panel { flex: 1 !important; padding: 20px 24px 50px 24px !important; background: #fff !important; border-radius: 24px 24px 0 0 !important; }
-.auth-panel-header { margin-bottom: 20px !important; }
-.auth-panel-title { font-size: 22px !important; text-align: center !important; }
-.auth-fields { gap: 12px !important; }
-.auth-field-input { padding: 15px 16px !important; font-size: 16px !important; border-radius: 12px !important; background: #f3f4f6 !important; width: 100% !important; box-sizing: border-box !important; }
-.auth-submit { padding: 14px !important; font-size: 16px !important; border-radius: 12px !important; margin-top: 16px !important; width: 100% !important; }
+.auth-brand-icon { font-size: 44px !important; font-weight: 300 !important; display: block !important; margin-bottom: 8px !important; }
+.auth-brand-title { font-size: 12px !important; letter-spacing: 3px !important; opacity: 0.7 !important; margin-bottom: 6px !important; }
+.auth-brand-sub { font-size: 17px !important; font-weight: 800 !important; letter-spacing: 1px !important; color: #fff !important; line-height: 1.4 !important; text-shadow: 0 2px 6px rgba(0,0,0,0.2) !important; }
+.auth-panel { flex: 1 !important; padding: 18px 22px 44px 22px !important; background: #fff !important; border-radius: 24px 24px 0 0 !important; }
+.auth-panel-header { margin-bottom: 14px !important; }
+.auth-panel-title { font-size: 20px !important; text-align: center !important; }
+.auth-fields { gap: 10px !important; }
+.auth-field-input { padding: 13px 15px !important; font-size: 16px !important; border-radius: 12px !important; background: #f3f4f6 !important; width: 100% !important; box-sizing: border-box !important; }
+.auth-submit { padding: 13px !important; font-size: 16px !important; border-radius: 12px !important; margin-top: 14px !important; width: 100% !important; }
 .auth-msg { text-align: center !important; }
-.auth-foot { margin-top: 16px !important; text-align: center !important; }
+.auth-foot { margin-top: 14px !important; text-align: center !important; }
 
 /* ═══════════════════════════════════════════════════════════════════
    通用移动端覆盖
@@ -520,7 +519,7 @@ button { min-height: 48px; }
 
 /* ── 网站备案号 ── */
 .site-footer {
-  padding: 12px 16px calc(16px + 70px); /* 70px 避开底部导航 */
+  padding: 12px 16px 16px; /* 底栏已移除，不再需要底部避让 */
   font-size: 11px;
 }
 
@@ -605,7 +604,7 @@ table, .table-wrap {
 .subpage-nav-scroll a { flex-shrink: 0; }
 .subpage-nav-btn { font-size: 13px; padding: 6px 8px; }
 .subpage-header-actions .btn { padding: 4px 10px; font-size: 12px; }
-body.subpage .main { padding: 12px 12px 80px; }
+body.subpage .main { padding: 12px 12px 24px; }
 
 /* ── 底部导航 active 指示条 + 按压反馈 ── */
 .mobile-bottom-nav button { position: relative; }
