@@ -69,7 +69,7 @@ body {
   display: block !important;
   flex: none !important;
   margin-left: 0 !important;
-  padding: 52px 14px 90px 14px !important;
+  padding: 52px 16px 90px 16px !important;
   max-width: 100% !important;
   width: 100% !important;
 }
@@ -587,11 +587,65 @@ table, .table-wrap {
 .home-welcome-emoji { font-size: 38px; }
 
 
-/* ── 独立子页顶栏（移动端） ── */
-.subpage-header { padding: 8px 12px; }
+/* ── 独立子页顶栏（移动端）：两行式布局 ──
+   第一行：品牌 + 设置/退出；第二行：11 项导航单行横向滚动（隐藏滚动条） */
+.subpage-header { padding: 8px 10px; flex-wrap: wrap !important; gap: 8px !important; }
+.subpage-nav-scroll {
+  order: 3;
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+.subpage-nav-scroll::-webkit-scrollbar { display: none; }
+.subpage-nav-scroll a { flex-shrink: 0; }
 .subpage-nav-btn { font-size: 13px; padding: 6px 8px; }
 .subpage-header-actions .btn { padding: 4px 10px; font-size: 12px; }
 body.subpage .main { padding: 12px 12px 80px; }
+
+/* ── 底部导航 active 指示条 + 按压反馈 ── */
+.mobile-bottom-nav button { position: relative; }
+.mobile-bottom-nav button.active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: var(--primary);
+}
+.mobile-bottom-nav button:active,
+.more-menu-popup button:active { opacity: 0.65; }
+
+/* ── 「更多」弹窗：毛玻璃 + 淡入动画 ── */
+.more-menu-popup {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.more-menu-overlay.show { animation: mobileFadeIn 0.2s ease; }
+@keyframes mobileFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── 全局按压反馈（触屏无 hover，用 :active 替代） ── */
+.btn:active:not(:disabled) { transform: scale(0.96); }
+.home-stat-card:active,
+.word-card:active,
+.essay-card:active,
+.grammar-point-card:active,
+.community-post:active,
+.topic-item:active,
+.achievement-card:active {
+  transform: scale(0.98);
+}
 
 
 /* ── 独立子页美化（移动端） ── */
