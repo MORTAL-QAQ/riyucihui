@@ -178,12 +178,13 @@ function injectAdminNav() {
 }
 
 function bindLogout() {
-  const btn = $("#btn-logout");
-  if (!btn) return;
-  btn.addEventListener("click", async () => {
-    try { await api.logout(); } catch (_) {}
-    clearToken();
-    location.href = "/";
+  // 同时绑定顶栏退出按钮（#btn-logout）与移动端抽屉退出按钮（#drawer-logout）
+  document.querySelectorAll("#btn-logout, #drawer-logout").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try { await api.logout(); } catch (_) {}
+      clearToken();
+      location.href = "/";
+    });
   });
 }
 
@@ -194,6 +195,7 @@ function bindLogout() {
  */
 async function initPage() {
   if (!requireAuth()) return false;
+  initSidebar();
   bindLogout();
   try {
     await loadCurrentUser();
@@ -203,12 +205,82 @@ async function initPage() {
   }
 }
 
-// ===== 移动端侧边栏抽屉（独立子页共用） =====
+// ===== 移动端侧边栏抽屉（所有页面共用；子页自动注入与首页一致的抽屉导航） =====
+let _mobileSidebarInjected = false;
+let _mobileSidebarBound = false;
+
+const MOBILE_NAV_ITEMS = [
+  ["home", "/", "🏠", "首页"],
+  ["wordbank", "/wordbank", "📖", "我的词库"],
+  ["study", "/study", "📝", "背词"],
+  ["generate", "/generate", "✦", "生成单词"],
+  ["essay", "/essay", "📄", "短文"],
+  ["cloze", "/cloze", "📝", "完型填空"],
+  ["grammar", "/grammar", "📐", "语法"],
+  ["image", "/image", "📷", "图片词卡"],
+  ["community", "/community", "💬", "社区"],
+  ["achievement", "/achievement", "🏆", "成就"],
+  ["saved", "/saved", "💾", "我的保存"],
+  ["settings", "/settings", "⚙", "设置"],
+];
+
+function injectMobileDrawer() {
+  if (_mobileSidebarInjected) return null;
+  _mobileSidebarInjected = true;
+  const current = location.pathname.replace(/^\/+|\/+$/g, "") || "home";
+  const navHtml = MOBILE_NAV_ITEMS.map(
+    ([key, href, icon, label]) =>
+      `<a class="nav-btn ${current === key ? "active" : ""}" href="${href}">` +
+      `<span class="nav-icon">${icon}</span> ${label}</a>`
+  ).join("");
+  const wrap = document.createElement("div");
+  wrap.className = "mobile-only";
+  wrap.innerHTML = `
+    <button class="hamburger" id="hamburger-btn" aria-label="菜单">☰</button>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <aside class="sidebar mobile-only-sidebar">
+      <div class="logo">
+        <span class="logo-icon">あ</span>
+        <span class="logo-text">多模态日语词汇学习</span>
+      </div>
+      <div class="sidebar-greeting">
+        <span class="sidebar-greeting-emoji">👋</span>
+        <span>日本語の世界へようこそ！</span>
+        <span class="sidebar-greeting-kao">Hi~ o(*￣▽￣*)ブ</span>
+      </div>
+      <nav class="nav">
+        ${navHtml}
+        <a class="nav-btn" id="nav-admin" href="/admin" style="display:none">
+          <span class="nav-icon">🛡</span> 管理
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <span class="user-icon">👤</span>
+          <span class="user-name" id="sidebar-username"></span>
+        </div>
+        <button class="btn btn-link btn-logout" id="drawer-logout">退出登录</button>
+      </div>
+    </aside>`;
+  document.body.appendChild(wrap);
+  return wrap.querySelector(".sidebar");
+}
+
 function initSidebar() {
-  const sidebar = document.querySelector(".sidebar");
+  if (_mobileSidebarBound) return;
+  let sidebar = document.querySelector(".sidebar");
+  // 子页无侧边栏时注入（桌面端 >768px 由 .mobile-only 隐藏，不注入）
+  if (
+    !sidebar &&
+    window.matchMedia &&
+    !window.matchMedia("(min-width: 769px)").matches
+  ) {
+    sidebar = injectMobileDrawer();
+  }
   const overlay = document.getElementById("sidebar-overlay");
   const hamburger = document.getElementById("hamburger-btn");
   if (!sidebar || !hamburger) return;
+  _mobileSidebarBound = true;
   const close = () => {
     sidebar.classList.remove("open");
     if (overlay) overlay.classList.remove("show");

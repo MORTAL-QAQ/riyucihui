@@ -586,9 +586,13 @@ table, .table-wrap {
 .home-welcome-emoji { font-size: 38px; }
 
 
+/* ── 独立子页顶栏（移动端）：v2 起移除顶栏，统一使用与首页一致的抽屉导航 ── */
+.subpage-header { display: none !important; }
+/* 子页注入的抽屉（common.js injectMobileDrawer）在移动端显示为抽屉 */
+.mobile-only-sidebar { display: flex; }
+
 /* ── 独立子页顶栏（移动端）：两行式布局 ──
    第一行：品牌 + 设置/退出；第二行：11 项导航单行横向滚动（隐藏滚动条） */
-.subpage-header { padding: 8px 10px; flex-wrap: wrap !important; gap: 8px !important; }
 .subpage-nav-scroll {
   order: 3;
   flex: 1 1 100% !important;
@@ -604,7 +608,7 @@ table, .table-wrap {
 .subpage-nav-scroll a { flex-shrink: 0; }
 .subpage-nav-btn { font-size: 13px; padding: 6px 8px; }
 .subpage-header-actions .btn { padding: 4px 10px; font-size: 12px; }
-body.subpage .main { padding: 12px 12px 24px; }
+body.subpage .main { padding: 52px 14px 24px; }  /* 顶部 52px 为固定汉堡按钮留白（顶栏已移除） */
 
 /* ── 底部导航 active 指示条 + 按压反馈 ── */
 .mobile-bottom-nav button { position: relative; }

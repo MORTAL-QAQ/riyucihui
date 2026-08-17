@@ -4154,6 +4154,8 @@ input::placeholder {
   pointer-events: none !important;
   clip: rect(0 0 0 0) !important;
 }
+/* 子页注入的移动端抽屉（common.js injectMobileDrawer）：桌面端隐藏，仅手机端显示 */
+.mobile-only-sidebar { display: none; }
 
 /* ═══ 社区 ═══ */
 .community-announcements {
