@@ -574,6 +574,18 @@ table, .table-wrap {
 .home-daily { padding: 18px 16px 18px 20px; }
 .home-daily-jp { font-size: 19px; }
 
+/* 首页签到卡片（移动端：堆叠到横幅下方，占满宽度） */
+.home-top { flex-direction: column; gap: 12px; }
+.home-top .home-welcome { margin-bottom: 0; }
+.home-checkin { width: 100%; padding: 16px; }
+.home-checkin-word-jp { font-size: 18px; }
+/* 移动端隐藏装饰性假名，避免拥挤 */
+.home-welcome-deco { display: none; }
+.home-welcome-date { margin-top: 8px; font-size: 12px; padding: 4px 11px; }
+.home-welcome-title { font-size: 24px; }
+.home-welcome-sub { font-size: 14px; }
+.home-welcome-emoji { font-size: 38px; }
+
 
 /* ── 独立子页顶栏（移动端） ── */
 .subpage-header { padding: 8px 12px; }

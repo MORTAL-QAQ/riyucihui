@@ -227,6 +227,27 @@ class LoginHistory(Base):
     login_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)  # 登录时间
 
 
+class Checkin(Base):
+    """每日签到记录表。
+
+    每个用户每天最多一条（UNIQUE(user_id, checkin_date)），checkin_date 为北京时区日期。
+    签到当天会自动把「每日推荐单词」归入该用户的「签到单词」词单（words.topic）。
+    """
+    __tablename__ = "checkins"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    checkin_date = Column(Date, nullable=False)                      # 签到日期（北京时区）
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "checkin_date", name="uq_checkin_user_date"),
+        Index("ix_checkin_user_date", "user_id", "checkin_date"),
+    )
+
+
 class Post(Base):
     """社区帖子表（含管理员公告）。
 

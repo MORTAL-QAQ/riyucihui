@@ -99,7 +99,11 @@
             <span class="logo-icon">あ</span>
             <span class="logo-text">多模态日语词汇学习</span>
           </div>
-          <div class="sidebar-greeting">日本語の世界へようこそ！(≧∇≦)ﾉ</div>
+          <div class="sidebar-greeting">
+            <span class="sidebar-greeting-emoji">👋</span>
+            <span>日本語の世界へようこそ！</span>
+            <span class="sidebar-greeting-kao">Hi~ o(*￣▽￣*)ブ</span>
+          </div>
           <nav class="nav">
             <button class="nav-btn active" data-tab="home" id="nav-home">
               <span class="nav-icon">🏠</span> 首页
@@ -164,13 +168,44 @@
         <main class="main">
           <!-- 首页（学习仪表盘） -->
           <section class="page active" id="page-home">
-            <div class="home-welcome">
-              <div class="home-welcome-emoji">🌸</div>
-              <div class="home-welcome-text">
-                <h1 class="home-welcome-title" id="home-welcome-title">こんにちは</h1>
-                <p class="home-welcome-sub" id="home-welcome-sub">今天也要一起加油学习日语哦</p>
+            <!-- 顶部区：欢迎横幅（左） + 签到卡片（右上） -->
+            <div class="home-top">
+              <div class="home-welcome">
+                <div class="home-welcome-emoji">🌸</div>
+                <div class="home-welcome-text">
+                  <h1 class="home-welcome-title" id="home-welcome-title">こんにちは</h1>
+                  <p class="home-welcome-sub" id="home-welcome-sub">今天也要一起加油学习日语哦</p>
+                  <div class="home-welcome-date" id="home-welcome-date"></div>
+                </div>
+                <a class="home-welcome-cta" href="/study">📝 开始学习</a>
+                <!-- 装饰性漂浮假名（填满右侧留白） -->
+                <span class="home-welcome-deco d1">あ</span>
+                <span class="home-welcome-deco d2">い</span>
+                <span class="home-welcome-deco d3">う</span>
+                <span class="home-welcome-deco d4">日本語</span>
               </div>
-              <a class="home-welcome-cta" href="/study">📝 开始学习</a>
+
+              <!-- 每日签到卡片（右上） -->
+              <div class="home-checkin" id="home-checkin">
+                <div class="home-checkin-head">
+                  <span class="home-checkin-title">📅 每日签到</span>
+                  <span class="home-checkin-streak" id="checkin-streak">🔥 连续 0 天</span>
+                </div>
+                <button class="home-checkin-btn" id="btn-checkin" type="button">签到</button>
+                <div class="home-checkin-word">
+                  <div class="home-checkin-word-label">💡 每日推荐单词</div>
+                  <div class="home-checkin-word-body">
+                    <span class="home-checkin-word-jp" id="checkin-word-jp">-</span>
+                    <span class="home-checkin-word-kana" id="checkin-word-kana"></span>
+                    <span class="home-checkin-word-cn" id="checkin-word-cn"></span>
+                    <button class="btn btn-outline btn-sm" id="btn-checkin-word-speak" title="发音">🔊</button>
+                  </div>
+                </div>
+                <div class="home-checkin-foot">
+                  <span class="home-checkin-hint">签到后自动加入「签到单词」词单</span>
+                  <a class="home-checkin-link" href="/wordbank">词单 →</a>
+                </div>
+              </div>
             </div>
 
             <!-- 学习统计卡片 -->

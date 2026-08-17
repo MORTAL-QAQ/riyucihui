@@ -363,7 +363,12 @@ async function loadHome() {
   const h = new Date().getHours();
   const greet = h < 6 ? "夜深了" : h < 12 ? "おはよう" : h < 18 ? "こんにちは" : "こんばんは";
   $("#home-welcome-title").textContent = `${greet}、${currentUsername}！`;
-  $("#home-welcome-sub").textContent = "今天也要一起加油学习日语哦 (≧∇≦)ﾉ";
+  $("#home-welcome-sub").textContent = "今天也要一起加油学习日语哦 Hi~ o(*￣▽￣*)ブ";
+  // 日期行（填满欢迎栏留白，增加亲和感）
+  const now = new Date();
+  const weekCn = ["日", "一", "二", "三", "四", "五", "六"][now.getDay()];
+  $("#home-welcome-date").textContent =
+    `📅 ${now.getMonth() + 1}月${now.getDate()}日 星期${weekCn} · 元气满满的一天`;
 
   // 统计卡片 + 公告（并行拉取；部分失败不阻塞首页）
   try {
@@ -434,6 +439,61 @@ async function loadHome() {
   } catch (err) {
     $("#home-recommend").style.display = "none";
   }
+
+  // 每日签到卡片（右上）
+  loadCheckin();
+}
+
+// ===== 每日签到 =====
+function renderCheckin(data) {
+  $("#checkin-streak").textContent = `🔥 连续 ${data.streak ?? 0} 天`;
+  const btn = $("#btn-checkin");
+  if (data.checked_in) {
+    btn.classList.add("done");
+    btn.textContent = "✅ 已签到";
+    btn.disabled = true;
+  } else {
+    btn.classList.remove("done");
+    btn.textContent = "签到";
+    btn.disabled = false;
+  }
+  const w = data.word;
+  if (w) {
+    $("#checkin-word-jp").textContent = w.japanese;
+    $("#checkin-word-kana").textContent = w.kana || "";
+    $("#checkin-word-cn").textContent = w.chinese || "";
+    $("#btn-checkin-word-speak").onclick = (e) => speakWord(w.japanese, w.kana, e.currentTarget);
+  }
+}
+
+async function loadCheckin() {
+  try {
+    const data = await api.checkinStatus();
+    renderCheckin(data);
+  } catch (err) {
+    console.error("签到卡片加载失败:", err);
+  }
+  // 签到按钮（每次渲染后重绑，避免重复监听）
+  const btn = $("#btn-checkin");
+  btn.onclick = async (e) => {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = "签到中…";
+    try {
+      const data = await api.doCheckin();
+      renderCheckin(data);
+      showToast("✅ 签到成功");
+      if (data.newly && data.word) {
+        showToast(`「${data.word.japanese}」已加入签到单词词单`);
+      } else if (data.checked_in) {
+        showToast("今天已经签到过啦");
+      }
+    } catch (err) {
+      handleApiError(err, "签到失败");
+      btn.disabled = false;
+      btn.textContent = "签到";
+    }
+  };
 }
 
 // ===== 启动 =====

@@ -430,3 +430,28 @@ class AnnouncementCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=100)
     content: str = Field("", max_length=5000)
     pinned: bool = True   # 公告默认置顶
+
+
+# ── Checkin（每日签到） ──
+CHECKIN_TOPIC = "签到单词"
+
+
+class CheckinWord(BaseModel):
+    """每日推荐单词（id 存在时来自用户词库，否则为内置兜底词）"""
+    id: int | None = None
+    japanese: str
+    kana: str
+    chinese: str
+    example_ja: str = ""
+    example_cn: str = ""
+    jlpt_level: str | None = None
+
+
+class CheckinStatus(BaseModel):
+    """签到状态 + 今日推荐单词"""
+    checked_in: bool = False        # 今天是否已签到
+    streak: int = 0                 # 连续签到天数（含今天/昨天，中断则为 0）
+    total: int = 0                  # 累计签到次数
+    checkin_topic: str = CHECKIN_TOPIC
+    newly: bool = False             # 本次签到是否为新增（POST 返回）
+    word: CheckinWord | None = None  # 今日推荐单词

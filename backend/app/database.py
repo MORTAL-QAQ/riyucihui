@@ -398,6 +398,42 @@ def _run_migrations_inner():
             )
             conn.commit()
 
+        # checkins table（每日签到）
+        if "checkins" not in inspector.get_table_names():
+            if dialect == "postgresql":
+                conn.execute(
+                    text("""
+                    CREATE TABLE checkins (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        checkin_date DATE NOT NULL,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        CONSTRAINT uq_checkin_user_date UNIQUE(user_id, checkin_date)
+                    )
+                """)
+                )
+            else:
+                conn.execute(
+                    text("""
+                    CREATE TABLE checkins (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        checkin_date DATE NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_checkin_user_date UNIQUE(user_id, checkin_date)
+                    )
+                """)
+                )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_checkins_user ON checkins(user_id)")
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_checkin_user_date ON checkins(user_id, checkin_date)"
+                )
+            )
+            conn.commit()
+
         # ── Backfill orphaned rows ──
         # #19：已拆出为显式 CLI 命令（python -m app.cli backfill-orphans），
         # 启动时不再隐式修改数据。如需执行请手动运行。

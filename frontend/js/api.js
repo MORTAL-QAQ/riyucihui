@@ -512,4 +512,13 @@ const api = {
   pinCommunityPost(id, pinned) {
     return request(`/community/posts/${id}/pin?pinned=${pinned}`, { method: "PUT" });
   },
+
+  // ── Checkin（每日签到） ──
+  checkinStatus() {
+    return request("/checkin/status");
+  },
+
+  doCheckin() {
+    return request("/checkin", { method: "POST", body: "{}" });
+  },
 };
