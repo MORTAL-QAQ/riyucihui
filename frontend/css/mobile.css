@@ -650,3 +650,80 @@ body.subpage .main { padding: 12px 12px 24px; }
 /* ── 独立子页美化（移动端） ── */
 body.subpage .page-header h1 { font-size: 22px; }
 .subpage-nav-btn { padding: 6px 10px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   手机端全局紧凑化（v3）：缩小字号/按钮/间距，修复窄屏变形与拥挤
+   ═══════════════════════════════════════════════════════════════════ */
+body { font-size: 13px; }
+button { min-height: 44px; }
+
+/* 子页顶栏两行式压缩 */
+.subpage-header { padding: 6px 10px; gap: 6px !important; }
+.subpage-nav-scroll { padding: 0; }
+.subpage-nav-scroll a { padding: 5px 10px !important; font-size: 12px !important; }
+
+/* 页面标题 */
+.page-header { margin-bottom: 12px !important; }
+.page-header h1 { font-size: 18px !important; }
+.subtitle { font-size: 11.5px !important; }
+
+/* 首页 */
+.home-welcome { padding: 14px 16px; gap: 10px; }
+.home-welcome-emoji { font-size: 30px; }
+.home-welcome-title { font-size: 20px; }
+.home-welcome-sub { font-size: 13px; margin-top: 4px; }
+.home-welcome-date { margin-top: 8px; font-size: 11px; padding: 3px 10px; }
+.home-stats { gap: 8px; margin-bottom: 12px; }
+.home-stat-card { padding: 10px 8px; }
+.home-stat-icon { font-size: 18px; margin-bottom: 4px; }
+.home-stat-num { font-size: 20px; }
+.home-stat-label { font-size: 11px; margin-top: 2px; }
+.home-checkin { padding: 14px; gap: 10px; }
+.home-checkin-title { font-size: 14px; }
+.home-checkin-streak { font-size: 11px; padding: 2px 8px; }
+.home-checkin-btn { padding: 9px 0; font-size: 14px; }
+.home-checkin-word { padding: 10px 12px; }
+.home-checkin-word-jp { font-size: 16px; }
+.home-checkin-word-kana { font-size: 12px; }
+.home-checkin-word-cn { font-size: 12px; }
+.home-checkin-hint { font-size: 10.5px; }
+.home-daily { padding: 14px 14px 14px 18px; }
+.home-daily-jp { font-size: 17px; }
+.home-announcements { padding: 10px 14px; }
+
+/* 网格修复：窄屏 3 列 → 2 列，避免变形拥挤 */
+.study-topic-grid,
+.essay-topic-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 6px;
+}
+.session-stats-grid { gap: 6px; }
+.session-stat-card { padding: 10px 6px; }
+.session-stat-num { font-size: 20px; }
+.study-quality-buttons { gap: 6px; }
+.btn-quality { padding: 12px 6px; font-size: 12px; }
+
+/* 卡片与输入区压缩 */
+.generate-box,
+.essay-card,
+.settings-box { padding: 12px !important; }
+.word-card { padding: 10px 12px; gap: 8px; }
+.essay-content { font-size: 15px; }
+.cloze-passage { font-size: 14px; }
+.topic-input,
+.extra-input,
+.difficulty-select { padding: 10px 12px !important; }
+.community-publish { padding: 12px; }
+.community-post { padding: 11px 12px; }
+.community-hero { padding: 16px 14px; }
+.community-hero h1 { font-size: 19px; }
+.community-hero-sub { font-size: 11px; }
+.community-tag { font-size: 10px; padding: 1px 7px; }
+.community-avatar { width: 32px; height: 32px; font-size: 13px; }
+.community-stat { font-size: 11px; padding: 2px 8px; }
+
+/* 成就等 */
+.achievement-cat-cards { gap: 6px; }
+.achievement-card { padding: 12px 8px; }
+.achievement-icon { font-size: 28px; }
+.achievement-name { font-size: 12px; }
