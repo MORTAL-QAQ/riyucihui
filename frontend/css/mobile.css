@@ -43,8 +43,8 @@ body {
 
 /* ── 侧边栏抽屉 ── */
 .sidebar {
-  position: fixed; top: 0; left: -85vw; bottom: 0;
-  width: 80vw; max-width: 300px; z-index: 1000;
+  position: fixed; top: 0; left: -63vw; bottom: 0;
+  width: 58vw; max-width: 224px; z-index: 1000;
   transition: left 0.3s cubic-bezier(0.4,0,0.2,1);
   box-shadow: 4px 0 24px rgba(0,0,0,0.15);
 }

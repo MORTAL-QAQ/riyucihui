@@ -9,7 +9,7 @@ from .. import config
 from ..database import get_db
 from ..models import LoginHistory, User
 from ..schemas import USERNAME_PATTERN, LoginRequest, RegisterRequest, TokenResponse, UserOut
-from ..services.rate_limiter import check_username_rate, rate_limit
+from ..services.rate_limiter import check_username_rate, get_client_ip, rate_limit
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
@@ -52,7 +52,7 @@ def register(
 
     token = create_access_token(user.id, user.token_version)
 
-    client_ip = request.client.host if request.client else None
+    client_ip = get_client_ip(request)
     client_ua = request.headers.get("User-Agent", "")[:500]
     login_record = LoginHistory(
         user_id=user.id,
@@ -126,7 +126,7 @@ def login(
     token = create_access_token(user.id, user.token_version)
 
     # 记录登录历史
-    client_ip = request.client.host if request.client else None
+    client_ip = get_client_ip(request)
     client_ua = request.headers.get("User-Agent", "")[:500]  # 截断到 500 字符
     login_record = LoginHistory(
         user_id=user.id,

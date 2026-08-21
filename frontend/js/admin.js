@@ -61,8 +61,9 @@ async function loadAdminLogins() {
           <div class="login-report-user">
             <span class="login-report-avatar">👤</span>
             <div>
-              <div class="login-report-username">${esc(r.username)}</div>
+              <div class="login-report-username">${esc(r.name || r.username)}</div>
               <div class="login-report-meta">
+                账号 ${esc(r.username)} ·
                 共 <strong>${r.login_count}</strong> 次登录 ·
                 首次 ${formatDate(r.first_login)} ·
                 最近 ${formatDate(r.last_login)}

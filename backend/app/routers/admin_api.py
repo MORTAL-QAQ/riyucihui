@@ -389,6 +389,7 @@ class LoginHistoryOut(BaseModel):
 class UserLoginReport(BaseModel):
     user_id: int
     username: str
+    name: str | None = None          # 显示名（昵称），登录记录主显示
     login_count: int
     first_login: str | None = None
     last_login: str | None = None
@@ -406,6 +407,7 @@ def get_login_history(
         db.query(
             LoginHistory.user_id,
             User.username,
+            User.name,
             LoginHistory.login_at,
             LoginHistory.ip_address,
             LoginHistory.user_agent,
@@ -422,11 +424,13 @@ def get_login_history(
     from collections import OrderedDict
     user_data: dict[int, dict] = OrderedDict()
 
-    for uid, uname, login_at, ip_addr, ua in rows:
+    for uid, uname, uname_name, login_at, ip_addr, ua in rows:
+        nickname = uname_name or uname
         if uid not in user_data:
             user_data[uid] = {
                 "user_id": uid,
                 "username": uname,
+                "name": nickname,
                 "logins": [],
             }
         user_data[uid]["logins"].append(
@@ -445,6 +449,7 @@ def get_login_history(
             UserLoginReport(
                 user_id=uid,
                 username=data["username"],
+                name=data["name"],
                 login_count=len(logins),
                 first_login=logins[-1].login_at if logins else None,
                 last_login=logins[0].login_at if logins else None,
