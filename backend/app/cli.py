@@ -150,7 +150,8 @@ def login_report(username: str | None = None) -> str:
             lines.append(f"  {'─' * 70}")
 
             for i, (login_at, ip_addr) in enumerate(logins, 1):
-                time_str = login_at.strftime("%Y-%m-%d %H:%M:%S UTC") if login_at else "N/A"
+                # 存储值在 PostgreSQL 下已是 CST 字面值（无 tzinfo），直接按 CST 显示
+                time_str = login_at.strftime("%Y-%m-%d %H:%M:%S") if login_at else "N/A"
                 ip_str = ip_addr or "N/A"
                 lines.append(f"  {i:<6} {time_str:<26} {ip_str:<20}")
 

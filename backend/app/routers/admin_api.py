@@ -7,12 +7,19 @@ CST = timezone(timedelta(hours=8))
 
 
 def _to_cst(dt: datetime | None) -> str:
-    """将 UTC 时间转为北京时间字符串"""
+    """将存储时间显示为北京时间字符串。
+
+    存储说明：PostgreSQL 无时区列在 backend 容器 TZ（Asia/Shanghai）下，
+    psycopg2 会把 aware UTC datetime 转为 CST 字面值存储（无 tzinfo）；
+    SQLite 则存带 +00:00 偏移的 UTC 字符串。因此：
+    - 无 tzinfo → 视为 CST 直接格式化（不再 +8，否则会晚 8 小时）
+    - 带 tzinfo → 转 CST 后格式化
+    """
     if dt is None:
         return ""
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(CST).strftime("%Y-%m-%d %H:%M:%S")
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(CST)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
