@@ -222,7 +222,6 @@ function openExportDialog() {
   $("#export-topic-label").innerHTML = esc(label) + ' · <span id="export-word-count">--</span> 个单词';
 
   document.querySelector("input[name='export-layout'][value='table']").checked = true;
-  $("#export-include-images").checked = true;
   $("#export-include-examples").checked = true;
 
   const token = getToken();
