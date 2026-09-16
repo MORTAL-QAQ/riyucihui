@@ -47,3 +47,10 @@ docs/
 
 # pip/构建临时目录
 backend/.tmp/
+
+# 学生数据与账号名单（含个人信息，禁止入库）
+*.xls
+*.xlsx
+students.json
+*学生名单*
+*成绩*
