@@ -69,16 +69,21 @@ def _counts(db: Session) -> tuple[dict[int, int], dict[int, int]]:
     return like_counts, comment_counts
 
 
+def _display_name(name: str | None, username: str) -> str:
+    """社区显示名：优先昵称，未设置时回退账号。"""
+    return (name or "").strip() or username
+
+
 def _to_out(row) -> PostOut:
-    """row = (Post, username, like_count, comment_count) → PostOut"""
-    post, username, like_count, comment_count = row
+    """row = (Post, name, username, like_count, comment_count) → PostOut（username 字段承载显示名）"""
+    post, name, username, like_count, comment_count = row
     return PostOut(
         id=post.id,
         type=post.type,
         title=post.title,
         content=post.content,
         is_pinned=post.is_pinned,
-        username=username,
+        username=_display_name(name, username),
         like_count=like_count,
         comment_count=comment_count,
         created_at=post.created_at,
@@ -98,7 +103,7 @@ def list_posts(
     like_counts, comment_counts = _counts(db)
 
     stmt = (
-        select(Post, User.username)
+        select(Post, User.name, User.username)
         .join(User, Post.user_id == User.id)
         .order_by(Post.is_pinned.desc(), Post.created_at.desc())
     )
@@ -111,8 +116,8 @@ def list_posts(
 
     rows = db.execute(stmt.offset(offset).limit(limit)).all()
     posts = [
-        _to_out((p, username, like_counts.get(p.id, 0), comment_counts.get(p.id, 0)))
-        for p, username in rows
+        _to_out((p, name, uname, like_counts.get(p.id, 0), comment_counts.get(p.id, 0)))
+        for p, name, uname in rows
     ]
     return PostListResponse(posts=posts, total=total)
 
@@ -136,7 +141,7 @@ def create_post(
     new_achs = check_achievements(db, user.id)
     return PostOut(
         id=post.id, type=post.type, title=post.title, content=post.content,
-        is_pinned=post.is_pinned, username=user.username,
+        is_pinned=post.is_pinned, username=_display_name(user.name, user.username),
         like_count=0, comment_count=0, created_at=post.created_at,
         new_achievements=[{"name": a["name"], "icon": a["icon"]} for a in new_achs] or None,
     )
@@ -150,13 +155,13 @@ def get_post(
 ):
     """帖子详情：内容 + 点赞/评论数 + 当前用户点赞状态 + 评论列表。"""
     row = (
-        db.execute(select(Post, User.username).join(User, Post.user_id == User.id)
+        db.execute(select(Post, User.name, User.username).join(User, Post.user_id == User.id)
                    .where(Post.id == post_id))
         .first()
     )
     if not row:
         raise HTTPException(status_code=404, detail="帖子不存在")
-    post, username = row
+    post, author_name, author_username = row
 
     like_count = db.scalar(
         select(func.count(PostLike.id)).where(PostLike.post_id == post_id)
@@ -171,20 +176,21 @@ def get_post(
     ) > 0
 
     comments = db.execute(
-        select(PostComment, User.username)
+        select(PostComment, User.name, User.username)
         .join(User, PostComment.user_id == User.id)
         .where(PostComment.post_id == post_id)
         .order_by(PostComment.created_at)
     ).all()
     comment_outs = [
         CommentOut(id=c.id, post_id=c.post_id, content=c.content,
-                   username=uname, created_at=c.created_at)
-        for c, uname in comments
+                   username=_display_name(cname, cuname), is_mine=(c.user_id == user.id),
+                   created_at=c.created_at)
+        for c, cname, cuname in comments
     ]
 
     post_out = PostOut(
         id=post.id, type=post.type, title=post.title, content=post.content,
-        is_pinned=post.is_pinned, username=username,
+        is_pinned=post.is_pinned, username=_display_name(author_name, author_username),
         like_count=like_count, comment_count=comment_count, created_at=post.created_at,
     )
     return PostDetailResponse(
@@ -274,7 +280,8 @@ def create_comment(
     new_achs = check_achievements(db, user.id)
     return CommentOut(
         id=comment.id, post_id=comment.post_id, content=comment.content,
-        username=user.username, created_at=comment.created_at,
+        username=_display_name(user.name, user.username), is_mine=True,
+        created_at=comment.created_at,
         new_achievements=[{"name": a["name"], "icon": a["icon"]} for a in new_achs] or None,
     )
 
@@ -317,7 +324,7 @@ def create_announcement(
     db.refresh(post)
     return PostOut(
         id=post.id, type=post.type, title=post.title, content=post.content,
-        is_pinned=post.is_pinned, username=admin.username,
+        is_pinned=post.is_pinned, username=_display_name(admin.name, admin.username),
         like_count=0, comment_count=0, created_at=post.created_at,
     )
 

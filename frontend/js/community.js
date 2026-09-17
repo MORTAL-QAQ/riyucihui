@@ -155,7 +155,7 @@ async function openCommunityDetail(postId) {
               <div class="community-comment-head">
                 <span class="community-comment-user">${esc(c.username)}</span>
                 <span class="community-comment-time">${fmtTime(c.created_at)}</span>
-                ${c.username === currentUsername || data.is_admin
+                ${c.is_mine || data.is_admin
                   ? `<button class="community-comment-del" data-del="${c.id}">×</button>` : ""}
               </div>
               <div class="community-comment-text">${esc(c.content)}</div>

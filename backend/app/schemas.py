@@ -409,7 +409,8 @@ class CommentOut(BaseModel):
     id: int
     post_id: int
     content: str
-    username: str
+    username: str          # 显示名（昵称，未设置时回退账号）
+    is_mine: bool = False  # 是否当前用户本人（前端据此显示删除按钮）
     created_at: datetime
     new_achievements: list[dict] | None = None   # 评论触发的新成就（前端自动弹窗）
 
