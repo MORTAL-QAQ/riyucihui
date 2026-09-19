@@ -55,12 +55,13 @@ const pageCloze = $("#page-cloze");
 const navImage = $("#nav-image");
 const pageImage = $("#page-image");
 const navExperiment = $("#nav-experiment");
+const navQuestionnaire = $("#nav-questionnaire");
 const navAchievement = $("#nav-achievement");
 const navHome = $("#nav-home");
 const pageHome = $("#page-home");
 const navCommunity = $("#nav-community");
 const pageCommunity = $("#page-community");
-const navBtns = [navHome, navCommunity, navGenerate, navWordbank, navStudy, navEssay, navCloze, navImage, navExperiment, navGrammar, navSaved, navAchievement, navSettings, navAdmin];
+const navBtns = [navHome, navCommunity, navGenerate, navWordbank, navStudy, navEssay, navCloze, navImage, navExperiment, navQuestionnaire, navGrammar, navSaved, navAchievement, navSettings, navAdmin];
 // pageCommunity 已迁移至独立页 /community（阶段二），不在此 SPA 内
 // pageWordbank 已迁移至独立页 /wordbank（阶段二）
 // pageStudy 已迁移至独立页 /study（阶段二）
@@ -256,6 +257,9 @@ function switchTab(tab, opts = {}) {
   } else if (tab === "experiment") {
     // 记忆实验已拆为独立子页（阶段二）
     location.href = "/experiment";
+  } else if (tab === "questionnaire") {
+    // 科研问卷为独立子页
+    location.href = "/questionnaire";
   } else if (tab === "grammar") {
     // 语法已拆为独立子页（阶段二）
     location.href = "/grammar";
@@ -283,6 +287,7 @@ navEssay.addEventListener("click", () => switchTab("essay"));
 navCloze.addEventListener("click", () => switchTab("cloze"));
 navImage.addEventListener("click", () => switchTab("image"));
 navExperiment.addEventListener("click", () => switchTab("experiment"));
+navQuestionnaire.addEventListener("click", () => switchTab("questionnaire"));
 navGrammar.addEventListener("click", () => switchTab("grammar"));
 navSaved.addEventListener("click", () => switchTab("saved"));
 navAchievement.addEventListener("click", () => switchTab("achievement"));

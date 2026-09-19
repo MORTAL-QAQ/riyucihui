@@ -209,6 +209,9 @@ async function initPage() {
 let _mobileSidebarInjected = false;
 let _mobileSidebarBound = false;
 
+// 移动端抽屉导航项——**必须与桌面顶栏（dev_tools/unify_topbar.py 的 NAV_ITEMS）保持一致**，
+// 否则手机上会缺入口（曾漏掉「实验」「问卷」）。
+// 一致性由 dev_tools/test_js_syntax.js 自动校验（桌面 / 抽屉 / 首页侧边栏三方比对）。
 const MOBILE_NAV_ITEMS = [
   ["home", "/", "🏠", "首页"],
   ["wordbank", "/wordbank", "📖", "我的词库"],
@@ -218,6 +221,8 @@ const MOBILE_NAV_ITEMS = [
   ["cloze", "/cloze", "📝", "完型填空"],
   ["grammar", "/grammar", "📐", "语法"],
   ["image", "/image", "📷", "图片词卡"],
+  ["experiment", "/experiment", "🧪", "记忆实验"],
+  ["questionnaire", "/questionnaire", "📋", "科研问卷"],
   ["community", "/community", "💬", "社区"],
   ["achievement", "/achievement", "🏆", "成就"],
   ["saved", "/saved", "💾", "我的保存"],
