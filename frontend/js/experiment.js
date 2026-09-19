@@ -117,9 +117,10 @@ function updatePresetHint() {
 }
 
 function renderLearnCards() {
-  expLearnGrid.innerHTML = expWords.map((w) => {
-    if (w.is_multimodal) {
-      return `
+  const mm = expWords.filter((w) => w.is_multimodal);
+  const plain = expWords.filter((w) => !w.is_multimodal);
+
+  const mmCards = mm.map((w) => `
       <div class="exp-card exp-card-mm" data-word="${w.id}">
         <div class="exp-card-head">
           <span class="exp-card-jp">${esc(w.japanese)}</span>
@@ -129,16 +130,31 @@ function renderLearnCards() {
         <div class="exp-card-img" id="exp-img-${w.id}"><span class="exp-img-loading">图片生成中...</span></div>
         ${w.example_ja ? `<div class="exp-card-ex">${esc(w.example_ja)}</div>` : ""}
         ${w.example_cn ? `<div class="exp-card-ex-cn">${esc(w.example_cn)}</div>` : ""}
-      </div>`;
-    }
-    return `
+      </div>`).join("");
+
+  const plainCards = plain.map((w) => `
     <div class="exp-card exp-card-plain" data-word="${w.id}">
       <div class="exp-card-head">
         <span class="exp-card-jp">${esc(w.japanese)}</span>
       </div>
       <div class="exp-card-kana">${esc(w.kana)}</div>
+    </div>`).join("");
+
+  expLearnGrid.innerHTML = `
+    <div class="exp-group">
+      <div class="exp-group-title">
+        <span class="exp-group-badge mm">🎨 多模态材料</span>
+        <span class="exp-group-count">${mm.length} 个 · 图片 + 语音 + 例句</span>
+      </div>
+      <div class="exp-group-grid">${mmCards}</div>
+    </div>
+    <div class="exp-group">
+      <div class="exp-group-title">
+        <span class="exp-group-badge plain">📄 非多模态材料</span>
+        <span class="exp-group-count">${plain.length} 个 · 仅单词 + 假名标音</span>
+      </div>
+      <div class="exp-group-grid">${plainCards}</div>
     </div>`;
-  }).join("");
 
   // 语音播放（多模态组）
   expLearnGrid.querySelectorAll(".exp-speak").forEach((btn) => {
@@ -199,8 +215,7 @@ function renderQuiz() {
     <div class="exp-quiz-item" data-quiz="${q.word_id}">
       <div class="exp-quiz-head">
         <span class="exp-quiz-num">${idx + 1}</span>
-        <span class="exp-quiz-jp">${esc(q.japanese)}</span>
-        <span class="exp-quiz-kana">${esc(q.kana)}</span>
+        <span class="exp-quiz-kana-main">${esc(q.kana || q.japanese)}</span>
       </div>
       <div class="exp-quiz-options">
         ${q.options.map((opt) => `

@@ -740,3 +740,7 @@ button { min-height: 44px; }
 .exp-quiz-options { grid-template-columns: 1fr; }
 .exp-result-rate { font-size: 28px; }
 .exp-history-item { flex-direction: column; align-items: flex-start; }
+
+/* 实验分组（移动端） */
+.exp-group-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.exp-quiz-kana-main { font-size: 20px; }
