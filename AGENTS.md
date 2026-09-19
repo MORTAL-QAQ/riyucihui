@@ -17,9 +17,15 @@
   - 社区互动成就：首次发帖/首次点赞/首条评论/发帖 10 篇
 - **账号体系**：注册（用户名昵称 + 账号 + 密码）、登录（账号+密码）、昵称编辑、修改密码（改后旧 Token 立即失效）、每日用量限额
 - **学习报告**：PDF 导出（统计概览 + SM-2 阶段分布 + 待复习列表）
-- **管理员后台**：用户管理（设管理/重置密码/删除/备注）、每日限额调整（AI/语音/单词/图片）、登录记录
+- **科研问卷**：6 份表单（卷1 前测 / 卷2 后测·实验组+对照组 / 卷3 实验组附加 / 卷4 认知负荷·实验组+对照组），
+  分页作答（矩阵量表/单选/填空/多行文本）、必答校验、一人一卷仅提交一次；管理员在「实验数据」查看回收情况与逐人作答
+  - **数据留存（科研口径）**：`questionnaire_responses` 同存**原始作答**（`answers` JSON）与**维度均值分**（`scores` JSON），
+    并冻结 `code`/`version`/`name`，题目定义见 `backend/app/questionnaires.py`（措辞冻结，改措辞必须升 version）
+  - 计分：维度分 = 该维度条目均值；反向题先反转（BPNS 6 题、SUS 5 题，量表两端之和减原值）
+  - 导出：`GET /api/admin/questionnaires/export?code=&kind=data|dict`（data=一人一行含维度分，可直接进 SPSS；dict=题号对照表含反向标注）
+- **管理员后台**：用户管理（设管理/重置密码/删除/备注）、每日限额调整（AI/语音/单词/图片）、登录记录、实验数据、问卷回答情况
 
-**部署形态**：Docker Compose（voicevox / postgres / backend / nginx / certbot），前端为 13 个页面的多页架构（详见下方前端结构）。
+**部署形态**：Docker Compose（voicevox / postgres / backend / nginx / certbot），前端为 14 个页面的多页架构（详见下方前端结构）。
 
 ## 技术栈
 
@@ -30,10 +36,10 @@
 ## 后端结构（`backend/app/`）
 
 - 入口 `main.py`：路由注册、`/api/health`、`mount("/", StaticFiles)` 托管前端
-- 路由 `routers/`：auth、admin_api、words、study、grammar、essay、cloze、generate、voice、achievement、settings、export、community
+- 路由 `routers/`：auth、admin_api、words、study、grammar、essay、cloze、generate、voice、achievement、settings、export、community、experiment、questionnaire
   - AI/语音/图片端点有 IP 级限流（信任 nginx `X-Real-IP`）+ 用户级每日限额（北京时区零点重置）
   - 错误对外笼统、细节进日志
-- 模型 `models.py`：User、UsageRecord、Word（`image_base64` 为 deferred 列）、StudyRecord、Essay、Cloze、GrammarCompare、Achievement、LoginHistory
+- 模型 `models.py`：User、UsageRecord、Word（`image_base64` 为 deferred 列）、StudyRecord、Essay、Cloze、GrammarCompare、Achievement、LoginHistory、ExperimentSession/Word/Preset、**QuestionnaireResponse**
 - 服务 `services/`：ai_service、word_service、voicevox_manager、image_service、pdf_service、achievement_service、usage_service、rate_limiter、secrets、font_manager、sensitive_words
 - 配置 `config.py` 全走环境变量；密钥经 `secrets.py`（env → Docker secrets → keyring → .env）；**未配置 SECRET_KEY 启动报错**
 - CLI `cli.py`：`create-admin`、`login-report`、`backfill-orphans` 等，`python -m app.cli ...`
@@ -44,7 +50,7 @@
 
 **共享层 `js/common.js`**：`$`/`esc`/`jlptBadge`/`fmtTime`/`showToast`/`handleApiError`/`speakWord`（Web Audio，api.voice 返回 Blob 直接 arrayBuffer 解码）/`runStreamToPreview`（SSE，`$("#"+previewId)` 注意 # 前缀）/`initPage`（认证守卫）/`currentUsername`/`isAdmin`/`bindLogout`/`injectAdminNav`（管理按钮按 isAdmin 动态注入，普通用户不可见）。
 
-**独立子页模板**：`<body class="subpage" style="margin:0;">` + `<div id="app" style="display:block; min-height:100vh;">`（覆盖全局 `#app{display:flex}` 防收缩左偏）+ `<main style="margin:auto; max-width:1200px; ...">` 居中 + 顶栏三区内联样式（左品牌 / 中导航 11 项：返回首页·词库·背词·生成·短文·完型·语法·图片·社区·成就·保存，当前页高亮，管理按钮动态注入 / 右设置·退出）。入口 `initPage().then(ok => ok && 加载函数())`；管理页额外校验 isAdmin。
+**独立子页模板**：`<body class="subpage" style="margin:0;">` + `<div id="app" style="display:block; min-height:100vh;">`（覆盖全局 `#app{display:flex}` 防收缩左偏）+ `<main style="margin:auto; max-width:1200px; ...">` 居中 + 顶栏三区内联样式（左品牌 / 中导航 12 项：返回首页·词库·背词·生成·短文·完型·语法·图片·实验·问卷·社区·成就·保存，当前页高亮，管理按钮动态注入 / 右设置·退出）。入口 `initPage().then(ok => ok && 加载函数())`；管理页额外校验 isAdmin。
 
 **页面清单**：
 | 页面 | URL | 文件 |
@@ -58,6 +64,8 @@
 | 完型 | `/cloze` | cloze.html + js/cloze.js |
 | 语法 | `/grammar` | grammar.html + js/grammar.js |
 | 图片 | `/image` | image.html + js/image.js |
+| 实验 | `/experiment` | experiment.html + js/experiment.js |
+| 问卷 | `/questionnaire` | questionnaire.html + js/questionnaire.js |
 | 设置 | `/settings` | settings.html + js/settings.js |
 | 成就 | `/achievement` | achievement.html + js/achievement.js |
 | 管理（管理员） | `/admin` | admin.html + js/admin.js |
@@ -65,7 +73,9 @@
 
 **版本号机制**：css/js 引用 `?v={placeholder}`，deploy.sh 注入内容哈希。**`{app_version}` 为全部 js 合并哈希**（任一 js 变化版本号即变，防止浏览器缓存旧 JS 导致功能失效——曾因此出过生成/发声/登录故障）。
 
-**开发工具（`backend/dev_tools/`）**：`unify_topbar.py`（统一顶栏生成）、`strip_*.py`（拆分清理）、`verify_*`（部署回归）、`test_load_js.js`/`test_inject_admin.js`（前端加载/注入回归）、`diag_*`（生产诊断）。**改动前端后部署前跑 test_load_js.js 防 SyntaxError**（曾因顶层变量重复声明致登录失效）。
+**开发工具（`backend/dev_tools/`）**：`unify_topbar.py`（统一顶栏生成，页面清单改后跑一次）、`strip_*.py`（拆分清理）、`verify_*`（部署回归）、`append_*_css.py`（样式追加，UTF-8 幂等）、`diag_*`（生产诊断）。
+**改动前端后部署前必跑 `test_js_syntax.js`**（全部 js 语法 + `$("#id")` 与 HTML 的 id 一致性 + 导航页面登记）——曾因顶层变量重复声明致登录失效、因引用已删除元素致导出无响应。
+`test_load_js.js`/`test_inject_admin.js`（登录按钮绑定 / 管理入口注入）、`test_questionnaire.py`+`test_questionnaire_render.js`（问卷端到端与渲染）。
 
 ## 改进清单
 
