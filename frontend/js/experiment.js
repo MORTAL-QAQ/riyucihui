@@ -10,6 +10,7 @@ const expConfig = $("#exp-config");
 const expPresetRow = $("#exp-preset-row");
 const expPresetSelect = $("#exp-preset");
 const expPresetNote = $("#exp-preset-note");
+const expManualNote = $("#exp-manual-note");
 const expLearning = $("#exp-learning");
 const expTesting = $("#exp-testing");
 const expResult = $("#exp-result");
@@ -65,7 +66,7 @@ btnExpCreate.addEventListener("click", async () => {
   btnExpCreate.disabled = true;
   const original = btnExpCreate.textContent;
   const usePreset = expPresetSelect.value !== "";
-  btnExpCreate.textContent = usePreset ? "加载套题中..." : "生成中（约 10-20 秒）...";
+  btnExpCreate.textContent = usePreset ? "加载套题中..." : "生成中（约 10 分钟，请勿关闭页面）...";
   try {
     const data = await api.experimentCreate(expTopicInput.value.trim(), expLevelSelect.value, usePreset ? parseInt(expPresetSelect.value, 10) : null);
     expSessionId = data.session_id;
@@ -82,7 +83,8 @@ btnExpCreate.addEventListener("click", async () => {
     showToast(`生成失败：${err.message}`, "error");
   } finally {
     btnExpCreate.disabled = false;
-    btnExpCreate.textContent = original;
+    if (expPresetSelect.value !== undefined) updatePresetHint();
+    else btnExpCreate.textContent = original;
   }
 });
 
@@ -91,15 +93,27 @@ async function loadPresets() {
   try {
     const data = await api.experimentPresets();
     const presets = data.presets || [];
-    if (!presets.length) return;
+    if (!presets.length) {
+      expManualNote.style.display = "block";   // 无套题时直接提示现场生成耗时
+      return;
+    }
     expPresetSelect.innerHTML = presets.map((p) =>
       `<option value="${p.preset_id}">${esc(p.name)}（${p.topic} · ${p.word_count} 词）</option>`
-    ).join("") + '<option value="">-- 不用套题，现场生成 --</option>';
+    ).join("") + '<option value="">-- 不用套题，现场生成（约 10 分钟） --</option>';
     expPresetRow.style.display = "flex";
-    expPresetNote.style.display = "block";
+    expPresetSelect.addEventListener("change", updatePresetHint);
+    updatePresetHint();
   } catch (err) {
-    /* 无套题时静默回退到现场生成 */
+    expManualNote.style.display = "block";
   }
+}
+
+/** 根据是否选用套题切换提示与按钮文案 */
+function updatePresetHint() {
+  const usePreset = expPresetSelect.value !== "";
+  expPresetNote.style.display = usePreset ? "block" : "none";
+  expManualNote.style.display = usePreset ? "none" : "block";
+  btnExpCreate.textContent = usePreset ? "使用套题开始实验" : "生成实验材料（约 10 分钟）";
 }
 
 function renderLearnCards() {
@@ -137,8 +151,11 @@ async function generateImages(mmWords) {
   const total = mmWords.length;
   if (!total) return;
   let done = 0;
-  expImageHint.textContent = `正在生成配图 0/${total}（多模态材料准备中）`;
+  let fromPreset = true;
+  expImageHint.textContent = `正在准备配图 0/${total}...`;
   for (const w of mmWords) {
+    // 预置套题已带图，接口会秒返回；现场生成时逐张绘制（每张约 10-30 秒）
+    const started = Date.now();
     try {
       const res = await api.experimentImage(w.id);
       const box = document.getElementById(`exp-img-${w.id}`);
@@ -151,11 +168,14 @@ async function generateImages(mmWords) {
       const box = document.getElementById(`exp-img-${w.id}`);
       if (box) box.innerHTML = '<span class="exp-img-loading">配图生成失败</span>';
     }
+    if (Date.now() - started > 1500) fromPreset = false;   // 耗时明显则判定为现场生成
     done += 1;
     expImageProgress.style.width = `${Math.round((done / total) * 100)}%`;
-    expImageHint.textContent = `正在生成配图 ${done}/${total}`;
+    expImageHint.textContent = fromPreset
+      ? `配图中 ${done}/${total}`
+      : `正在逐张生成配图 ${done}/${total}（自主生成模式约需数分钟，请勿关闭页面）`;
   }
-  expImageHint.textContent = `配图已完成（${total} 张）`;
+  expImageHint.textContent = `配图已就绪（${total} 张）`;
 }
 
 // ── 阶段二：进入测试 ──

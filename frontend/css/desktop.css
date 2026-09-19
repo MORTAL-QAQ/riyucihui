@@ -5245,3 +5245,12 @@ body.subpage .page-header h1 {
   padding: 10px 14px;
   margin-bottom: 16px;
 }
+
+
+/* 自主生成模式耗时提示（警告样式） */
+.exp-preset-note.warn {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fcd34d;
+  line-height: 1.8;
+}
