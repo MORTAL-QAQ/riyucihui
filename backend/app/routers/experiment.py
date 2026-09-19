@@ -19,7 +19,13 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import ExperimentSession, ExperimentWord, User
+from ..models import (
+    ExperimentPreset,
+    ExperimentPresetWord,
+    ExperimentSession,
+    ExperimentWord,
+    User,
+)
 from ..services.ai_service import generate_words
 from ..services.image_service import generate_word_image
 from ..services.rate_limiter import rate_limit
@@ -59,6 +65,7 @@ MULTIMODAL_STYLES = [
 class SessionCreate(BaseModel):
     topic: str = Field("", max_length=100)      # 空 = 随机领域
     level: str | None = Field(None, pattern=r"^N[1-5]$")
+    preset_id: int | None = None                # 指定预置套题（不传则自动选一套可用套题）
 
 
 class AnswerItem(BaseModel):
@@ -70,8 +77,12 @@ class TestSubmit(BaseModel):
     answers: list[AnswerItem]
 
 
-def _word_out(w: ExperimentWord, *, learning: bool = True) -> dict:
-    """单词输出。学习阶段：多模态组带图/例句，非多模态组仅单词+假名（均不给中文释义）。"""
+def _word_out(w: ExperimentWord, *, learning: bool = True, image: str = "") -> dict:
+    """单词输出。学习阶段：多模态组带图/例句，非多模态组仅单词+假名（均不给中文释义）。
+
+    image：多模态组图片（预置套题的图片按需从 experiment_preset_words 读取，
+    避免每个学生的会话都复制一份大图）。
+    """
     base = {
         "id": w.id,
         "is_multimodal": bool(w.is_multimodal),
@@ -83,12 +94,45 @@ def _word_out(w: ExperimentWord, *, learning: bool = True) -> dict:
             base.update({
                 "example_ja": w.example_ja or "",
                 "example_cn": w.example_cn or "",
-                "image_base64": w.image_base64 or "",
+                "image_base64": image or w.image_base64 or "",
             })
     else:
         # 测试/结果阶段返回中文（用于判分与回看）
         base["chinese"] = w.chinese
     return base
+
+
+def _preset_image(db: Session, preset_word_id: int | None) -> str:
+    """读取预置套题单词的配图。"""
+    if not preset_word_id:
+        return ""
+    row = db.get(ExperimentPresetWord, preset_word_id)
+    return (row.image_base64 or "") if row else ""
+
+
+@router.get("/presets")
+def list_presets(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """可用预置套题列表（学生做实验时秒开，无需现场生成）。"""
+    rows = db.execute(
+        select(ExperimentPreset)
+        .where(ExperimentPreset.is_active == True)  # noqa: E712
+        .order_by(ExperimentPreset.id)
+    ).scalars().all()
+    return {
+        "presets": [
+            {
+                "preset_id": p.id,
+                "name": p.name,
+                "topic": p.topic,
+                "word_count": p.word_count,
+                "multimodal_count": p.multimodal_count,
+            }
+            for p in rows
+        ]
+    }
 
 
 @router.post("/sessions", status_code=201)
@@ -98,8 +142,72 @@ def create_session(
     db: Session = Depends(get_db),
     _rate: None = Depends(EXP_CREATE_LIMIT),
 ):
-    """生成 20 个实验单词（10 多模态 + 10 非多模态），创建实验会话。"""
+    """创建实验会话。
+
+    优先使用预置套题（秒开、材料统一）；无可用套题时回退为现场 AI 生成
+    （20 词：10 多模态 + 10 非多模态），配图随后逐张生成。
+    """
     topic = (req.topic or "").strip()
+
+    # ── 1) 优先使用预置套题 ──
+    preset = None
+    if req.preset_id:
+        preset = db.get(ExperimentPreset, req.preset_id)
+    else:
+        preset = db.execute(
+            select(ExperimentPreset)
+            .where(ExperimentPreset.is_active == True)  # noqa: E712
+            .order_by(ExperimentPreset.id)
+        ).scalars().first()
+
+    if preset:
+        preset_words = db.execute(
+            select(ExperimentPresetWord)
+            .where(ExperimentPresetWord.preset_id == preset.id)
+            .order_by(ExperimentPresetWord.id)
+        ).scalars().all()
+        if len(preset_words) >= TOTAL_WORDS:
+            session = ExperimentSession(user_id=user.id, topic=preset.topic, status="learning")
+            db.add(session)
+            db.flush()
+
+            items = []
+            for pw in preset_words[:TOTAL_WORDS]:
+                # 文本字段复制到会话（历史数据自包含），图片仍引用预置（节省空间）
+                row = ExperimentWord(
+                    session_id=session.id,
+                    preset_word_id=pw.id,
+                    is_multimodal=bool(pw.is_multimodal),
+                    japanese=pw.japanese,
+                    kana=pw.kana,
+                    chinese=pw.chinese,
+                    example_ja=(pw.example_ja if pw.is_multimodal else None),
+                    example_cn=(pw.example_cn if pw.is_multimodal else None),
+                )
+                db.add(row)
+                items.append(row)
+            db.commit()
+            for row in items:
+                db.refresh(row)
+
+            learning = [
+                _word_out(w, learning=True, image=_preset_image(db, w.preset_word_id))
+                for w in items
+            ]
+            random.shuffle(learning)
+            return {
+                "session_id": session.id,
+                "topic": preset.topic,
+                "preset_id": preset.id,
+                "preset_name": preset.name,
+                "from_preset": True,
+                "total": TOTAL_WORDS,
+                "multimodal_count": sum(1 for w in items if w.is_multimodal),
+                "plain_count": sum(1 for w in items if not w.is_multimodal),
+                "words": learning,
+            }
+
+    # ── 2) 回退：现场 AI 生成 ──
     if not topic:
         topic = random.choice(RANDOM_TOPICS)
 
@@ -171,6 +279,13 @@ def generate_image(
     if row.image_base64:
         return {"word_id": word_id, "image_base64": row.image_base64}   # 已生成，复用
 
+    # 预置套题：直接复用预置配图（秒返回，无需重新生成）
+    preset_img = _preset_image(db, row.preset_word_id)
+    if preset_img:
+        row.image_base64 = preset_img
+        db.commit()
+        return {"word_id": word_id, "image_base64": preset_img}
+
     try:
         img = generate_word_image(row.japanese, row.chinese, row.kana,
                                   row.example_ja or "", row.example_cn or "")
@@ -209,7 +324,10 @@ def get_session(
         "multimodal_correct": session.multimodal_correct,
         "plain_total": session.plain_total,
         "plain_correct": session.plain_correct,
-        "words": [_word_out(w, learning=not done) for w in rows],
+        "words": [
+            _word_out(w, learning=not done, image=_preset_image(db, w.preset_word_id))
+            for w in rows
+        ],
     }
 
 

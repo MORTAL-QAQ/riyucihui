@@ -340,11 +340,19 @@ const api = {
   },
 
   // ── Experiment（多模态记忆对照实验） ──
-  experimentCreate(topic, level) {
+  experimentCreate(topic, level, presetId) {
     return request("/experiment/sessions", {
       method: "POST",
-      body: JSON.stringify({ topic: topic || "", level: level || undefined }),
+      body: JSON.stringify({
+        topic: topic || "",
+        level: level || undefined,
+        preset_id: presetId || undefined,
+      }),
     });
+  },
+
+  experimentPresets() {
+    return request("/experiment/presets");
   },
 
   experimentImage(wordId) {

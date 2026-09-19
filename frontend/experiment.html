@@ -51,6 +51,13 @@
 
             <!-- 阶段一：配置 -->
             <div id="exp-config" class="exp-panel">
+              <div class="exp-config-row" id="exp-preset-row" style="display:none">
+                <label class="exp-label">实验套题</label>
+                <select id="exp-preset" class="exp-select" style="flex:1;min-width:220px"></select>
+              </div>
+              <p class="exp-preset-note" id="exp-preset-note" style="display:none">
+                ⚡ 已备好现成实验套题，点击即可开始（材料统一、无需等待生成）
+              </p>
               <div class="exp-config-row">
                 <label class="exp-label">学习领域</label>
                 <input type="text" id="exp-topic" class="exp-input" placeholder="如：食物料理、旅行观光（留空则随机领域）" maxlength="50" />

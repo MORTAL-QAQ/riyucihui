@@ -340,6 +340,10 @@ class ExperimentWord(Base):
         Integer, ForeignKey("experiment_sessions.id", ondelete="CASCADE"),
         nullable=False, index=True,
     )
+    preset_word_id = Column(
+        Integer, ForeignKey("experiment_preset_words.id", ondelete="SET NULL"),
+        nullable=True,
+    )                                                    # 来源预置题（图片从预置读取，节省存储）
     is_multimodal = Column(Boolean, nullable=False, default=False, index=True)
     japanese = Column(String(100), nullable=False)
     kana = Column(String(200), nullable=False)
@@ -353,4 +357,40 @@ class ExperimentWord(Base):
 
     __table_args__ = (
         Index("ix_exp_words_session_mm", "session_id", "is_multimodal"),
+    )
+
+
+class ExperimentPreset(Base):
+    """预置实验套题（提前生成，学生做实验时秒开，保证材料一致）。"""
+    __tablename__ = "experiment_presets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)             # 套题名称，如「套题 A · 食物料理」
+    topic = Column(String(100), nullable=False)            # 领域
+    word_count = Column(Integer, default=20)
+    multimodal_count = Column(Integer, default=10)
+    is_active = Column(Boolean, default=True)              # 是否可用于新实验
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ExperimentPresetWord(Base):
+    """预置套题单词（含多模态配图）。"""
+    __tablename__ = "experiment_preset_words"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    preset_id = Column(
+        Integer, ForeignKey("experiment_presets.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    is_multimodal = Column(Boolean, nullable=False, default=False, index=True)
+    japanese = Column(String(100), nullable=False)
+    kana = Column(String(200), nullable=False)
+    chinese = Column(String(200), nullable=False)
+    example_ja = Column(String(500), nullable=True)
+    example_cn = Column(String(500), nullable=True)
+    image_base64 = Column(Text, nullable=True)
+    image_pending = Column(Boolean, default=False)          # 配图待生成（生成脚本可断点续跑）
+
+    __table_args__ = (
+        Index("ix_exp_preset_words_preset_mm", "preset_id", "is_multimodal"),
     )

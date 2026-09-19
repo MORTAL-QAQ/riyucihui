@@ -5233,3 +5233,15 @@ body.subpage .page-header h1 {
 .exp-admin-card-sub { font-size: 12px; color: var(--text-muted); }
 .exp-admin-table-wrap { overflow-x: auto; }
 .exp-admin-table { font-size: 13px; width: 100%; }
+
+
+/* 预置实验套题选择 */
+.exp-preset-note {
+  font-size: 13px;
+  color: #16a34a;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}

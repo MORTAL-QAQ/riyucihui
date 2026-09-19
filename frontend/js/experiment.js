@@ -7,6 +7,9 @@
 
 // ── DOM 引用 ──
 const expConfig = $("#exp-config");
+const expPresetRow = $("#exp-preset-row");
+const expPresetSelect = $("#exp-preset");
+const expPresetNote = $("#exp-preset-note");
 const expLearning = $("#exp-learning");
 const expTesting = $("#exp-testing");
 const expResult = $("#exp-result");
@@ -61,12 +64,14 @@ expRandomTopicBtn.addEventListener("click", () => {
 btnExpCreate.addEventListener("click", async () => {
   btnExpCreate.disabled = true;
   const original = btnExpCreate.textContent;
-  btnExpCreate.textContent = "生成中（约 10-20 秒）...";
+  const usePreset = expPresetSelect.value !== "";
+  btnExpCreate.textContent = usePreset ? "加载套题中..." : "生成中（约 10-20 秒）...";
   try {
-    const data = await api.experimentCreate(expTopicInput.value.trim(), expLevelSelect.value);
+    const data = await api.experimentCreate(expTopicInput.value.trim(), expLevelSelect.value, usePreset ? parseInt(expPresetSelect.value, 10) : null);
     expSessionId = data.session_id;
     expWords = data.words || [];
-    expTopicLabel.textContent = `领域：${data.topic} · 共 ${data.total} 个单词`;
+    expTopicLabel.textContent = `领域：${data.topic} · 共 ${data.total} 个单词`
+      + (data.preset_name ? ` · ${data.preset_name}` : "");
     expLearnStatus.textContent = "";
     renderLearnCards();
     showStage("learning");
@@ -80,6 +85,22 @@ btnExpCreate.addEventListener("click", async () => {
     btnExpCreate.textContent = original;
   }
 });
+
+/** 加载预置套题列表（有套题时默认选中第一个，实现秒开） */
+async function loadPresets() {
+  try {
+    const data = await api.experimentPresets();
+    const presets = data.presets || [];
+    if (!presets.length) return;
+    expPresetSelect.innerHTML = presets.map((p) =>
+      `<option value="${p.preset_id}">${esc(p.name)}（${p.topic} · ${p.word_count} 词）</option>`
+    ).join("") + '<option value="">-- 不用套题，现场生成 --</option>';
+    expPresetRow.style.display = "flex";
+    expPresetNote.style.display = "block";
+  } catch (err) {
+    /* 无套题时静默回退到现场生成 */
+  }
+}
 
 function renderLearnCards() {
   expLearnGrid.innerHTML = expWords.map((w) => {
@@ -298,5 +319,6 @@ async function loadHistory() {
 // ── 入口 ──
 initPage().then((ok) => {
   if (!ok) return;
+  loadPresets();
   loadHistory();
 });

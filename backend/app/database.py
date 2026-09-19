@@ -522,6 +522,87 @@ def _run_migrations_inner():
             )
             conn.commit()
 
+        # experiment_words.preset_word_id（来源预置题，用于复用预置配图）
+        existing_ew = {c["name"] for c in inspector.get_columns("experiment_words")}
+        if "preset_word_id" not in existing_ew:
+            conn.execute(text("ALTER TABLE experiment_words ADD COLUMN preset_word_id INTEGER"))
+            conn.commit()
+
+        # experiment_presets / experiment_preset_words（预置套题）
+        if "experiment_presets" not in inspector.get_table_names():
+            if dialect == "postgresql":
+                conn.execute(
+                    text("""
+                    CREATE TABLE experiment_presets (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        topic VARCHAR(100) NOT NULL,
+                        word_count INTEGER DEFAULT 20,
+                        multimodal_count INTEGER DEFAULT 10,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                )
+            else:
+                conn.execute(
+                    text("""
+                    CREATE TABLE experiment_presets (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(100) NOT NULL,
+                        topic VARCHAR(100) NOT NULL,
+                        word_count INTEGER DEFAULT 20,
+                        multimodal_count INTEGER DEFAULT 10,
+                        is_active BOOLEAN DEFAULT 1,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                )
+            conn.commit()
+
+        if "experiment_preset_words" not in inspector.get_table_names():
+            if dialect == "postgresql":
+                conn.execute(
+                    text("""
+                    CREATE TABLE experiment_preset_words (
+                        id SERIAL PRIMARY KEY,
+                        preset_id INTEGER NOT NULL REFERENCES experiment_presets(id) ON DELETE CASCADE,
+                        is_multimodal BOOLEAN NOT NULL DEFAULT FALSE,
+                        japanese VARCHAR(100) NOT NULL,
+                        kana VARCHAR(200) NOT NULL,
+                        chinese VARCHAR(200) NOT NULL,
+                        example_ja VARCHAR(500),
+                        example_cn VARCHAR(500),
+                        image_base64 TEXT,
+                        image_pending BOOLEAN DEFAULT FALSE
+                    )
+                """)
+                )
+            else:
+                conn.execute(
+                    text("""
+                    CREATE TABLE experiment_preset_words (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        preset_id INTEGER NOT NULL REFERENCES experiment_presets(id) ON DELETE CASCADE,
+                        is_multimodal BOOLEAN NOT NULL DEFAULT 0,
+                        japanese VARCHAR(100) NOT NULL,
+                        kana VARCHAR(200) NOT NULL,
+                        chinese VARCHAR(200) NOT NULL,
+                        example_ja VARCHAR(500),
+                        example_cn VARCHAR(500),
+                        image_base64 TEXT,
+                        image_pending BOOLEAN DEFAULT 0
+                    )
+                """)
+                )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_exp_preset_words_preset ON experiment_preset_words(preset_id)")
+            )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_exp_preset_words_preset_mm ON experiment_preset_words(preset_id, is_multimodal)")
+            )
+            conn.commit()
+
         # ── Backfill orphaned rows ──
         # #19：已拆出为显式 CLI 命令（python -m app.cli backfill-orphans），
         # 启动时不再隐式修改数据。如需执行请手动运行。
