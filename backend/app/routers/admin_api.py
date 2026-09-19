@@ -468,3 +468,70 @@ def get_login_history(
     result.sort(key=lambda r: r.last_login or "", reverse=True)
 
     return result
+
+
+@router.get("/experiment/stats")
+def get_experiment_stats(
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """多模态记忆对照实验统计：总体两组正确率对比 + 每个用户的明细。"""
+    from ..models import ExperimentSession
+
+    rows = (
+        db.query(ExperimentSession, User.username, User.name)
+        .join(User, ExperimentSession.user_id == User.id)
+        .order_by(ExperimentSession.created_at.desc())
+        .all()
+    )
+
+    sessions = []
+    done_rows = []
+    for s, username, name in rows:
+        completed = s.status == "done"
+        mm_rate = round(s.multimodal_correct / s.multimodal_total * 100, 1) if (completed and s.multimodal_total) else None
+        pl_rate = round(s.plain_correct / s.plain_total * 100, 1) if (completed and s.plain_total) else None
+        sessions.append({
+            "session_id": s.id,
+            "user_id": s.user_id,
+            "username": username,
+            "name": (name or "").strip() or username,
+            "topic": s.topic,
+            "status": s.status,
+            "created_at": _to_cst(s.created_at),
+            "completed_at": _to_cst(s.completed_at) if s.completed_at else "",
+            "multimodal_correct": s.multimodal_correct,
+            "multimodal_total": s.multimodal_total,
+            "multimodal_rate": mm_rate,
+            "plain_correct": s.plain_correct,
+            "plain_total": s.plain_total,
+            "plain_rate": pl_rate,
+            "diff": round((mm_rate or 0) - (pl_rate or 0), 1) if completed else None,
+        })
+        if completed:
+            done_rows.append(s)
+
+    def _avg(values: list[float]) -> float:
+        return round(sum(values) / len(values), 1) if values else 0.0
+
+    mm_rates = [s.multimodal_correct / s.multimodal_total * 100 for s in done_rows if s.multimodal_total]
+    pl_rates = [s.plain_correct / s.plain_total * 100 for s in done_rows if s.plain_total]
+    mm_all_correct = sum(s.multimodal_correct for s in done_rows)
+    mm_all_total = sum(s.multimodal_total for s in done_rows)
+    pl_all_correct = sum(s.plain_correct for s in done_rows)
+    pl_all_total = sum(s.plain_total for s in done_rows)
+
+    summary = {
+        "total_sessions": len(sessions),
+        "completed_sessions": len(done_rows),
+        "participants": len({s.user_id for s in done_rows}),
+        "multimodal_avg_rate": _avg(mm_rates),
+        "plain_avg_rate": _avg(pl_rates),
+        "avg_diff": round(_avg(mm_rates) - _avg(pl_rates), 1),
+        "multimodal_pooled_rate": round(mm_all_correct / mm_all_total * 100, 1) if mm_all_total else 0.0,
+        "plain_pooled_rate": round(pl_all_correct / pl_all_total * 100, 1) if pl_all_total else 0.0,
+        "multimodal_samples": mm_all_total,
+        "plain_samples": pl_all_total,
+    }
+
+    return {"summary": summary, "sessions": sessions}

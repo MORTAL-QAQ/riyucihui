@@ -26,6 +26,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
 )
 
@@ -306,3 +307,50 @@ class PostLike(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (UniqueConstraint("post_id", "user_id"),)
+
+
+class ExperimentSession(Base):
+    """多模态记忆对照实验会话。
+
+    每个会话生成 20 个单词：10 个多模态（图片+语音+例句）、10 个非多模态（仅单词+假名），
+    学习后统一测试，比较两组的记忆正确率。
+    """
+    __tablename__ = "experiment_sessions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    topic = Column(String(100), nullable=False)          # 领域（随机时为「随机」）
+    status = Column(String(20), nullable=False, default="learning", index=True)  # learning/testing/done
+    multimodal_total = Column(Integer, default=10)
+    multimodal_correct = Column(Integer, default=0)
+    plain_total = Column(Integer, default=10)
+    plain_correct = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    completed_at = Column(DateTime, nullable=True)
+
+
+class ExperimentWord(Base):
+    """实验单词（含多模态标记与测试作答结果）。"""
+    __tablename__ = "experiment_words"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(
+        Integer, ForeignKey("experiment_sessions.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    is_multimodal = Column(Boolean, nullable=False, default=False, index=True)
+    japanese = Column(String(100), nullable=False)
+    kana = Column(String(200), nullable=False)
+    chinese = Column(String(200), nullable=False)
+    example_ja = Column(String(500), nullable=True)
+    example_cn = Column(String(500), nullable=True)
+    image_base64 = Column(Text, nullable=True)            # 多模态组的 AI 配图
+    test_choice = Column(String(200), nullable=True)      # 用户选择的中文选项
+    test_correct = Column(Boolean, nullable=True)          # 判定结果
+    tested_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_exp_words_session_mm", "session_id", "is_multimodal"),
+    )

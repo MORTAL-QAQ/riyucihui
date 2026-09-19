@@ -731,3 +731,12 @@ button { min-height: 44px; }
 .achievement-card { padding: 12px 8px; }
 .achievement-icon { font-size: 28px; }
 .achievement-name { font-size: 12px; }
+
+/* 实验页（移动端） */
+.exp-panel { padding: 18px 16px; }
+.exp-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.exp-card-jp { font-size: 17px; }
+.exp-quiz-jp { font-size: 17px; }
+.exp-quiz-options { grid-template-columns: 1fr; }
+.exp-result-rate { font-size: 28px; }
+.exp-history-item { flex-direction: column; align-items: flex-start; }

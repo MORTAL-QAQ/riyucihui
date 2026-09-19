@@ -54,12 +54,13 @@ const navCloze = $("#nav-cloze");
 const pageCloze = $("#page-cloze");
 const navImage = $("#nav-image");
 const pageImage = $("#page-image");
+const navExperiment = $("#nav-experiment");
 const navAchievement = $("#nav-achievement");
 const navHome = $("#nav-home");
 const pageHome = $("#page-home");
 const navCommunity = $("#nav-community");
 const pageCommunity = $("#page-community");
-const navBtns = [navHome, navCommunity, navGenerate, navWordbank, navStudy, navEssay, navCloze, navImage, navGrammar, navSaved, navAchievement, navSettings, navAdmin];
+const navBtns = [navHome, navCommunity, navGenerate, navWordbank, navStudy, navEssay, navCloze, navImage, navExperiment, navGrammar, navSaved, navAchievement, navSettings, navAdmin];
 // pageCommunity 已迁移至独立页 /community（阶段二），不在此 SPA 内
 // pageWordbank 已迁移至独立页 /wordbank（阶段二）
 // pageStudy 已迁移至独立页 /study（阶段二）
@@ -68,6 +69,7 @@ const navBtns = [navHome, navCommunity, navGenerate, navWordbank, navStudy, navE
 // pageCloze 已迁移至独立页 /cloze（阶段二）
 // pageGrammar 已迁移至独立页 /grammar（阶段二）
 // pageImage 已迁移至独立页 /image（阶段二）
+// pageExperiment 已迁移至独立页 /experiment（阶段二）
 const pages = [pageHome];
 
 // 生成页
@@ -209,7 +211,7 @@ let currentTab = "home";
 // 支持分享/收藏/刷新保持页面、浏览器前进后退。
 const VALID_TABS = [
   "home", "community", "generate", "wordbank", "study", "essay", "cloze",
-  "image", "grammar", "saved", "achievement", "settings", "admin",
+  "image", "experiment", "grammar", "saved", "achievement", "settings", "admin",
 ];
 
 function tabFromPath() {
@@ -251,6 +253,9 @@ function switchTab(tab, opts = {}) {
   } else if (tab === "image") {
     // 图片已拆为独立子页（阶段二）
     location.href = "/image";
+  } else if (tab === "experiment") {
+    // 记忆实验已拆为独立子页（阶段二）
+    location.href = "/experiment";
   } else if (tab === "grammar") {
     // 语法已拆为独立子页（阶段二）
     location.href = "/grammar";
@@ -277,6 +282,7 @@ navStudy.addEventListener("click", () => switchTab("study"));
 navEssay.addEventListener("click", () => switchTab("essay"));
 navCloze.addEventListener("click", () => switchTab("cloze"));
 navImage.addEventListener("click", () => switchTab("image"));
+navExperiment.addEventListener("click", () => switchTab("experiment"));
 navGrammar.addEventListener("click", () => switchTab("grammar"));
 navSaved.addEventListener("click", () => switchTab("saved"));
 navAchievement.addEventListener("click", () => switchTab("achievement"));

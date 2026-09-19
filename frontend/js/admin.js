@@ -7,11 +7,17 @@
 const adminCardsGrid = $("#admin-cards-grid");
 const adminTabUsers = $("#admin-tab-users");
 const adminTabLogins = $("#admin-tab-logins");
+const adminTabExperiment = $("#admin-tab-experiment");
 const adminPanelUsers = $("#admin-panel-users");
 const adminPanelLogins = $("#admin-panel-logins");
+const adminPanelExperiment = $("#admin-panel-experiment");
 const adminLoginReports = $("#admin-login-reports");
+const expAdminSummary = $("#exp-admin-summary");
+const expAdminTable = $("#exp-admin-table");
 
 let adminUsersCache = [];
+
+adminTabExperiment.addEventListener("click", () => switchAdminTab("experiment"));
 
 adminTabUsers.addEventListener("click", () => switchAdminTab("users"));
 adminTabLogins.addEventListener("click", () => switchAdminTab("logins"));
@@ -38,10 +44,74 @@ $("#btn-admin-create-user").addEventListener("click", async () => {
 function switchAdminTab(tab) {
   adminTabUsers.classList.toggle("active", tab === "users");
   adminTabLogins.classList.toggle("active", tab === "logins");
+  adminTabExperiment.classList.toggle("active", tab === "experiment");
   adminPanelUsers.style.display = tab === "users" ? "block" : "none";
   adminPanelLogins.style.display = tab === "logins" ? "block" : "none";
+  adminPanelExperiment.style.display = tab === "experiment" ? "block" : "none";
   if (tab === "users") renderAdminCards();
   if (tab === "logins") loadAdminLogins();
+  if (tab === "experiment") loadExperimentStats();
+}
+
+/** 实验数据：总体两组正确率对比 + 每个会话明细 */
+async function loadExperimentStats() {
+  expAdminSummary.innerHTML = '<div class="empty-state"><p>加载中...</p></div>';
+  expAdminTable.innerHTML = "";
+  try {
+    const data = await api.adminExperimentStats();
+    const s = data.summary || {};
+    expAdminSummary.innerHTML = `
+      <div class="exp-admin-cards">
+        <div class="exp-admin-card mm">
+          <div class="exp-admin-card-label">🎨 多模态组 平均正确率</div>
+          <div class="exp-admin-card-value">${s.multimodal_avg_rate ?? 0}%</div>
+          <div class="exp-admin-card-sub">样本 ${s.multimodal_samples ?? 0} 题</div>
+        </div>
+        <div class="exp-admin-card plain">
+          <div class="exp-admin-card-label">📄 非多模态组 平均正确率</div>
+          <div class="exp-admin-card-value">${s.plain_avg_rate ?? 0}%</div>
+          <div class="exp-admin-card-sub">样本 ${s.plain_samples ?? 0} 题</div>
+        </div>
+        <div class="exp-admin-card diff">
+          <div class="exp-admin-card-label">📊 差值（多模态 − 非多模态）</div>
+          <div class="exp-admin-card-value">${s.avg_diff ?? 0} pt</div>
+          <div class="exp-admin-card-sub">合并正确率 ${s.multimodal_pooled_rate ?? 0}% vs ${s.plain_pooled_rate ?? 0}%</div>
+        </div>
+        <div class="exp-admin-card">
+          <div class="exp-admin-card-label">👥 参与情况</div>
+          <div class="exp-admin-card-value">${s.participants ?? 0}</div>
+          <div class="exp-admin-card-sub">完成 ${s.completed_sessions ?? 0} / 共 ${s.total_sessions ?? 0} 次实验</div>
+        </div>
+      </div>`;
+
+    const list = data.sessions || [];
+    if (!list.length) {
+      expAdminTable.innerHTML = '<tbody><tr><td>暂无实验记录</td></tr></tbody>';
+      return;
+    }
+    expAdminTable.innerHTML = `
+      <thead>
+        <tr>
+          <th>#</th><th>用户</th><th>领域</th><th>状态</th>
+          <th>🎨 多模态</th><th>📄 非多模态</th><th>差值</th><th>完成时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${list.map((x) => `
+          <tr>
+            <td>${x.session_id}</td>
+            <td>${esc(x.name)}</td>
+            <td>${esc(x.topic)}</td>
+            <td>${x.status === "done" ? "已完成" : "进行中"}</td>
+            <td>${x.multimodal_rate == null ? "-" : `${x.multimodal_rate}%（${x.multimodal_correct}/${x.multimodal_total}）`}</td>
+            <td>${x.plain_rate == null ? "-" : `${x.plain_rate}%（${x.plain_correct}/${x.plain_total}）`}</td>
+            <td>${x.diff == null ? "-" : (x.diff > 0 ? `+${x.diff}` : `${x.diff}`)}</td>
+            <td>${esc(x.completed_at || "-")}</td>
+          </tr>`).join("")}
+      </tbody>`;
+  } catch (err) {
+    expAdminSummary.innerHTML = `<div class="error-msg">加载失败：${esc(err.message)}</div>`;
+  }
 }
 
 async function loadAdminLogins() {

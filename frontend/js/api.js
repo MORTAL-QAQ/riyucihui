@@ -339,6 +339,37 @@ const api = {
     return request("/health");
   },
 
+  // ── Experiment（多模态记忆对照实验） ──
+  experimentCreate(topic, level) {
+    return request("/experiment/sessions", {
+      method: "POST",
+      body: JSON.stringify({ topic: topic || "", level: level || undefined }),
+    });
+  },
+
+  experimentImage(wordId) {
+    return request(`/experiment/words/${wordId}/image`, { method: "POST" });
+  },
+
+  experimentGet(sessionId) {
+    return request(`/experiment/sessions/${sessionId}`);
+  },
+
+  experimentQuiz(sessionId) {
+    return request(`/experiment/sessions/${sessionId}/quiz`);
+  },
+
+  experimentSubmit(sessionId, answers) {
+    return request(`/experiment/sessions/${sessionId}/test`, {
+      method: "POST",
+      body: JSON.stringify({ answers }),
+    });
+  },
+
+  experimentMy() {
+    return request("/experiment/my");
+  },
+
   // ── Admin ──
   adminStats() {
     return request("/admin/stats");
@@ -350,6 +381,10 @@ const api = {
 
   adminLoginHistory() {
     return request("/admin/login-history");
+  },
+
+  adminExperimentStats() {
+    return request("/admin/experiment/stats");
   },
 
   adminCreateUser(username, password) {

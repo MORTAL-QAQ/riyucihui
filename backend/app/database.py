@@ -434,6 +434,94 @@ def _run_migrations_inner():
             )
             conn.commit()
 
+        # experiment_sessions / experiment_words table（多模态记忆对照实验）
+        if "experiment_sessions" not in inspector.get_table_names():
+            if dialect == "postgresql":
+                conn.execute(
+                    text("""
+                    CREATE TABLE experiment_sessions (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        topic VARCHAR(100) NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'learning',
+                        multimodal_total INTEGER DEFAULT 10,
+                        multimodal_correct INTEGER DEFAULT 0,
+                        plain_total INTEGER DEFAULT 10,
+                        plain_correct INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        completed_at TIMESTAMP
+                    )
+                """)
+                )
+            else:
+                conn.execute(
+                    text("""
+                    CREATE TABLE experiment_sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        topic VARCHAR(100) NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'learning',
+                        multimodal_total INTEGER DEFAULT 10,
+                        multimodal_correct INTEGER DEFAULT 0,
+                        plain_total INTEGER DEFAULT 10,
+                        plain_correct INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        completed_at TIMESTAMP
+                    )
+                """)
+                )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_exp_sessions_user ON experiment_sessions(user_id)")
+            )
+            conn.commit()
+
+        if "experiment_words" not in inspector.get_table_names():
+            if dialect == "postgresql":
+                conn.execute(
+                    text("""
+                    CREATE TABLE experiment_words (
+                        id SERIAL PRIMARY KEY,
+                        session_id INTEGER NOT NULL REFERENCES experiment_sessions(id) ON DELETE CASCADE,
+                        is_multimodal BOOLEAN NOT NULL DEFAULT FALSE,
+                        japanese VARCHAR(100) NOT NULL,
+                        kana VARCHAR(200) NOT NULL,
+                        chinese VARCHAR(200) NOT NULL,
+                        example_ja VARCHAR(500),
+                        example_cn VARCHAR(500),
+                        image_base64 TEXT,
+                        test_choice VARCHAR(200),
+                        test_correct BOOLEAN,
+                        tested_at TIMESTAMP
+                    )
+                """)
+                )
+            else:
+                conn.execute(
+                    text("""
+                    CREATE TABLE experiment_words (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id INTEGER NOT NULL REFERENCES experiment_sessions(id) ON DELETE CASCADE,
+                        is_multimodal BOOLEAN NOT NULL DEFAULT 0,
+                        japanese VARCHAR(100) NOT NULL,
+                        kana VARCHAR(200) NOT NULL,
+                        chinese VARCHAR(200) NOT NULL,
+                        example_ja VARCHAR(500),
+                        example_cn VARCHAR(500),
+                        image_base64 TEXT,
+                        test_choice VARCHAR(200),
+                        test_correct BOOLEAN,
+                        tested_at TIMESTAMP
+                    )
+                """)
+                )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_exp_words_session ON experiment_words(session_id)")
+            )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_exp_words_session_mm ON experiment_words(session_id, is_multimodal)")
+            )
+            conn.commit()
+
         # ── Backfill orphaned rows ──
         # #19：已拆出为显式 CLI 命令（python -m app.cli backfill-orphans），
         # 启动时不再隐式修改数据。如需执行请手动运行。
