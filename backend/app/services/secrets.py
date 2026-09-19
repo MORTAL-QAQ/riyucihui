@@ -41,22 +41,41 @@ def _from_keyring(key: str) -> str | None:
         return None
 
 
+def _normalize_api_key(value: str) -> str:
+    """归一化 API Key 内容。
+
+    支持直接粘贴火山引擎控制台导出的「API Key ID / API Key Secret」两行格式
+    （形如 ApiKey.txt），自动提取 Secret 作为实际令牌；单行值原样返回。
+    """
+    if not value:
+        return value
+    text = value.strip()
+    if "\n" not in text:
+        return text
+    secret = ""
+    for line in text.splitlines():
+        low = line.lower()
+        if "api key secret" in low or low.startswith("secret"):
+            secret = line.split(":", 1)[-1].strip()
+    return secret or text
+
+
 def resolve(key: str) -> str:
     """Return the secret value for `key`, trying each backend in priority order."""
     # 1. Environment variable (highest priority)
     val = _from_env(key)
     if val:
-        return val
+        return _normalize_api_key(val)
 
     # 2. Docker / K8s secrets file
     val = _from_docker_secrets(key)
     if val:
-        return val
+        return _normalize_api_key(val)
 
     # 3. System keyring (no plaintext on disk)
     val = _from_keyring(key)
     if val:
-        return val
+        return _normalize_api_key(val)
 
     # 4. .env file fallback — only for local dev
     from dotenv import dotenv_values
@@ -73,6 +92,6 @@ def resolve(key: str) -> str:
                 f"keyring.set_password('{KEYRING_SERVICE}', '{key}', '<your-key>')\"",
                 file=sys.stderr,
             )
-            return val
+            return _normalize_api_key(val)
 
     return ""
