@@ -28,6 +28,18 @@ VOLCANO_API_KEY = _resolve_secret("VOLCANO_API_KEY")
 VOLCANO_IMAGE_MODEL = os.getenv("VOLCANO_IMAGE_MODEL", "doubao-seedream-5-0-260128")
 VOLCANO_IMAGE_BASE_URL = os.getenv("VOLCANO_IMAGE_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
 
+# ── 图片生成通道（两套产品线，可通过 IMAGE_PROVIDER 切换） ──
+#   ark    ：方舟大模型平台（Bearer + /images/generations，当前生产使用）
+#   visual ：视觉智能开放平台（AK/SK v4 签名 + CVProcess 智能绘图）
+IMAGE_PROVIDER = os.getenv("IMAGE_PROVIDER", "ark")
+# 视觉智能开放平台凭证（AK 形如 AKLT...，需在火山引擎控制台「访问密钥」获取）
+VOLCANO_ACCESS_KEY = _resolve_secret("VOLCANO_ACCESS_KEY")
+VOLCANO_SECRET_KEY = _resolve_secret("VOLCANO_SECRET_KEY")
+# 智能绘图（文生图）模型标识；通用图像生成 3.0 为 high_aes_general_v30
+VISUAL_REQ_KEY = os.getenv("VISUAL_REQ_KEY", "high_aes_general_v30")
+VISUAL_API_ENDPOINT = os.getenv("VISUAL_API_ENDPOINT", "https://visual.volcengineapi.com")
+VISUAL_API_REGION = os.getenv("VISUAL_API_REGION", "cn-north-1")
+
 # ── 数据库配置 ──
 # SQLite 适用于单用户/轻量使用；生产环境可通过 DATABASE_URL 切换为 PostgreSQL。
 # 生产容器中由 Docker secrets 注入（/run/secrets/DATABASE_URL），不落入 environment。
