@@ -75,10 +75,10 @@ check(s == 200, f"列表返回 200（实际 {s}）")
 forms = d.get("questionnaires", [])
 names = [f["display_name"] for f in forms]
 print("     ", "、".join(names))
-check(len(forms) == 5, f"共 5 份问卷（实际 {len(forms)}）")
+check(len(forms) == 4, f"共 4 份问卷（实际 {len(forms)}）")
 check(all("（实验组）" not in f["display_name"] and "（对照组）" not in f["display_name"]
-          for f in forms if f["code"].startswith("q2") or f["code"] == "q2"),
-      "卷2 已取消实验组/对照组分组，仅一份")
+          for f in forms if f["number"] in ("2", "4")),
+      "卷2 / 卷4 均已取消实验组/对照组分组")
 check(all(f["display_name"].startswith(("卷1", "卷2", "卷3", "卷4")) for f in forms),
       "展示名均为「卷N 名称」形式")
 check(d.get("submitted_count") == 0, "初始提交数为 0")
@@ -158,9 +158,10 @@ s, d = req("GET", "/admin/questionnaires/stats", token=ATOKEN)
 check(s == 200, f"管理员统计可访问（实际 {s}）")
 if s == 200:
     summ = {x["code"]: x for x in d["summary"]}
-    check(len(summ) == 5, "统计覆盖 5 份问卷")
+    check(len(summ) == 4, "统计覆盖 4 份问卷")
     check("q2" in summ and "q2_ctrl" not in summ, "卷2 为单一版本（无对照组版）")
     check(summ["q2"]["item_count"] == 69, f"卷2 题量 69（实际 {summ['q2']['item_count']}）")
+    check("q4" in summ and "q4_ctrl" not in summ, "卷4 为单一版本（无对照组版）")
     check(summ["q1"]["submitted"] == 1, "卷1 提交数 = 1")
     detail = d["detail"]["q1"][0]
     check(detail["name"] == "问卷测试", "明细显示昵称")
