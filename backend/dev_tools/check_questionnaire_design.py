@@ -37,8 +37,7 @@ DESIGN = os.path.join(SRC_DIR, "问卷设计（SDT与学习效果）.md")
 
 SUBJECT_OF = {
     "q1": "我的日语学习",
-    "q2_exp": "《多模态日语词汇学习网站》",
-    "q2_ctrl": "《多模态日语词汇学习网站》",
+    "q2": "《多模态日语词汇学习网站》",
     "q3": "《多模态日语词汇学习网站》",
     "q4_exp": "《多模态日语词汇学习网站》",
     "q4_ctrl": "《多模态日语词汇学习网站》",
@@ -83,7 +82,7 @@ def has_subject(s: str) -> bool:
 
 # Q0 基本信息：权威源只给条目标题（非逐字题面），该部分以建卷清单为准，不参与逐字比对
 BASIC_ITEM_PREFIX = ("p1q",)
-BASIC_CODES = {"q1", "q2_exp", "q2_ctrl"}
+BASIC_CODES = {"q1", "q2"}
 
 
 design_raw = io.open(DESIGN, encoding="utf-8").read() if os.path.exists(DESIGN) else ""

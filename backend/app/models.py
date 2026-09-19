@@ -412,7 +412,7 @@ class QuestionnaireResponse(Base):
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    code = Column(String(20), nullable=False, index=True)      # 问卷内部标识，如 q2_exp
+    code = Column(String(20), nullable=False, index=True)      # 问卷内部标识，如 q1 / q2 / q4_exp
     number = Column(String(10), nullable=False, default="")     # 卷号，如 "2"
     name = Column(String(100), nullable=False, default="")       # 问卷名，如「后测核心（实验组）」
     version = Column(String(20), nullable=False, default="")     # 问卷定义版本（措辞冻结）

@@ -18,14 +18,20 @@
 版本沿革（`VERSION` 变更 = 学生可见措辞变更，必须留痕）：
 - `2026-08`：按五份《建卷清单》落笔
 - `2026-09`：按权威源《问卷设计（SDT与学习效果）.md》统一（总表规定「条目原文有改动以《问卷设计》为准」）：
-  · BPNS 第 1/4/13 行补回【主语】（卷1 前测=「我的日语学习」，卷2 后测两版=网站名）
+  · BPNS 第 1/4/13 行补回【主语】（卷1 前测=「我的日语学习」，卷2 后测=网站名）
     —— 此前卷2 实验组缺主语、对照组有主语，两组作答情境不一致
   · BPNS 第 10/14 行补回括号举例（如阶段提升、成就解锁 / 如社区发帖、评论）
   · 卷3 开放题补回「你觉得」
   以上变更发生在 **T0 前测尚未施测**之前，无历史数据受影响
+- `2026-09.1`：**卷2 取消实验组/对照组分组，合并为单一版本**（`q2`）。
+  依据：平台的实验逻辑是**同一受试**在一次实验中同时学习多模态与非多模态材料
+  （每次 20 词 = 10 多模态 + 10 非多模态），多模态效应属被试内比较，
+  不再需要按组施测问卷。合并后采用原「实验组版」措辞（主语为网站、
+  学习效果自评 13 行含「感知学习效率」4 行多模态功能题），
+  因为现在人人都使用平台的全部多模态功能。原 `q2_ctrl`（9 行）已废弃。
 """
 
-VERSION = "2026-09"
+VERSION = "2026-09.1"
 
 # ── 常用量表标签 ──
 AGREE5 = {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"}
@@ -88,10 +94,9 @@ def bpns_blocks(subject: str) -> list:
 
 SITE = "《多模态日语词汇学习网站》"
 Q1_SUBJECT_PRE = "我的日语学习"          # 卷1 前测：平台使用之前
-Q1_SUBJECT_POST = SITE                   # 卷2 后测：两组均以网站为主语
+Q1_SUBJECT_POST = SITE                   # 卷2 后测：以网站为主语
 Q1_BLOCKS_PRE = bpns_blocks(Q1_SUBJECT_PRE)
-Q1_BLOCKS_EXP = bpns_blocks(Q1_SUBJECT_POST)
-Q1_BLOCKS_CTRL = bpns_blocks(Q1_SUBJECT_POST)
+Q1_BLOCKS_POST = bpns_blocks(Q1_SUBJECT_POST)
 Q1_REVERSE_ROWS = [5, 6, 11, 12, 16, 17]
 
 Q4_ROWS_COMMON = ["感兴趣的", "愉悦的", "兴奋的", "有活力的", "自豪的",
@@ -141,7 +146,7 @@ Q6_UWES_ROWS = [
     "我对学习日语词汇充满热情",
     "我会主动寻找额外的词汇学习内容",
 ]
-Q7_EFFECT_EXP_ROWS = [
+Q7_EFFECT_ROWS = [
     "使用《多模态日语词汇学习网站》后，我觉得自己记住的单词比以前多",
     "我能更快地回忆起学过的单词",
     "我觉得自己的词汇量有明显提高",
@@ -151,14 +156,6 @@ Q7_EFFECT_EXP_ROWS = [
     "AI 生成的例句和短文帮助我理解单词的用法",
     "配图帮助我记住单词的意思",
     "语音/听力功能帮助我记住单词的发音",
-    *Q7_EFFICACY_ROWS,
-]
-Q7_EFFECT_CTRL_ROWS = [
-    "使用《多模态日语词汇学习网站》后，我觉得自己记住的单词比以前多",
-    "我能更快地回忆起学过的单词",
-    "我觉得自己的词汇量有明显提高",
-    "听日语时，我能更快听懂学过的单词",
-    "我能用学过的单词进行造句和简单表达",
     *Q7_EFFICACY_ROWS,
 ]
 
@@ -315,12 +312,7 @@ QUESTIONNAIRES = [
 
 
 def _q2_pages(blocks, effect_rows, p2_intro, reason_intro, emotion_intro):
-    """卷 2 两个版本共用页面骨架。
-
-    ⚠️ 引导语按版本分别传入：实验组与对照组的第 2 页引导语措辞**并不相同**
-    （实验组主语是《多模态日语词汇学习网站》，对照组主语是「我的日语学习」），
-    误用同一份会让两版数据的作答情境不一致，影响组间可比性。
-    """
+    """卷 2 后测核心的页面骨架（2026-09.1 起只有一份，不再分实验组/对照组）。"""
     return [
         {"title": "基本信息复核", "items": [
             {"key": "p1q1", "type": "text", "required": True,
@@ -355,17 +347,11 @@ def _q2_pages(blocks, effect_rows, p2_intro, reason_intro, emotion_intro):
     ]
 
 
-Q2_EXP_PAGES = _q2_pages(
-    Q1_BLOCKS_EXP, Q7_EFFECT_EXP_ROWS,
+Q2_PAGES = _q2_pages(
+    Q1_BLOCKS_POST, Q7_EFFECT_ROWS,
     "回想过去四周在《多模态日语词汇学习网站》中学习的情况，评价下列描述……",
     "我使用《多模态日语词汇学习网站》学习日语词汇，主要是因为……",
     "回想在《多模态日语词汇学习网站》中学习词汇时的感受，以下情绪出现的程度……",
-)
-Q2_CTRL_PAGES = _q2_pages(
-    Q1_BLOCKS_CTRL, Q7_EFFECT_CTRL_ROWS,
-    "请回想你过去四周日语词汇学习的情况，评价下列描述与你的符合程度。",
-    "我学习日语词汇，主要是因为……",
-    "回想你在学习日语词汇时的感受，以下情绪在你身上出现的程度是……",
 )
 
 _Q2_DIM_BASE = {
@@ -384,16 +370,16 @@ _Q2_DIM_BASE = {
     "Q12B_变化感知": ["p8m2_r1", "p8m2_r2"],
 }
 QUESTIONNAIRES.append({
-    "code": "q2_exp",
+    "code": "q2",
     "number": "2",
-    "name": "后测核心（实验组）",
+    "name": "后测核心",
     "version": VERSION,
-    "audience": "实验组",
+    "audience": "全体受试",
     "timing": "T1 · 第 5 周末（第二轮 11–12 月）",
     "minutes": 16,
     "intro": INTRO_Q2,
     "outro": OUTRO_Q2,
-    "pages": Q2_EXP_PAGES,
+    "pages": Q2_PAGES,
     "dimensions": {
         "Q1_自主性": ["p2m1_r1", "p2m1_r2", "p2m1_r3", "p2m1_r4", "p2m1_r5", "p2m1_r6"],
         "Q1_胜任感": ["p2m1_r7", "p2m1_r8", "p2m1_r9", "p2m1_r10", "p2m1_r11", "p2m1_r12"],
@@ -401,30 +387,6 @@ QUESTIONNAIRES.append({
         **_Q2_DIM_BASE,
         "Q7_感知习得": ["p7m1_r1", "p7m1_r2", "p7m1_r3", "p7m1_r4", "p7m1_r5"],
         "Q7_感知学习效率": ["p7m1_r6", "p7m1_r7", "p7m1_r8", "p7m1_r9"],
-    },
-    "reverse": [f"p2m1_r{i}" for i in Q1_REVERSE_ROWS],
-})
-QUESTIONNAIRES.append({
-    "code": "q2_ctrl",
-    "number": "2",
-    "name": "后测核心（对照组）",
-    "version": VERSION,
-    "audience": "对照组",
-    "timing": "T1 · 第 5 周末（第二轮 11–12 月）",
-    "minutes": 16,
-    "intro": INTRO_Q2,
-    "outro": OUTRO_Q2,
-    "pages": Q2_CTRL_PAGES,
-    "dimensions": {
-        "Q1_自主性": ["p2m1_r1", "p2m1_r2", "p2m1_r3", "p2m1_r4", "p2m1_r5", "p2m1_r6"],
-        "Q1_胜任感": ["p2m1_r7", "p2m1_r8", "p2m1_r9", "p2m1_r10", "p2m1_r11", "p2m1_r12"],
-        "Q1_归属感": ["p2m1_r13", "p2m1_r14", "p2m1_r15", "p2m1_r16", "p2m1_r17", "p2m1_r18"],
-        # 对照组不测「感知学习效率」（无多模态功能），故不含该项
-        **_Q2_DIM_BASE,
-        "Q7_感知习得": ["p7m1_r1", "p7m1_r2", "p7m1_r3", "p7m1_r4", "p7m1_r5"],
-        # 对照组第 7 页仅 9 行：感知习得 5 行 + 自我效能 4 行（r6–r9），
-        # 自我效能不能沿用实验组的 r10–r13（会指向不存在的行，导致该维度恒为空）
-        "Q7_自我效能": ["p7m1_r6", "p7m1_r7", "p7m1_r8", "p7m1_r9"],
     },
     "reverse": [f"p2m1_r{i}" for i in Q1_REVERSE_ROWS],
 })
@@ -543,7 +505,7 @@ def get_questionnaire(code: str) -> dict | None:
 
 
 def parse_code(code: str):
-    """拆分内部编码，便于按「卷号」聚合（q2_exp → ('2', 'exp')）。"""
+    """拆分内部编码，便于按「卷号」聚合（如 q4_exp → ('4', 'exp')）。"""
     if not code:
         return ("", "")
     body = code[1:] if code.startswith("q") else code
