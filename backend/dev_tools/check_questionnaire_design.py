@@ -195,25 +195,36 @@ for title, k, hint in report:
 
 print(f"\n── ⑤ 权威源无逐字题面（条目概要）：{len(buckets['summary'])} 行（Q0 基本信息，正常）")
 
-# ── SUS 反向题 ──
+# ── SUS 反向题：直接从权威源的 SUS 小节里抽（R）标记 ──
 print("\n" + "=" * 76)
 print("SUS 反向题标记核对")
 print("=" * 76)
-print("  权威源 (R) 标注        ：[5, 11, 17, 4, 6, 8, 10]（含 Q1 第 5/11/17 行）")
-print("  总表《反向题清单》      ：[2, 4, 6, 8, 10]（SUS）")
-print(f"  实现 reverse（卷3 SUS）："
-      f"{sorted(int(k.rsplit('_r', 1)[1]) for k in qq.get_questionnaire('q3')['reverse'])}")
-if "我觉得平台没有必要这么复杂（R）" not in norm(design_raw):
-    print("  ⚠ 权威源 SUS 第 2 题「我觉得平台没有必要这么复杂」漏标 (R)，")
-    print("    但该题明显为负向题；实现按总表 + 卷3 建清单取 [2,4,6,8,10]（SUS 奇正偶负）→ 实现正确")
+# 截取 SUS 小节（从「SUS 系统可用性量表」到「持续使用意愿」之间）
+m_sus = re.search(r"SUS\s*系统可用性量表(.*?)持续使用意愿", design_raw, re.S)
+sus_block = m_sus.group(1) if m_sus else ""
+declared_sus = sorted({
+    int(m.group(1))
+    for m in re.finditer(r"^\s*(\d+)[.、]\s*[^\n]*?（R[^）]*）", sus_block, re.M)
+})
+mine_sus = sorted(int(k.rsplit("_r", 1)[1]) for k in qq.get_questionnaire("q3")["reverse"])
+print(f"  权威源 SUS 小节 (R) 标注：{declared_sus}")
+print(f"  总表《反向题清单》      ：[2, 4, 6, 8, 10]")
+print(f"  实现 reverse（卷3 SUS） ：{mine_sus}")
+if declared_sus == mine_sus:
+    print("  ✓ 权威源、总表与实现三者一致（SUS 奇正偶负：2/4/6/8/10）")
+else:
+    print(f"  ⚠ 三者不一致：权威源 {declared_sus} / 实现 {mine_sus}")
+    print("     请以总表《反向题清单》与 SUS 标准（奇正偶负）为准并回填权威源")
 
 # ── Q11 疲劳感方向 ──
 print("\n" + "=" * 76)
 print("Q11「疲劳感」计分方向")
 print("=" * 76)
+q4 = qq.get_questionnaire("q4")
 print("  权威源      ：『在【主语】中学习让我感到很吃力（R 反向：疲劳感）』")
 print("  卷4 建卷清单：『末行为反向含义，计分时注意方向』")
-print(f"  实现        ：reverse={qq.get_questionnaire('q4_exp').get('reverse')}（保留原始方向：越高=越吃力）")
+print(f"  实现        ：reverse={q4.get('reverse') if q4 else '（缺少卷4 定义！）'}"
+      f"（保留原始方向：越高=越吃力）")
 print("  → 单条目维度，反转只改变方向符号；原始作答完整留存，任何口径均可重新计分")
 
 print("\n" + "=" * 76)
