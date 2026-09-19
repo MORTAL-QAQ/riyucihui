@@ -53,14 +53,20 @@ def _build_prompt(japanese: str, chinese: str, kana: str, example_ja: str, examp
 
 
 def _download_as_data_uri(image_url: str) -> str:
-    """下载图片并转为 data URI（base64）。"""
+    """下载图片并转为 data URI（base64）。
+
+    两条通道返回的图片可能是 PNG 或 JPEG，按响应头 + 魔数嗅探真实类型，
+    避免把 JPEG 标成 image/png 导致部分浏览器不渲染。
+    """
     client = _get_client()
     image_bytes = None
+    content_type = ""
     for attempt in range(3):
         try:
             img_resp = client.get(image_url, timeout=30)
             img_resp.raise_for_status()
             image_bytes = img_resp.content
+            content_type = (img_resp.headers.get("content-type") or "").split(";")[0].strip()
             break
         except httpx.HTTPError:
             if attempt < 2:
@@ -71,11 +77,25 @@ def _download_as_data_uri(image_url: str) -> str:
     if not image_bytes:
         raise RuntimeError("下载图片内容为空")
 
+    mime = _sniff_mime(image_bytes, content_type)
     b64 = base64.b64encode(image_bytes).decode("utf-8")
-    result = f"data:image/png;base64,{b64}"
+    result = f"data:{mime};base64,{b64}"
     del image_bytes, b64
     gc.collect()
     return result
+
+
+def _sniff_mime(data: bytes, content_type: str = "") -> str:
+    """按魔数判断图片类型，回退到响应头，再回退 png。"""
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if content_type.startswith("image/"):
+        return content_type
+    return "image/png"
 
 
 def generate_word_image(japanese: str, chinese: str, kana: str = "", example_ja: str = "", example_cn: str = "") -> str | None:
@@ -148,11 +168,14 @@ def _generate_via_visual(prompt: str) -> str:
         )
 
     host = config.VISUAL_API_ENDPOINT.replace("https://", "").replace("http://", "").rstrip("/")
+    size = config.VISUAL_IMAGE_SIZE
     body = {
         "req_key": config.VISUAL_REQ_KEY,
         "prompt": prompt,
-        "width": 1024,
-        "height": 1024,
+        "seed": -1,                   # -1 = 每次随机
+        "scale": config.VISUAL_SCALE,  # 文本引导强度（3.0 建议 2.5）
+        "width": size,
+        "height": size,
         "return_url": True,
     }
     payload = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -162,7 +185,7 @@ def _generate_via_visual(prompt: str) -> str:
         f"https://{host}/?{query}",
         content=payload,
         headers=_visual_signed_headers(host, query, payload),
-        timeout=120,
+        timeout=180,
     )
 
     if resp.status_code != 200:
@@ -175,7 +198,14 @@ def _generate_via_visual(prompt: str) -> str:
 
     code = data.get("code")
     if code is not None and code != 10000:
-        raise RuntimeError(f"视觉智能平台返回错误 code={code}: {data.get('message')}")
+        msg = data.get("message") or ""
+        if code == 50400:
+            raise RuntimeError(
+                f"视觉智能平台无调用权限（code=50400）：请在控制台开通 req_key={config.VISUAL_REQ_KEY} 对应的模型"
+            )
+        if code == 50200:
+            raise RuntimeError(f"视觉智能平台参数错误（code=50200）：{msg}")
+        raise RuntimeError(f"视觉智能平台返回错误 code={code}: {msg}")
 
     inner = data.get("data") or {}
 
@@ -184,10 +214,11 @@ def _generate_via_visual(prompt: str) -> str:
     if urls:
         return _download_as_data_uri(urls[0])
 
-    # 回退：直接返回 base64（binary_data_base64）
+    # 回退：直接返回 base64（binary_data_base64，按魔数判类型）
     b64_list = inner.get("binary_data_base64") or []
     if b64_list:
-        return f"data:image/png;base64,{b64_list[0]}"
+        raw = base64.b64decode(b64_list[0])
+        return f"data:{_sniff_mime(raw)};base64,{b64_list[0]}"
 
     raise RuntimeError(f"视觉智能平台未返回图片数据: {str(data)[:300]}")
 

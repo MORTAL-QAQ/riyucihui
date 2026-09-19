@@ -80,10 +80,14 @@ services:
     environment:
       - VOICEVOX_BASE_URL=http://voicevox:50021
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      # 配图通道：ark（方舟 Seedream）/ visual（视觉智能平台 通用3.0-文生图）
+      - IMAGE_PROVIDER=${IMAGE_PROVIDER:-ark}
     secrets:
       - SECRET_KEY
       - DEEPSEEK_API_KEY
       - VOLCANO_API_KEY
+      - VOLCANO_ACCESS_KEY
+      - VOLCANO_SECRET_KEY
       - DB_PASSWORD
       - DATABASE_URL
     depends_on:
@@ -134,6 +138,11 @@ secrets:
     file: ./secrets/DEEPSEEK_API_KEY
   VOLCANO_API_KEY:
     file: ./secrets/VOLCANO_API_KEY
+  # 视觉智能开放平台（visual 通道）AK/SK：AK 形如 AKLT...
+  VOLCANO_ACCESS_KEY:
+    file: ./secrets/VOLCANO_ACCESS_KEY
+  VOLCANO_SECRET_KEY:
+    file: ./secrets/VOLCANO_SECRET_KEY
   DB_PASSWORD:
     file: ./secrets/DB_PASSWORD
   DATABASE_URL:

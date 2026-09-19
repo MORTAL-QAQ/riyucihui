@@ -35,10 +35,15 @@ IMAGE_PROVIDER = os.getenv("IMAGE_PROVIDER", "ark")
 # 视觉智能开放平台凭证（AK 形如 AKLT...，需在火山引擎控制台「访问密钥」获取）
 VOLCANO_ACCESS_KEY = _resolve_secret("VOLCANO_ACCESS_KEY")
 VOLCANO_SECRET_KEY = _resolve_secret("VOLCANO_SECRET_KEY")
-# 智能绘图（文生图）模型标识；通用图像生成 3.0 为 high_aes_general_v30
-VISUAL_REQ_KEY = os.getenv("VISUAL_REQ_KEY", "high_aes_general_v30")
+# 智能绘图（文生图）模型标识：通用3.0-文生图 = high_aes_general_v30l_zt2i
+# （实测：该 req_key 走 Action=CVProcess&Version=2022-08-31 可正常出图；
+#   high_aes_general_v20 / v21 / v14 是平台认可但本账号未开通的旧模型）
+VISUAL_REQ_KEY = os.getenv("VISUAL_REQ_KEY", "high_aes_general_v30l_zt2i")
 VISUAL_API_ENDPOINT = os.getenv("VISUAL_API_ENDPOINT", "https://visual.volcengineapi.com")
 VISUAL_API_REGION = os.getenv("VISUAL_API_REGION", "cn-north-1")
+# 出图尺寸（实测 768/1024/1328 均支持）与文本引导强度
+VISUAL_IMAGE_SIZE = int(os.getenv("VISUAL_IMAGE_SIZE", "1024"))
+VISUAL_SCALE = float(os.getenv("VISUAL_SCALE", "2.5"))
 
 # ── 数据库配置 ──
 # SQLite 适用于单用户/轻量使用；生产环境可通过 DATABASE_URL 切换为 PostgreSQL。
