@@ -25,7 +25,7 @@
 
 - 后端：Python 3.12 / FastAPI / SQLAlchemy ORM / JWT (HS256, 24h) / bcrypt 密码哈希
 - 数据库：SQLite（开发 `sqlite:///./data/words.db`）/ PostgreSQL 16（生产，Docker secrets 注入）
-- 前端：原生 HTML/JS/CSS 无构建步骤；TTS 用 VOICEVOX（容器 `http://voicevox:50021`）；AI 用 DeepSeek（生成）+ 火山豆包 Seedream（配图）
+- 前端：原生 HTML/JS/CSS 无构建步骤；TTS 用 VOICEVOX（容器 `http://voicevox:50021`）；AI 用 DeepSeek（生成）+ 视觉智能开放平台「通用3.0-文生图」（配图，备用通道为方舟 Seedream）
 
 ## 后端结构（`backend/app/`）
 
@@ -81,6 +81,15 @@ Docker Compose 部署，手动 `bash deploy.sh`（无 CI/CD）。
 - **部署流程**：tar 同步 backend → scp frontend → 构建重建 backend → 重启 nginx → 注入版本号 → 健康检查 → 注册每日备份 cron；`deploy.sh rollback` 回滚
 - **运维**（服务器 `/opt/riyucihui`）：`docker compose logs -f` / `restart` / `down`；`python -m app.cli create-admin <用户> <密码>`；每日 03:00 自动备份至 `backups/`（保留 14 份）；证书续期 `bash scripts/cert-setup.sh renew`
 - **环境变量**（`.env` 本地；生产 secrets）：`SECRET_KEY`、`DEEPSEEK_API_KEY`、`VOLCANO_API_KEY`、`DATABASE_URL`、`CORS_ORIGINS`（生产为具体域名）、`DEFAULT_DAILY_*`
-- **配图通道**（`IMAGE_PROVIDER`）：`ark`（默认，方舟大模型平台，`Bearer <API Key>` + `/images/generations`，生产在用）/ `visual`（视觉智能开放平台，AK/SK 签名 v4 + `CVProcess`，需 `VOLCANO_ACCESS_KEY` / `VOLCANO_SECRET_KEY`，AK 形如 `AKLT…`）
-  - **两种 key 不是一回事**：`ApiKey.txt`（两行：API Key ID + Secret）是**方舟 API Key**，只能走 `ark` 通道，且须在方舟控制台给该 key **授权模型**，否则 403 AccessDenied；`visual.volcengineapi.com` 只接受火山引擎主账号 **AK/SK** 签名请求，用方舟 Key ID 当 AK 会返回 `100009 InvalidAccessKey`
-  - 密钥工具：`dev_tools/check_ark_key.py`（校验 key 的模型权限，区分 403 无授权 / 404 未开通）、`dev_tools/switch_image_key.sh`（预检→备份→切换→实测，`--restore` 回滚）、`dev_tools/verify_image_gen.sh`（生产容器内实测出图）
+- **配图通道**（`IMAGE_PROVIDER`，写入服务器 `/opt/riyucihui/.env`）：
+  - `visual`（**当前生产在用**）：视觉智能开放平台，AK/SK 签名 v4 + `Action=CVProcess&Version=2022-08-31`，
+    `req_key=high_aes_general_v30l_zt2i`（**通用3.0-文生图**，实测唯一被接受的 3.0 标识），
+    凭证为 `VOLCANO_ACCESS_KEY`（`AKLT…`）/ `VOLCANO_SECRET_KEY`（**原始值直接写入，勿 base64 解码**，解码后签名会 `SignatureDoesNotMatch`）；
+    返回 **JPEG**，按魔数嗅探 MIME（原硬编码 `image/png` 会导致部分浏览器不渲染）
+  - `ark`（备用）：方舟大模型平台，`Bearer <API Key>` + `/images/generations`，模型 `doubao-seedream-5-0-260128`
+  - **两种 key 不是一回事**：`ApiKey.txt`（两行：API Key ID + Secret）是**方舟 API Key**，只能走 `ark` 通道且须在控制台给 key 授权模型（否则 403 AccessDenied）；
+    `visual.volcengineapi.com` 只认火山引擎主账号 **AK/SK**，用方舟 Key ID 当 AK 会返回 `100009 InvalidAccessKey`
+  - **Seedream 3.0（`doubao-seedream-3-0-t2i-250415`）已在方舟下线**（`/models` 的 `status: "Shutdown"`），任何 key 都调不通；网上「Seedream 3.0」= 视觉平台的「通用3.0-文生图」
+  - 视觉平台错误码：`50400 Access Denied` = req_key 有效但账号未开通；`50200 not supported` = req_key 名字不对；`SignatureDoesNotMatch` = SK 用错（做了 base64 解码）
+  - 工具：`dev_tools/set_image_provider.sh <ark|visual> [--ak … --sk …]`（写 .env → 重建 → 容器内实测出图，**失败自动回滚**；`--show` 看状态不打印密钥）、
+    `dev_tools/check_ark_key.py --map`（方舟 key 模型权限地图）、`dev_tools/switch_image_key.sh`（方舟密钥轮换，`--restore` 回滚）、`dev_tools/verify_image_gen.sh`（生产实测出图）
