@@ -33,23 +33,60 @@ def _get_client():
 
 
 def _build_prompt(japanese: str, chinese: str, kana: str, example_ja: str, example_cn: str) -> str:
-    """构造图片生成 prompt：用例句场景 + 强调单词主体。"""
-    example_context = ""
-    if example_ja:
-        example_context = (
-            f" The scene should be inspired by this example sentence: \"{example_ja}\""
-            f"{' (' + example_cn + ')' if example_cn else ''}."
-        )
+    """构造英文 prompt（方舟 Seedream 通道）。
+
+    要点：**不要把「单词」本身描述成画面主体**——那会让模型把字写进图里。
+    主体只用中文释义锚定，例句只用来提供场景。
+    """
+    scene = _scene_hint(example_cn, example_ja)
     return (
-        f"A high-quality realistic photograph that clearly illustrates the Japanese word \"{japanese}\" "
-        f"(meaning: {chinese}{', reading: ' + kana if kana else ''}). "
-        f"The word \"{japanese}\" must be the most prominent and clearly visible subject in the image."
-        f"{example_context}"
-        f"Professional photography style with natural lighting, sharp focus on \"{japanese}\", "
-        f"and a clean uncluttered composition with shallow depth of field. "
-        f"Photorealistic, detailed textures, vibrant but natural colors, no distracting elements. "
-        f"Absolutely NO text, letters, characters, or watermarks in the image."
+        "A clean realistic photograph whose main subject is exactly this thing: "
+        f"{chinese}. "
+        f"{scene}"
+        f"Show the real physical object of \"{chinese}\" large, centered and in sharp focus, "
+        "filling most of the frame as a single clear subject. "
+        "Natural daylight, realistic textures, shallow depth of field, plain simple background. "
+        "The image must contain NO text of any kind: no letters, no words, no Chinese characters, "
+        "no Japanese kana or kanji, no numbers, no captions, no titles, no logos, no signage, no watermark. "
+        "Do not make a poster, book cover, card, or typography layout. "
+        "Only the photographed object and its surroundings."
     )
+
+
+def _build_prompt_visual(chinese: str, example_ja: str = "", example_cn: str = "") -> str:
+    """构造中文 prompt（视觉平台「通用3.0-文生图」通道）。
+
+    该模型（high_aes_general_v30l_zt2i）是**中文**文生图模型，中文提示词遵循度明显更好；
+    同样**不出现日语单词**，避免模型把假名/汉字当作画面元素画上去。
+    """
+    scene = _scene_hint(example_cn, example_ja, lang="zh")
+    return (
+        f"一张真实摄影风格的高清照片，画面主体是「{chinese}」，"
+        f"物体位于画面中央、占据主要面积、清晰锐利、细节真实。"
+        f"{scene}"
+        "自然光线，真实质感，浅景深，背景干净简洁。"
+        "画面中不要出现任何文字：不要汉字、不要日文假名、不要英文字母、不要数字，"
+        "不要字幕、不要标题、不要标志、不要水印。"
+        "不要海报、不要书籍封面、不要卡片、不要排版设计，"
+        "只呈现真实的物体与场景，不要任何文字装饰。"
+    )
+
+
+def _scene_hint(example_cn: str, example_ja: str = "", lang: str = "en") -> str:
+    """由例句生成场景提示。
+
+    **只用中文例句**：日文例句里的假名/汉字会被模型当作「要画出来的字」，
+    是文字占比过大的诱因之一，因此提示词中永不出现日文字符。
+    没有中文例句时退回通用生活场景。
+    """
+    src = (example_cn or "").strip()
+    if lang == "zh":
+        if src:
+            return f"场景参考：{src}"
+        return "场景为日常生活中真实可见的环境。"
+    if src:
+        return f"The scene may be inspired by this everyday situation: {src}. "
+    return "The scene is an ordinary real-life setting. "
 
 
 def _download_as_data_uri(image_url: str) -> str:
@@ -110,10 +147,12 @@ def generate_word_image(japanese: str, chinese: str, kana: str = "", example_ja:
     Returns:
         base64 编码的图片字符串（含 data:image/png;base64, 前缀），失败返回 None
     """
-    prompt = _build_prompt(japanese, chinese, kana, example_ja, example_cn)
-
+    # 提示词按通道分别构造：视觉平台是中文文生图模型，用中文提示词；方舟用英文
     if (config.IMAGE_PROVIDER or "ark").lower() == "visual":
+        prompt = _build_prompt_visual(chinese, example_ja, example_cn)
         return _generate_via_visual(prompt)
+
+    prompt = _build_prompt(japanese, chinese, kana, example_ja, example_cn)
     return _generate_via_ark(prompt)
 
 
