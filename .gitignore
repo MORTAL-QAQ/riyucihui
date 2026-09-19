@@ -54,3 +54,10 @@ backend/.tmp/
 students.json
 *学生名单*
 *成绩*
+
+# API 密钥文件（禁止入库）
+ApiKey.txt
+*apikey*
+*api_key*
+*.key
+
