@@ -23,6 +23,11 @@
     并冻结 `code`/`version`/`name`，题目定义见 `backend/app/questionnaires.py`（措辞冻结，改措辞必须升 version）
   - 计分：维度分 = 该维度条目均值；反向题先反转（BPNS 6 题、SUS 5 题，量表两端之和减原值）
   - 导出：`GET /api/admin/questionnaires/export?code=&kind=data|dict`（data=一人一行含维度分，可直接进 SPSS；dict=题号对照表含反向标注）
+  - **题目源与自检**：题目措辞以 `论文/03_问卷/` 下的《建卷清单》为落笔依据，以《问卷设计（SDT与学习效果）.md》为**权威条目原文**（总表规定「如条目原文有改动，以《问卷设计》为准」）。
+    **改问卷定义后必须跑两个自检**：`dev_tools/check_questionnaire_source.py`（对建卷清单逐字校验题干/矩阵行/选项/引导语/页数题量/反向题行号/维度合法性/反向计分抽样）、
+    `dev_tools/check_questionnaire_design.py`（对权威源做差异分类：主语差异/括号举例缺失/括号内容不同/措辞漂移/已声明变体）。
+    自检已知的两类「源文件问题」（非实现问题）：卷2 两版正文题量笔误（写 67/63，分项相加实为 69/65）、权威源 SUS 第 2 题漏标 (R)
+  - **改动纪律**：学生可见措辞的改动只能来自源文件修订，不得由代码侧自行「顺手改顺」；两版问卷（实验组/对照组）的引导语**按版本分别定义**（源文件措辞本就不同）
 - **管理员后台**：用户管理（设管理/重置密码/删除/备注）、每日限额调整（AI/语音/单词/图片）、登录记录、实验数据、问卷回答情况
 
 **部署形态**：Docker Compose（voicevox / postgres / backend / nginx / certbot），前端为 14 个页面的多页架构（详见下方前端结构）。
@@ -73,9 +78,12 @@
 
 **版本号机制**：css/js 引用 `?v={placeholder}`，deploy.sh 注入内容哈希。**`{app_version}` 为全部 js 合并哈希**（任一 js 变化版本号即变，防止浏览器缓存旧 JS 导致功能失效——曾因此出过生成/发声/登录故障）。
 
-**开发工具（`backend/dev_tools/`）**：`unify_topbar.py`（统一顶栏生成，页面清单改后跑一次）、`strip_*.py`（拆分清理）、`verify_*`（部署回归）、`append_*_css.py`（样式追加，UTF-8 幂等）、`diag_*`（生产诊断）。
+**开发工具（`backend/dev_tools/`）**：`unify_topbar.py`（统一顶栏生成，页面清单改后跑一次）、`strip_*.py`（拆分清理）、`verify_*`（部署回归）、`append_*_css.py`（样式追加，UTF-8 幂等）、`check_questionnaire_*.py`（问卷双源自检）、`diag_*`（生产诊断）。
 **改动前端后部署前必跑 `test_js_syntax.js`**（全部 js 语法 + `$("#id")` 与 HTML 的 id 一致性 + 导航页面登记）——曾因顶层变量重复声明致登录失效、因引用已删除元素致导出无响应。
 `test_load_js.js`/`test_inject_admin.js`（登录按钮绑定 / 管理入口注入）、`test_questionnaire.py`+`test_questionnaire_render.js`（问卷端到端与渲染）。
+
+> **仅本地的研究材料**（已在 `.gitignore`）：`docs/`、`论文/`、`问卷/`、`secrets/`、学生名单类文件。
+> `论文/` 内含论文草稿、附录、图表源码与 `03_问卷/`（问卷权威源）；问卷自检脚本默认从 `论文/03_问卷/` 读取源文件。
 
 ## 改进清单
 
