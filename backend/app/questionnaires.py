@@ -313,8 +313,13 @@ QUESTIONNAIRES = [
 ]
 
 
-def _q2_pages(blocks, effect_rows, reason_intro, emotion_intro):
-    """卷 2 两个版本共用页面骨架（差异仅在块措辞、学习效果行数与引导语）。"""
+def _q2_pages(blocks, effect_rows, p2_intro, reason_intro, emotion_intro):
+    """卷 2 两个版本共用页面骨架。
+
+    ⚠️ 引导语按版本分别传入：实验组与对照组的第 2 页引导语措辞**并不相同**
+    （实验组主语是《多模态日语词汇学习网站》，对照组主语是「我的日语学习」），
+    误用同一份会让两版数据的作答情境不一致，影响组间可比性。
+    """
     return [
         {"title": "基本信息复核", "items": [
             {"key": "p1q1", "type": "text", "required": True,
@@ -324,9 +329,7 @@ def _q2_pages(blocks, effect_rows, reason_intro, emotion_intro):
              "options": ["0–2天", "3–4天", "5–6天", "每天"]},
         ]},
         {"title": "学习感受（一）", "items": [
-            _m_blocks("p2m1",
-                      "请回想过去四周在《多模态日语词汇学习网站》中学习的情况，评价下列描述与你的符合程度。",
-                      blocks, AGREE5, Q1_REVERSE_ROWS),
+            _m_blocks("p2m1", p2_intro, blocks, AGREE5, Q1_REVERSE_ROWS),
         ]},
         {"title": "学习原因", "items": [
             _m("p3m1", reason_intro, Q2_REASON_ROWS, AGREE5),
@@ -344,22 +347,24 @@ def _q2_pages(blocks, effect_rows, reason_intro, emotion_intro):
             _m("p7m1", "请评价以下说法……", effect_rows, AGREE5),
         ]},
         {"title": "学习兴趣与效率（前后对比）", "items": [
-            _m("p8m1", "A 组 · 请评价你目前的日语词汇学习状况。（与前测同题）",
+            _m("p8m1", "A 组 · 现状水平（与前测卷 1 第 5 页文字完全一致）",
                Q12A_ROWS, AGREE5),
-            _m("p8m2", "B 组 · 与使用前相比，你的变化是……", Q12B_ROWS, CHANGE5),
+            _m("p8m2", "B 组 · 变化感知", Q12B_ROWS, CHANGE5),
         ]},
     ]
 
 
 Q2_EXP_PAGES = _q2_pages(
     Q1_BLOCKS_EXP, Q7_EFFECT_EXP_ROWS,
-    "我使用《多模态日语词汇学习网站》学习日语词汇，主要是因为……（请评价符合程度）",
+    "回想过去四周在《多模态日语词汇学习网站》中学习的情况，评价下列描述……",
+    "我使用《多模态日语词汇学习网站》学习日语词汇，主要是因为……",
     "回想在《多模态日语词汇学习网站》中学习词汇时的感受，以下情绪出现的程度……",
 )
 Q2_CTRL_PAGES = _q2_pages(
     Q1_BLOCKS_CTRL, Q7_EFFECT_CTRL_ROWS,
-    "我学习日语词汇，主要是因为……（请评价符合程度）",
-    "回想你在学习日语词汇时的感受，以下情绪出现的程度是……",
+    "请回想你过去四周日语词汇学习的情况，评价下列描述与你的符合程度。",
+    "我学习日语词汇，主要是因为……",
+    "回想你在学习日语词汇时的感受，以下情绪在你身上出现的程度是……",
 )
 
 _Q2_DIM_BASE = {
@@ -413,8 +418,12 @@ QUESTIONNAIRES.append({
         "Q1_自主性": ["p2m1_r1", "p2m1_r2", "p2m1_r3", "p2m1_r4", "p2m1_r5", "p2m1_r6"],
         "Q1_胜任感": ["p2m1_r7", "p2m1_r8", "p2m1_r9", "p2m1_r10", "p2m1_r11", "p2m1_r12"],
         "Q1_归属感": ["p2m1_r13", "p2m1_r14", "p2m1_r15", "p2m1_r16", "p2m1_r17", "p2m1_r18"],
+        # 对照组不测「感知学习效率」（无多模态功能），故不含该项
         **_Q2_DIM_BASE,
         "Q7_感知习得": ["p7m1_r1", "p7m1_r2", "p7m1_r3", "p7m1_r4", "p7m1_r5"],
+        # 对照组第 7 页仅 9 行：感知习得 5 行 + 自我效能 4 行（r6–r9），
+        # 自我效能不能沿用实验组的 r10–r13（会指向不存在的行，导致该维度恒为空）
+        "Q7_自我效能": ["p7m1_r6", "p7m1_r7", "p7m1_r8", "p7m1_r9"],
     },
     "reverse": [f"p2m1_r{i}" for i in Q1_REVERSE_ROWS],
 })
@@ -431,16 +440,13 @@ QUESTIONNAIRES.append({
     "outro": OUTRO_Q3,
     "pages": [
         {"title": "学习状态", "items": [
-            _m("p1m1", "回想你在平台上学习词汇时的状态……（请评价符合程度）",
-               Q3_FLOW_ROWS, AGREE5),
+            _m("p1m1", "回想你在平台上学习词汇时的状态……", Q3_FLOW_ROWS, AGREE5),
         ]},
         {"title": "个性化体验", "items": [
-            _m("p2m1", "请评价平台与你的匹配程度……（请评价符合程度）",
-               Q3_PERSONAL_ROWS, AGREE5),
+            _m("p2m1", "请评价平台与你的匹配程度……", Q3_PERSONAL_ROWS, AGREE5),
         ]},
         {"title": "平台质量", "items": [
-            _m("p3m1", "请评价平台的内容与系统……（请评价符合程度）",
-               Q3_QUALITY_ROWS, AGREE5),
+            _m("p3m1", "请评价平台的内容与系统……", Q3_QUALITY_ROWS, AGREE5),
         ]},
         {"title": "可用性", "items": [
             _m("p4m1", "请评价平台的易用性……", Q3_SUS_ROWS, SUS5,
@@ -508,7 +514,7 @@ for _code, _name, _rows in [
                  "scale": DIFFICULTY9},
             ]},
             {"title": "负荷感受", "items": [
-                _m("p2m1", "请评价以下说法……（请评价符合程度）", _rows, AGREE5),
+                _m("p2m1", "请评价以下说法……", _rows, AGREE5),
             ]},
         ],
         "dimensions": {
