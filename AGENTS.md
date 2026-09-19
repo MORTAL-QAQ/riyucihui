@@ -10,6 +10,13 @@
 - **AI 生成**：基于 DeepSeek 生成单词（含假名/释义/例句/JLPT 等级）、短文（含【】标记单词）、完型填空、语法辨析/纠错/分析；流式 SSE 输出
 - **词库管理**：按主题词单组织单词，搜索/合并去重/分页，支持 AI 配图（火山豆包 Seedream）与 PDF 导出（表格/卡片布局，不含配图）
 - **背词学习**：SM-2 间隔重复算法（8 阶段），每日待复习/新词队列，听力模式，会话统计
+- **实验支持（被试内设计）**：`Word.presentation_mode` 词级呈现模式（`multimodal` 图文音 / `text_only` 纯文字 / NULL 未指定）——
+  纯文字词在学习卡片**不显示配图、不提供发音**（含听力模式不自动播放），图片词卡页对普通用户也隐藏其配图；
+  实验词单（主题前缀 `实验:`）**默认向全体被试开放**（`EXPERIMENT_TOPIC_OPEN=false` 可恢复仅实验组可见）。
+  教师工具：`dev_tools/assign_presentation_modes.py`（`list`/`apply` 按序号绑定、`check` 校验每词单各半、`export` 导出词-模态绑定表、`distribute` 把模板词单分发到全班账号）；词库页亦提供「设置呈现模式 / 导出绑定表」按钮
+- **测试卷计分**：`dev_tools/score_vocab_test.py`（纯标准库）——按「模态 × 知识维度」拆 4 子分，
+  输出 `scores.csv` 与 `stats.txt`（配对 t + d_z + 差值 CI、2×2 重复测量 ANOVA、2×2 混合设计 ANOVA、Bootstrap 95% CI），
+  `--template` 生成三份输入模板，`--selftest` 合成数据自检（含 SS 分解恒等式与 F=t² 交叉验证）
 - **发音**：VOICEVOX 日语 TTS，Web Audio 播放；设置页可调音色/语速/音高/语调/音量并试听
 - **社区**：帖子分享 + 管理员公告（置顶）+ 点赞/评论 + 敏感词过滤 + 管理员删帖
 - **成就系统**：~40 项成就（单词收集/记忆/短文/语法/背诵/连续学习/掌握/社区互动/彩蛋），解锁时前端自动弹窗提示
@@ -105,7 +112,7 @@ Docker Compose 部署，手动 `bash deploy.sh`（无 CI/CD）。
 - **密钥**：secrets/ 目录经 compose 注入容器 `/run/secrets/`；服务器 secrets/ 目录 700、文件 644（非 root 容器需读）；deploy 不覆盖服务器真实密钥
 - **部署流程**：tar 同步 backend → scp frontend → 构建重建 backend → 重启 nginx → 注入版本号 → 健康检查 → 注册每日备份 cron；`deploy.sh rollback` 回滚
 - **运维**（服务器 `/opt/riyucihui`）：`docker compose logs -f` / `restart` / `down`；`python -m app.cli create-admin <用户> <密码>`；每日 03:00 自动备份至 `backups/`（保留 14 份）；证书续期 `bash scripts/cert-setup.sh renew`
-- **环境变量**（`.env` 本地；生产 secrets）：`SECRET_KEY`、`DEEPSEEK_API_KEY`、`VOLCANO_API_KEY`、`DATABASE_URL`、`CORS_ORIGINS`（生产为具体域名）、`DEFAULT_DAILY_*`
+- **环境变量**（`.env` 本地；生产 secrets）：`SECRET_KEY`、`DEEPSEEK_API_KEY`、`VOLCANO_API_KEY`、`DATABASE_URL`、`CORS_ORIGINS`（生产为具体域名）、`DEFAULT_DAILY_*`、`EXPERIMENT_TOPIC_OPEN`（默认 true＝实验词单向全体被试开放）
 - **配图通道**（`IMAGE_PROVIDER`，写入服务器 `/opt/riyucihui/.env`）：
   - `visual`（**当前生产在用**）：视觉智能开放平台，AK/SK 签名 v4 + `Action=CVProcess&Version=2022-08-31`，
     `req_key=high_aes_general_v30l_zt2i`（**通用3.0-文生图**，实测唯一被接受的 3.0 标识），
