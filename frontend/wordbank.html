@@ -73,6 +73,24 @@
                   <button class="btn btn-outline btn-sm" id="btn-show-add-form">＋ 添加单词</button>
                   <button class="btn btn-outline btn-sm" id="btn-merge-duplicates">合并相同单词</button>
                   <button class="btn btn-outline btn-sm" id="btn-export-pdf">导出PDF</button>
+                  <!-- 词级呈现模式（被试内实验用）：仅在选中具体词单时可用 -->
+                  <button class="btn btn-outline btn-sm" id="btn-set-modes" title="按序号批量设置该词单的呈现模式（图文音/纯文字）">🎨 设置呈现模式</button>
+                  <button class="btn btn-outline btn-sm" id="btn-export-bindings" title="导出「词-模态绑定表」CSV（供测试卷计分脚本使用）">📤 导出绑定表</button>
+                </div>
+
+                <!-- 呈现模式设置面板：给出「图文音词」的序号，其余自动置为纯文字 -->
+                <div class="add-word-form" id="mode-form" style="display: none">
+                  <div class="add-word-row">
+                    <span class="exp-label" id="mode-topic-label"></span>
+                    <input type="text" id="mode-multimodal" class="add-word-input" style="flex:1;min-width:260px"
+                           placeholder="图文音词的序号，如 1,4,6,7,9,12,14,16,17,20（其余自动为纯文字）"
+                           autocomplete="off" />
+                    <button class="btn btn-primary btn-sm" id="btn-apply-modes">应用</button>
+                    <button class="btn btn-outline btn-sm" id="btn-cancel-modes">取消</button>
+                  </div>
+                  <div class="qq-admin-note" style="margin-top:6px">
+                    序号 = 当前词单内单词的排列顺序；建议图文音与纯文字各占一半（每 20 词 → 各 10 词）。
+                  </div>
                 </div>
 
                 <div class="add-word-form" id="add-word-form" style="display: none">

@@ -114,8 +114,18 @@ function goWordbankPage(page) {
   wordbankCards.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function renderWordbankCards(data) {
-  const { words, total } = data;
+/** 呈现模式徽章（被试内实验）：纯文字/图文音；未指定则不显示徽章。 */
+function modeBadge(mode) {
+  if (mode === "text_only") {
+    return '<span class="mode-badge text-only" title="纯文字词：学习卡片不显示配图、不提供发音">📄 纯文字</span>';
+  }
+  if (mode === "multimodal") {
+    return '<span class="mode-badge multimodal" title="图文音词：显示配图并提供发音">🎨 图文音</span>';
+  }
+  return "";
+}
+
+function renderWordbankCards(data) {  const { words, total } = data;
   const totalPages = Math.ceil(total / WORD_PAGE_SIZE);
 
   if (total === 0) {
@@ -147,6 +157,7 @@ function renderWordbankCards(data) {
           <span class="card-kana">${esc(w.kana)}</span>
           <span class="card-chinese">${esc(w.chinese)}</span>
           ${jlptBadge(w.jlpt_level)}
+          ${modeBadge(w.presentation_mode)}
           ${w.has_image
             ? `<button class="img-gen-btn has-image" data-id="${w.id}">展示图片</button>`
             : `<button class="img-gen-btn" data-id="${w.id}">生成图片</button>`
@@ -296,6 +307,7 @@ topicList.addEventListener("click", async (e) => {
   topicList.querySelectorAll(".topic-item").forEach((b) => b.classList.remove("active"));
   item.classList.add("active");
   currentTopic = item.dataset.topic;
+  refreshModeButtons();   // 呈现模式设置/导出需选中具体词单
   loadWordbank();
 });
 
@@ -538,6 +550,81 @@ exportConfirmBtn.addEventListener("click", function () {
 
 $("#btn-export-pdf").addEventListener("click", openExportDialog);
 
+// ── 词级呈现模式（被试内实验操纵变量）：批量设置 + 导出绑定表 ──
+const modeForm = $("#mode-form");
+const modeMultimodalInput = $("#mode-multimodal");
+
+function refreshModeButtons() {
+  // 需要选中具体词单才能设置/导出（「全部」视图下序号没有意义）
+  const hasTopic = !!currentTopic;
+  $("#btn-set-modes").disabled = !hasTopic;
+  $("#btn-set-modes").style.opacity = hasTopic ? "" : "0.5";
+  $("#btn-export-bindings").disabled = !hasTopic;
+  $("#btn-export-bindings").style.opacity = hasTopic ? "" : "0.5";
+}
+
+$("#btn-set-modes").addEventListener("click", () => {
+  if (!currentTopic) {
+    showToast("请先在左侧选择一个词单", "error");
+    return;
+  }
+  $("#mode-topic-label").textContent = `词单「${currentTopic}」`;
+  modeForm.style.display = "block";
+  modeMultimodalInput.focus();
+});
+
+$("#btn-cancel-modes").addEventListener("click", () => {
+  modeForm.style.display = "none";
+});
+
+$("#btn-apply-modes").addEventListener("click", async () => {
+  const raw = modeMultimodalInput.value.trim();
+  if (!raw) {
+    showToast("请填写图文音词的序号，如 1,4,6,7,9,12,14,16,17,20", "error");
+    return;
+  }
+  const indexes = raw
+    .replace(/[，、\s]/g, ",")
+    .split(",")
+    .filter(Boolean)
+    .map((x) => parseInt(x, 10));
+  if (indexes.some((n) => !Number.isInteger(n) || n < 1)) {
+    showToast("序号必须是不小于 1 的整数", "error");
+    return;
+  }
+  try {
+    const res = await api.setPresentationModes(currentTopic, indexes);
+    showToast(res.message || "设置成功", "success");
+    modeForm.style.display = "none";
+    modeMultimodalInput.value = "";
+    loadWords();
+  } catch (err) {
+    handleApiError(err, "设置失败");
+  }
+});
+
+$("#btn-export-bindings").addEventListener("click", async () => {
+  if (!currentTopic) {
+    showToast("请先在左侧选择一个词单", "error");
+    return;
+  }
+  try {
+    const { blob, filename } = await api.exportPdf("/words/presentation-mode/export",
+      { topic: currentTopic });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showToast("已导出词-模态绑定表", "success");
+  } catch (err) {
+    handleApiError(err, "导出失败");
+  }
+});
+
 btnAddWord.addEventListener("click", async () => {
   const topic = addWordTopic.value;
   const japanese = addJapanese.value.trim();
@@ -573,5 +660,8 @@ btnAddWord.addEventListener("click", async () => {
 
 // ── 入口：认证 → 加载词库 ──
 initPage().then((ok) => {
-  if (ok) loadWordbank();
+  if (ok) {
+    refreshModeButtons();   // 初始为「全部」视图 → 设置/导出按钮置灰
+    loadWordbank();
+  }
 });

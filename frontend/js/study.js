@@ -197,6 +197,8 @@ btnStartStudy.addEventListener("click", async () => {
 // ── 闪卡渲染 ──
 function renderFlashcard() {
   const w = studyWords[studyIndex];
+  // 词级呈现模式（被试内实验操纵）：纯文字词不显示配图、不提供发音，其余界面完全一致
+  const textOnly = w.presentation_mode === "text_only";
   flashcard.classList.remove("flipped");
   showBack = false;
   studyReviewing = false;
@@ -207,13 +209,18 @@ function renderFlashcard() {
   if (studyMode === "listening") {
     listeningActions.style.display = "";
     flashcardHint.style.display = "none";
-    flashcardFront.innerHTML = `<span style="font-size:48px">🔊</span><br><span style="font-size:14px;color:#9ca3af">听听看，想起这个单词了吗？</span>`;
-    setTimeout(() => {
-      if (!showBack && !studyListeningAudio && studySession.style.display !== "none") {
-        studyListeningAudio = true;
-        speakWord(w.japanese, w.kana, null);
-      }
-    }, 300);
+    if (textOnly) {
+      // 纯文字词不提供语音（被试内实验的呈现模式操纵）：听力模式下明确提示，不播放、不自动发音
+      flashcardFront.innerHTML = `<span style="font-size:48px">📄</span><br><span style="font-size:14px;color:#9ca3af">该词为纯文字材料（无语音），请直接回忆</span>`;
+    } else {
+      flashcardFront.innerHTML = `<span style="font-size:48px">🔊</span><br><span style="font-size:14px;color:#9ca3af">听听看，想起这个单词了吗？</span>`;
+      setTimeout(() => {
+        if (!showBack && !studyListeningAudio && studySession.style.display !== "none") {
+          studyListeningAudio = true;
+          speakWord(w.japanese, w.kana, null);
+        }
+      }, 300);
+    }
   } else {
     listeningActions.style.display = "none";
     flashcardHint.style.display = "";
@@ -243,7 +250,7 @@ function renderFlashcard() {
 
   const imgDiv = $("#flashcard-img");
   const isReview = (w.stage ?? 0) > 0;
-  if (w.image_base64 && !isReview) {
+  if (w.image_base64 && !isReview && !textOnly) {
     imgDiv.style.display = "block";
     imgDiv.innerHTML = `<img src="${esc(w.image_base64)}" alt="${esc(w.japanese)}" />`;
     imgDiv.querySelector("img").addEventListener("click", (e) => {
@@ -264,6 +271,8 @@ function renderFlashcard() {
   const speakBtn = $("#flashcard-speak-btn");
   speakBtn.dataset.speak = w.japanese;
   speakBtn.dataset.kana = w.kana;
+  // 纯文字词隐藏发音按钮（自动播放见下方 autoSpeak 判断）
+  speakBtn.style.display = textOnly ? "none" : "";
 
   studyProgressText.textContent = `${studyIndex + 1} / ${studyWords.length}`;
   studyBarFill.style.width = `${((studyIndex + 1) / studyWords.length) * 100}%`;

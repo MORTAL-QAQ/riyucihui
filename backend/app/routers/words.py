@@ -1,8 +1,11 @@
+import csv
+import io
 from datetime import datetime
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, undefer
 
@@ -20,7 +23,12 @@ from ..schemas import (
 )
 from ..services import word_service
 from ..services.achievement_service import check_achievements
-from ..services.experiment import can_access_locked, is_locked_topic
+from ..services.experiment import (
+    LOCKED_TOPIC_PREFIX,
+    can_access_locked,
+    is_locked_topic,
+    mode_label,
+)
 from ..services.image_service import generate_word_image
 from ..services.rate_limiter import rate_limit
 from ..services.usage_service import check_limit, record_usage
@@ -90,6 +98,7 @@ def list_words(
             # 列表默认不传 base64 图片数据（大幅减小响应体积）；需要时用 include_images=true
             image_base64=w.image_base64 if include_images else None,
             jlpt_level=w.jlpt_level,
+            presentation_mode=w.presentation_mode,
             created_at=w.created_at,
             has_image=w.id in img_ids,
         )
@@ -212,16 +221,22 @@ def list_image_cards(
 
     include_data 默认 False（#30）：不返回图片 base64 数据，避免整页传输巨量内容；
     需要图片数据时显式传 include_data=true（前端仅在展示单张时请求）。
+
+    ⚠️ 实验材料的模态完整性：`presentation_mode == "text_only"` 的纯文字词
+    **不对普通用户展示配图**（否则学生可在此页看到本该隐藏的图片，破坏被试内操纵）；
+    管理员/教师仍可看到，便于检查材料。
     """
-    rows = db.execute(
-        select(Word)
-        .where(
-            Word.user_id == user.id,
-            Word.image_base64.isnot(None),
-            Word.image_base64 != "",
+    stmt = select(Word).where(
+        Word.user_id == user.id,
+        Word.image_base64.isnot(None),
+        Word.image_base64 != "",
+    )
+    if not user.is_admin:
+        stmt = stmt.where(
+            (Word.presentation_mode.is_(None)) | (Word.presentation_mode != "text_only")
         )
-        .options(undefer(Word.image_base64))
-        .order_by(Word.topic, Word.created_at.desc())
+    rows = db.execute(
+        stmt.options(undefer(Word.image_base64)).order_by(Word.topic, Word.created_at.desc())
     ).scalars().all()
 
     topic_map: dict[str, list[Word]] = {}
@@ -254,6 +269,121 @@ def merge_duplicates(
     if removed == 0:
         return {"message": "没有重复单词需要合并", "removed": 0}
     return {"message": f"已合并 {removed} 个重复单词", "removed": removed}
+
+
+# ── 词级呈现模式（被试内实验的核心操纵变量）──
+# 教师按论文「模态分配方案」设置：每个词单 20 词中 10 个图文音、10 个纯文字。
+class PresentationModeBatchIn(BaseModel):
+    """按**序号**批量绑定：multimodal_indexes 为图文音词的序号（1-based，按词单内创建顺序）。
+
+    未列出的词统一置为纯文字。这样教师只需给出「图文音 10 词的序号」，
+    与《实验词单80词示例》的「模态分配方案」表一一对应。
+    """
+    topic: str = Field(..., min_length=1, max_length=100)
+    multimodal_indexes: list[int] = Field(..., min_length=0, max_length=200)
+
+
+class PresentationModeOneIn(BaseModel):
+    mode: str | None = Field(default=None, pattern=r"^(multimodal|text_only)?$")
+
+
+@router.post("/words/presentation-mode")
+def set_presentation_mode_batch(
+    req: PresentationModeBatchIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """按序号批量设置某词单的词级呈现模式（教师用；实验词单需可访问）。"""
+    if is_locked_topic(req.topic) and not can_access_locked(user):
+        raise HTTPException(status_code=403, detail="实验词单当前不可访问")
+
+    words = (
+        db.query(Word)
+        .filter(Word.user_id == user.id, Word.topic == req.topic)
+        .order_by(Word.id)
+        .all()
+    )
+    if not words:
+        raise HTTPException(status_code=404, detail="该词单没有单词")
+
+    n = len(words)
+    bad = [i for i in req.multimodal_indexes if i < 1 or i > n]
+    if bad:
+        raise HTTPException(
+            status_code=400,
+            detail=f"序号超出范围（该词单共 {n} 词）：{bad[:5]}",
+        )
+    mm = set(req.multimodal_indexes)
+    for idx, w in enumerate(words, 1):
+        w.presentation_mode = "multimodal" if idx in mm else "text_only"
+    db.commit()
+
+    return {
+        "message": f"已设置「{req.topic}」共 {n} 词：图文音 {len(mm)} 词、纯文字 {n - len(mm)} 词",
+        "topic": req.topic,
+        "total": n,
+        "multimodal": len(mm),
+        "text_only": n - len(mm),
+    }
+
+
+@router.put("/words/{word_id}/presentation-mode", response_model=WordOut)
+def set_presentation_mode_one(
+    word_id: int,
+    req: PresentationModeOneIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """逐词设置呈现模式（教师用；传 null 清除为「未指定」）。"""
+    word = (
+        db.query(Word)
+        .filter(Word.id == word_id, Word.user_id == user.id)
+        .first()
+    )
+    if not word:
+        raise HTTPException(status_code=404, detail="单词不存在")
+    word.presentation_mode = req.mode or None
+    db.commit()
+    db.refresh(word)
+    return WordOut.model_validate(word)
+
+
+@router.get("/words/presentation-mode/export")
+def export_presentation_bindings(
+    topic: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """导出「词-模态绑定表」CSV（供测试卷计分脚本 score_vocab_test.py 使用）。
+
+    列：主题,序号,单词,假名,呈现模式（图文音/纯文字/未指定）
+    """
+    query = db.query(Word).filter(Word.user_id == user.id)
+    if topic:
+        if is_locked_topic(topic) and not can_access_locked(user):
+            raise HTTPException(status_code=403, detail="实验词单当前不可访问")
+        query = query.filter(Word.topic == topic)
+    elif not can_access_locked(user):
+        query = query.filter(~Word.topic.like(f"{LOCKED_TOPIC_PREFIX}%"))
+    words = query.order_by(Word.topic, Word.id).all()
+    if not words:
+        raise HTTPException(status_code=404, detail="没有可导出的单词")
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["主题", "序号", "单词", "假名", "呈现模式"])
+    counters: dict[str, int] = {}
+    for w in words:
+        counters[w.topic] = counters.get(w.topic, 0) + 1
+        writer.writerow([w.topic, counters[w.topic], w.japanese, w.kana, mode_label(w.presentation_mode)])
+
+    from urllib.parse import quote
+    filename = f"词-模态绑定表_{topic or '全部'}.csv"
+    return Response(
+        content=("\ufeff" + buf.getvalue()).encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
 
 
 @router.get("/words/export/pdf")

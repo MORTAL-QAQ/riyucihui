@@ -86,6 +86,9 @@ class WordFields(BaseModel):
     example_cn: str = Field(..., min_length=0, max_length=500)
     image_base64: str | None = None  # AI 生成配图（base64 PNG）
     jlpt_level: str | None = None    # JLPT 等级 N1-N5
+    # 词级呈现模式（被试内实验的核心操纵变量）：
+    #   "multimodal" 图文音（显示配图 + 提供发音）｜"text_only" 纯文字（不显示配图/发音）｜None 未指定
+    presentation_mode: str | None = Field(default=None, pattern=r"^(multimodal|text_only)?$")
 
 
 class WordItem(WordFields):

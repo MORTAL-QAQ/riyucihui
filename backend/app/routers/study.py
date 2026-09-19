@@ -96,6 +96,11 @@ def sm2(easiness: float, interval: int, repetition: int, quality: int,
 
 
 class WordOut(BaseModel):
+    """学习卡片用的单词结构（含 SM-2 阶段与复习次数）。
+
+    ⚠️ 这里**不能删掉 `presentation_mode`**：它是被试内实验的核心操纵变量，
+    前端据它决定是否显示配图与发音（纯文字词两者都不给）。
+    """
     id: int
     topic: str
     japanese: str
@@ -105,6 +110,7 @@ class WordOut(BaseModel):
     example_cn: str
     image_base64: str | None = None
     jlpt_level: str | None = None
+    presentation_mode: str | None = None
     stage: int = 0
     review_count: int = 0
 
@@ -174,6 +180,7 @@ def _word_out(w: Word, sr: StudyRecord | None) -> WordOut:
         example_cn=w.example_cn,
         image_base64=w.image_base64,
         jlpt_level=w.jlpt_level,
+        presentation_mode=w.presentation_mode,
         stage=sr.stage if sr else 0,
         review_count=sr.review_count if sr else 0,
     )

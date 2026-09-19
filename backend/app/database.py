@@ -128,11 +128,19 @@ def _run_migrations_inner():
         for col, col_type_sqlite, col_type_pg in [
             ("user_id", "INTEGER", "INTEGER"),
             ("jlpt_level", "VARCHAR(3)", "VARCHAR(3)"),
+            # 词级呈现模式（被试内实验核心操纵变量，见 models.Word.presentation_mode）
+            ("presentation_mode", "VARCHAR(20)", "VARCHAR(20)"),
         ]:
             if col not in existing_w:
                 col_type = col_type_pg if dialect == "postgresql" else col_type_sqlite
                 conn.execute(text(f"ALTER TABLE words ADD COLUMN {col} {col_type}"))
                 conn.commit()
+        # 索引：按模态筛选/统计（如导出词-模态绑定表）
+        if "presentation_mode" not in existing_w:
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_words_presentation_mode ON words(presentation_mode)")
+            )
+            conn.commit()
 
         # users columns
         existing_u = {c["name"] for c in inspector.get_columns("users")}

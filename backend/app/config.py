@@ -50,6 +50,12 @@ VISUAL_SCALE = float(os.getenv("VISUAL_SCALE", "2.5"))
 # 生产容器中由 Docker secrets 注入（/run/secrets/DATABASE_URL），不落入 environment。
 DATABASE_URL = _resolve_secret("DATABASE_URL") or "sqlite:///./data/words.db"
 
+# ── 实验词单可见性 ──
+# true （默认）：主题以「实验:」开头的实验词单向**全体被试开放**。
+#   被试内设计（同一人同时学图文音词与纯文字词）下必需——否则未分组的学生看不到材料。
+# false：恢复原先的「仅实验组（experiment_group=experiment）+ 管理员可见」的组间隔离。
+EXPERIMENT_TOPIC_OPEN = os.getenv("EXPERIMENT_TOPIC_OPEN", "true").strip().lower() not in ("0", "false", "no")
+
 # ── VOICEVOX 语音合成配置 ──
 # VOICEVOX 是本地运行的日语 TTS 引擎，默认监听 localhost:50021
 VOICEVOX_BASE_URL = os.getenv("VOICEVOX_BASE_URL", "http://localhost:50021")

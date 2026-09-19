@@ -378,6 +378,22 @@ const api = {
     return request("/experiment/my");
   },
 
+  // ── 词级呈现模式（被试内实验操纵变量） ──
+  /** 按序号批量绑定：给出图文音词的序号，其余自动置为纯文字。 */
+  setPresentationModes(topic, multimodalIndexes) {
+    return request("/words/presentation-mode", {
+      method: "POST",
+      body: JSON.stringify({ topic, multimodal_indexes: multimodalIndexes }),
+    });
+  },
+
+  setPresentationModeOne(wordId, mode) {
+    return request(`/words/${wordId}/presentation-mode`, {
+      method: "PUT",
+      body: JSON.stringify({ mode: mode || null }),
+    });
+  },
+
   // ── Questionnaire（科研问卷） ──
   questionnaires() {
     return request("/questionnaires");

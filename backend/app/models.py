@@ -102,6 +102,12 @@ class Word(Base):
     # 仅在显式 undefer / 延迟加载时才读取，避免列表整行加载巨量数据。
     image_base64 = deferred(Column(String, nullable=True))          # AI 生成的单词配图（base64 PNG）
     jlpt_level = Column(String(3), nullable=True, index=True)   # JLPT 等级 N1-N5
+    # 词级呈现模式（被试内实验的核心操纵变量）：
+    #   "multimodal" = 图文音（显示配图 + 提供发音）
+    #   "text_only"  = 纯文字（不显示配图、不提供发音，其余界面元素一致）
+    #   None         = 未指定（按平台默认，等同 multimodal 的呈现行为）
+    # 绑定在**词**上（同一词对所有被试一致），由教师按「模态分配方案」批量设置。
+    presentation_mode = Column(String(20), nullable=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
