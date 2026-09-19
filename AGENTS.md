@@ -81,3 +81,6 @@ Docker Compose 部署，手动 `bash deploy.sh`（无 CI/CD）。
 - **部署流程**：tar 同步 backend → scp frontend → 构建重建 backend → 重启 nginx → 注入版本号 → 健康检查 → 注册每日备份 cron；`deploy.sh rollback` 回滚
 - **运维**（服务器 `/opt/riyucihui`）：`docker compose logs -f` / `restart` / `down`；`python -m app.cli create-admin <用户> <密码>`；每日 03:00 自动备份至 `backups/`（保留 14 份）；证书续期 `bash scripts/cert-setup.sh renew`
 - **环境变量**（`.env` 本地；生产 secrets）：`SECRET_KEY`、`DEEPSEEK_API_KEY`、`VOLCANO_API_KEY`、`DATABASE_URL`、`CORS_ORIGINS`（生产为具体域名）、`DEFAULT_DAILY_*`
+- **配图通道**（`IMAGE_PROVIDER`）：`ark`（默认，方舟大模型平台，`Bearer <API Key>` + `/images/generations`，生产在用）/ `visual`（视觉智能开放平台，AK/SK 签名 v4 + `CVProcess`，需 `VOLCANO_ACCESS_KEY` / `VOLCANO_SECRET_KEY`，AK 形如 `AKLT…`）
+  - **两种 key 不是一回事**：`ApiKey.txt`（两行：API Key ID + Secret）是**方舟 API Key**，只能走 `ark` 通道，且须在方舟控制台给该 key **授权模型**，否则 403 AccessDenied；`visual.volcengineapi.com` 只接受火山引擎主账号 **AK/SK** 签名请求，用方舟 Key ID 当 AK 会返回 `100009 InvalidAccessKey`
+  - 密钥工具：`dev_tools/check_ark_key.py`（校验 key 的模型权限，区分 403 无授权 / 404 未开通）、`dev_tools/switch_image_key.sh`（预检→备份→切换→实测，`--restore` 回滚）、`dev_tools/verify_image_gen.sh`（生产容器内实测出图）
