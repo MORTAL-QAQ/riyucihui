@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
 """问卷自检：把实现（app/questionnaires.py）与论文源文件逐条比对。
 
+**双源模型**（2026-09 起）：条目措辞命中以下任一源即可判定合规——
+  · 该卷的《建卷清单》（实际建卷用的那份）
+  · 权威源《问卷设计（SDT与学习效果）.md》（总表规定「条目原文有改动以《问卷设计》为准」）
+两者都不命中 = 真正的转写错误。仅命中权威源的行会标注「权威源」，
+便于看出哪些行是按权威源统一过的（如 BPNS 主语、括号举例、卷3 开放题）。
+
 校验内容：
-  A. 题干 / 矩阵行 / 选项：必须能在源文件中**逐字命中**（规范化空白与 Markdown 强调符后）
+  A. 题干 / 矩阵行 / 选项：双源逐字命中
   B. 引导语：同上（未命中则列出源文件原文，供人工确认）
   C. 题量：与源文件「核对清单」声明的题量、页数比对
   D. 反向题：与源文件反向题清单比对（Q1 BPNS 6 题、Q9 SUS 5 题）
@@ -37,6 +43,7 @@ SOURCE_OF = {
     "q4_ctrl": "卷4_认知负荷问卷（建卷清单）.md",
 }
 TOTAL_SHEET = "问卷总表（整理版）.md"
+DESIGN_SHEET = "问卷设计（SDT与学习效果）.md"
 
 
 def norm(s: str) -> str:
@@ -45,6 +52,14 @@ def norm(s: str) -> str:
     s = s.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
     # 源文件用【主语】占位（建卷时替换为《多模态日语词汇学习网站》）
     s = s.replace("【主语】", "《多模态日语词汇学习网站》")
+    s = re.sub(r"\s+", "", s)
+    return s.strip("；;。.")
+
+
+def norm_keep_placeholder(s: str) -> str:
+    """同 norm，但**保留【主语】占位**——用于与权威源对照（权威源是占位形态）。"""
+    s = s.replace("**", "").replace("`", "").replace("　", "")
+    s = s.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
     s = re.sub(r"\s+", "", s)
     return s.strip("；;。.")
 
@@ -70,6 +85,26 @@ def load_all() -> str:
 
 
 ALL_SRC = load_all()
+_design_path = os.path.join(SRC_DIR, DESIGN_SHEET)
+DESIGN_PLACEHOLDER = norm_keep_placeholder(io.open(_design_path, encoding="utf-8").read()) \
+    if os.path.exists(_design_path) else ""
+DESIGN_SRC = load(DESIGN_SHEET)
+
+
+def to_placeholder(s: str) -> str:
+    """把行文本规约成权威源的【主语】占位形态，便于与《问卷设计》比对。"""
+    return norm_keep_placeholder(s).replace("《多模态日语词汇学习网站》", "【主语】") \
+        .replace("我的日语学习", "【主语】")
+
+
+def in_design(s: str) -> bool:
+    """该条目是否命中权威源《问卷设计》（接受【主语】占位形态与已替换形态）。"""
+    if not DESIGN_SRC:
+        return False
+    n = norm(s)
+    return (n in DESIGN_SRC
+            or n in DESIGN_PLACEHOLDER
+            or to_placeholder(s) in DESIGN_PLACEHOLDER)
 
 
 errors = []
@@ -114,14 +149,24 @@ for q in qq.list_questionnaires():
                         missing_opt.append((item["key"], opt))
 
     def report(label, rows, is_error=True):
+        """rows 元素为 (key, text)；命中权威源的行单独列出，不算错误。"""
+        only_design = [(k, t) for k, t in rows if in_design(t)]
+        real_missing = [(k, t) for k, t in rows if not in_design(t)]
         if not rows:
             print(f"  ✓ {label}")
             return
-        tag = "✗" if is_error else "⚠"
-        print(f"  {tag} {label}：{len(rows)} 处未逐字命中")
-        for key, text in rows[:6]:
-            print(f"      [{key}] {text[:60]}")
-        (errors if is_error else warns).extend(f"{code} {label}: [{k}] {t[:60]}" for k, t in rows)
+        if only_design:
+            print(f"  · {label}：{len(only_design)} 行按权威源《问卷设计》统一（建卷清单未回填）")
+            for k, t in only_design[:4]:
+                print(f"      [{k}] {t[:56]}")
+        if real_missing:
+            print(f"  ✗ {label}：{len(real_missing)} 行在两个源中均未找到")
+            for k, t in real_missing[:6]:
+                print(f"      [{k}] {t[:60]}")
+            (errors if is_error else warns).extend(
+                f"{code} {label}: [{k}] {t[:60]}" for k, t in real_missing)
+        elif not only_design:
+            print(f"  ✓ {label}")
 
     report("题干（填空/单选/开放题）逐字命中", missing_item)
     report("矩阵行标签逐字命中", missing_row)
