@@ -378,6 +378,31 @@ const api = {
     return request("/experiment/my");
   },
 
+  // ── Questionnaire（科研问卷） ──
+  questionnaires() {
+    return request("/questionnaires");
+  },
+
+  questionnaireGet(code) {
+    return request(`/questionnaires/${encodeURIComponent(code)}`);
+  },
+
+  questionnaireSubmit(code, answers, durationSec) {
+    return request(`/questionnaires/${encodeURIComponent(code)}`, {
+      method: "POST",
+      body: JSON.stringify({ answers, duration_sec: durationSec || 0 }),
+    });
+  },
+
+  questionnaireHistory() {
+    return request("/questionnaires/my/history");
+  },
+
+  adminQuestionnaireStats(code) {
+    const qs = code ? `?code=${encodeURIComponent(code)}` : "";
+    return request(`/admin/questionnaires/stats${qs}`);
+  },
+
   // ── Admin ──
   adminStats() {
     return request("/admin/stats");

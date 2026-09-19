@@ -394,3 +394,32 @@ class ExperimentPresetWord(Base):
     __table_args__ = (
         Index("ix_exp_preset_words_preset_mm", "preset_id", "is_multimodal"),
     )
+
+
+class QuestionnaireResponse(Base):
+    """问卷提交记录（科研数据，逐条完整保存）。
+
+    `answers` 为 JSON：``{条目 key: 作答值}``，条目 key 与 `app/questionnaires.py`
+    的问卷定义一一对应；同时冻结 `code` / `version` / `name`，
+    即使日后问卷改版，历史数据的含义仍然可解释、可复现。
+
+    `scores` 为提交时按维度算好的均值分（含反向题反转），便于直接导出分析；
+    保留原始 answers 是为了任何口径变更都能重新计分。
+    """
+    __tablename__ = "questionnaire_responses"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code = Column(String(20), nullable=False, index=True)      # 问卷内部标识，如 q2_exp
+    number = Column(String(10), nullable=False, default="")     # 卷号，如 "2"
+    name = Column(String(100), nullable=False, default="")       # 问卷名，如「后测核心（实验组）」
+    version = Column(String(20), nullable=False, default="")     # 问卷定义版本（措辞冻结）
+    answers = Column(Text, nullable=False, default="{}")         # JSON: 条目 key → 作答值
+    scores = Column(Text, nullable=True)                         # JSON: 维度名 → 均值分
+    duration_sec = Column(Integer, default=0)                    # 填答用时（秒）
+    submitted_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # 防重复提交：同一用户对同一问卷（同一版本）只允许提交一次
+    __table_args__ = (UniqueConstraint("user_id", "code", "version"),)

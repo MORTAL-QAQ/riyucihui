@@ -603,6 +603,54 @@ def _run_migrations_inner():
             )
             conn.commit()
 
+        # questionnaire_responses（问卷提交，科研数据）
+        if "questionnaire_responses" not in inspector.get_table_names():
+            if dialect == "postgresql":
+                conn.execute(
+                    text("""
+                    CREATE TABLE questionnaire_responses (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        code VARCHAR(20) NOT NULL,
+                        number VARCHAR(10) NOT NULL DEFAULT '',
+                        name VARCHAR(100) NOT NULL DEFAULT '',
+                        version VARCHAR(20) NOT NULL DEFAULT '',
+                        answers TEXT NOT NULL DEFAULT '{}',
+                        scores TEXT,
+                        duration_sec INTEGER DEFAULT 0,
+                        submitted_at TIMESTAMP DEFAULT NOW(),
+                        CONSTRAINT uq_questionnaire_user_code_version
+                            UNIQUE (user_id, code, version)
+                    )
+                """)
+                )
+            else:
+                conn.execute(
+                    text("""
+                    CREATE TABLE questionnaire_responses (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        code VARCHAR(20) NOT NULL,
+                        number VARCHAR(10) NOT NULL DEFAULT '',
+                        name VARCHAR(100) NOT NULL DEFAULT '',
+                        version VARCHAR(20) NOT NULL DEFAULT '',
+                        answers TEXT NOT NULL DEFAULT '{}',
+                        scores TEXT,
+                        duration_sec INTEGER DEFAULT 0,
+                        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_questionnaire_user_code_version
+                            UNIQUE (user_id, code, version)
+                    )
+                """)
+                )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_qresp_user ON questionnaire_responses(user_id)")
+            )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_qresp_code ON questionnaire_responses(code)")
+            )
+            conn.commit()
+
         # ── Backfill orphaned rows ──
         # #19：已拆出为显式 CLI 命令（python -m app.cli backfill-orphans），
         # 启动时不再隐式修改数据。如需执行请手动运行。

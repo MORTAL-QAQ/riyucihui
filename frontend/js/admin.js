@@ -51,6 +51,7 @@ function switchAdminTab(tab) {
   if (tab === "users") renderAdminCards();
   if (tab === "logins") loadAdminLogins();
   if (tab === "experiment") loadExperimentStats();
+  if (tab === "experiment") loadQuestionnaireStats();
 }
 
 /** 实验数据：总体两组正确率对比 + 每个会话明细 */
@@ -111,6 +112,138 @@ async function loadExperimentStats() {
       </tbody>`;
   } catch (err) {
     expAdminSummary.innerHTML = `<div class="error-msg">加载失败：${esc(err.message)}</div>`;
+  }
+}
+
+// ══════════════ 问卷回答情况（科研问卷） ══════════════
+
+let qqAdminData = null;      // 最近一次拉取的统计（供切换选择时复用）
+let qqAdminCode = "";        // 当前选中的问卷 code（"" = 全部）
+
+async function loadQuestionnaireStats(code) {
+  if (typeof code === "string") qqAdminCode = code;
+  const toolbar = $("#admin-qq-toolbar");
+  const summary = $("#admin-qq-summary");
+  const table = $("#admin-qq-table");
+  if (!toolbar) return;
+  summary.innerHTML = '<div class="empty-state"><p>加载中...</p></div>';
+  table.innerHTML = "";
+  try {
+    const data = await api.adminQuestionnaireStats(qqAdminCode || undefined);
+    qqAdminData = data;
+
+    const forms = data.summary || [];
+    toolbar.innerHTML = `
+      <div class="qq-admin-toolbar">
+        <label class="qq-admin-label">问卷</label>
+        <select id="admin-qq-select" class="qq-admin-select">
+          <option value="">全部问卷（${forms.length}）</option>
+          ${forms.map((f) => `
+            <option value="${esc(f.code)}"${f.code === qqAdminCode ? " selected" : ""}>
+              ${esc(f.display_name)}（${f.submitted}/${f.total_users}）
+            </option>`).join("")}
+        </select>
+        <button class="btn btn-outline btn-sm" id="admin-qq-export-data">⬇ 导出作答数据 CSV</button>
+        <button class="btn btn-outline btn-sm" id="admin-qq-export-dict">⬇ 导出题号对照表</button>
+        <span class="qq-admin-note" id="admin-qq-note">
+          数据一人一行，含各维度均值分；对照表含题干与反向计分标注，可直接进 SPSS/Excel
+        </span>
+      </div>`;
+    $("#admin-qq-select").addEventListener("change", (e) => loadQuestionnaireStats(e.target.value));
+    $("#admin-qq-export-data").addEventListener("click", () => exportQuestionnaire("data"));
+    $("#admin-qq-export-dict").addEventListener("click", () => exportQuestionnaire("dict"));
+
+    // 汇总卡片
+    summary.innerHTML = `
+      <div class="exp-admin-cards">
+        ${forms.map((f) => `
+          <div class="exp-admin-card" data-qq-card="${esc(f.code)}" style="cursor:pointer">
+            <div class="exp-admin-card-label">${esc(f.display_name)}</div>
+            <div class="exp-admin-card-value">${f.submitted}/${f.total_users}</div>
+            <div class="exp-admin-card-sub">
+              回收率 ${f.rate}% · 平均用时 ${f.avg_duration_min} 分钟 · ${f.item_count} 题
+            </div>
+          </div>`).join("")}
+      </div>`;
+    summary.querySelectorAll("[data-qq-card]").forEach((el) => {
+      el.addEventListener("click", () => loadQuestionnaireStats(el.dataset.qqCard));
+    });
+
+    // 逐人明细
+    const detail = data.detail || {};
+    const labels = data.labels || {};
+    let rows = "";
+    forms.forEach((f) => {
+      (detail[f.code] || []).forEach((r) => {
+        const answers = r.answers || {};
+        const answerRows = Object.keys(labels[f.code] || {})
+          .filter((k) => answers[k] !== undefined && answers[k] !== "")
+          .map((k) => `<tr><td class="qq-row-label">${esc(labels[f.code][k])}</td>
+            <td class="qq-done-val">${esc(answers[k])}</td></tr>`).join("");
+        const scoreChips = Object.entries(r.scores || {})
+          .map(([d, v]) => `<span class="qq-score-chip">${esc(d)} ${v}</span>`).join("");
+        rows += `
+          <tr class="qq-admin-row" data-qq-toggle="1">
+            <td>${esc(f.display_name)}</td>
+            <td>${esc(r.name || r.username)}</td>
+            <td>${esc(r.username)}</td>
+            <td>${esc(formatDate(r.submitted_at))}</td>
+            <td>${r.duration_sec ? Math.max(1, Math.round(r.duration_sec / 60)) + " 分钟" : "-"}</td>
+            <td>${Object.keys(answers).length}</td>
+            <td><span class="login-report-toggle">▶</span></td>
+          </tr>
+          <tr class="qq-admin-detail" style="display:none">
+            <td colspan="7">
+              ${scoreChips ? `<div class="qq-score-chips">${scoreChips}</div>` : ""}
+              <table class="qq-done-table">${answerRows || "<tr><td>暂无作答</td></tr>"}</table>
+            </td>
+          </tr>`;
+      });
+    });
+
+    if (!rows) {
+      table.innerHTML = '<tbody><tr><td>暂无问卷提交记录</td></tr></tbody>';
+    } else {
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>问卷</th><th>昵称</th><th>账号</th><th>提交时间</th><th>用时</th><th>作答数</th><th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>`;
+      table.querySelectorAll('[data-qq-toggle]').forEach((tr) => {
+        tr.addEventListener("click", () => {
+          const next = tr.nextElementSibling;
+          const open = next.style.display !== "none";
+          next.style.display = open ? "none" : "table-row";
+          tr.querySelector(".login-report-toggle").textContent = open ? "▶" : "▼";
+        });
+      });
+    }
+  } catch (err) {
+    summary.innerHTML = `<div class="error-msg">加载失败：${esc(err.message)}</div>`;
+  }
+}
+
+async function exportQuestionnaire(kind) {
+  if (!qqAdminCode) {
+    showToast("请先在上方选择一份具体问卷，再导出", "error");
+    return;
+  }
+  try {
+    const { blob, filename } = await api.exportPdf("/admin/questionnaires/export",
+      { code: qqAdminCode, kind });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showToast("导出完成", "success");
+  } catch (err) {
+    handleApiError(err, "导出失败");
   }
 }
 

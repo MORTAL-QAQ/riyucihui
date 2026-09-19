@@ -3,7 +3,8 @@
 import io, re
 
 PAGES = ["community", "wordbank", "study", "generate", "essay", "cloze",
-         "grammar", "image", "experiment", "settings", "achievement", "admin", "saved"]
+         "grammar", "image", "experiment", "questionnaire", "settings",
+         "achievement", "admin", "saved"]
 
 NAV_ITEMS = [
     ("/", "🏠 返回首页", "home"),
@@ -15,6 +16,7 @@ NAV_ITEMS = [
     ("/grammar", "📐 语法", "grammar"),
     ("/image", "📷 图片", "image"),
     ("/experiment", "🧪 实验", "experiment"),
+    ("/questionnaire", "📋 问卷", "questionnaire"),
     ("/community", "💬 社区", "community"),
     ("/achievement", "🏆 成就", "achievement"),
     ("/saved", "💾 保存", "saved"),
